@@ -50,13 +50,16 @@ void AprilSlamCPP::initializeGTSAM() {
     // Debugging/Initialization message.
     ROS_INFO("Initialised GTSAM SLAM system.");
 
-
-    for (int j = 0; j < 89; ++j) {possibleIds.push_back("tag_" + std::to_string(j))};
+    // Predefined tags to search for in the environment.
+    for (int j = 0; j < 89; ++j) {possibleIds_.push_back("tag_" + std::to_string(j))};
     ROS_INFO_STREAM("Possible landmark IDs initialised.");
 
-
-
-    tfListener_(tf_buffer_), 
+    // Transform listener for real-time pose estimation.
+    // tf.TransformListener
+    // Determine the robot's relative position to observed landmarks.
+    // Update the SLAM graph with new measurements
+    // that refine the robot's estimated trajectory and the map of the environment.
+    tfListener_(tf_buffer_);
     landCount_ = 0; 
     initializeGTSAM()
 
