@@ -1,0 +1,10 @@
+Build the project: 
+    Create the work directory:
+	cd catkin/src
+	catkin_create_pkg AprilSlamCPP roscpp std_msgs tf2_ros nav_msgs
+	cd AprilSlamCPP/src
+	code ..
+    Modify cmake file:
+    
+    Modify XML
+	
