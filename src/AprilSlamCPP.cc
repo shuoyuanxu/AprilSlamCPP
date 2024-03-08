@@ -14,7 +14,7 @@
 
 using namespace my_gtsam_project;
 
-GTSAMNode::GTSAMNode(const ros::NodeHandle& node_handle) :
+AprilSlamCPP::AprilSlamCPP(const ros::NodeHandle& node_handle) :
     nh_(node_handle),
     tf_listener_(tf_buffer_),
     pose_index_(1) { // Initial pose index set to 1
