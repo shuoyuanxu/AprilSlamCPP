@@ -27,7 +27,11 @@ private:
     gtsam::NonlinearFactorGraph graph_;
     gtsam::Values initial_estimates_;
     gtsam::ISAM2 isam_;
-    int pose_index_ = 1;
+    int index_of_pose;
+    bool batchInitialization_;
+    std::vector<std::string> possibleIds_;
+    std::map<int, int> tagToNodeIDMap_;
+    int landCount_;
 
     // Method to initialize GTSAM components
     void initializeGTSAM();
