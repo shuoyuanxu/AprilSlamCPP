@@ -12,12 +12,15 @@
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/slam/BetweenFactor.h>
 
-namespace AprilSlamCPP {
+namespace aprislamcpp {
 
 class AprilSlamCPP {
 public:
     AprilSlamCPP(const ros::NodeHandle& node_handle);
-    virtual ~AprilSlamCPP();
+    void initializeGTSAM();
+    gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg);
+    void ISAM2Optimise(); // Declare the optimization method
+    void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
 
 private:
     ros::NodeHandle nh_;
@@ -27,6 +30,9 @@ private:
     gtsam::NonlinearFactorGraph graph_;
     gtsam::Values initial_estimates_;
     gtsam::ISAM2 isam_;
+    gtsam::Pose2 lastPoseSE2_; // Last pose in SE2 format for relative calculations
+    std::vector<std::string> possibleIds_; // Predefined tags in the environment
+    std::map<std::string, int> tagToNodeIDMap_; // Map from tag IDs to node IDs
     int index_of_pose;
     bool batchInitialization_;
     std::vector<std::string> possibleIds_;
@@ -45,7 +51,7 @@ private:
     void updateAndOptimize();
 };
 
-} // namespace my_gtsam_project
+} 
 
 #endif // AprilSlamCPP
 
