@@ -53,7 +53,8 @@ void AprilSlamCPP::initializeGTSAM() {
     graph_.add(gtsam::PriorFactor<gtsam::Pose2>(X(1), priorPose, priorNoise));
 
     // Insert the initial pose estimate
-    initial_estimates_.insert(X(1), priorPose);
+    index_of_pose = 1
+    initial_estimates_.insert(X(index_of_pose), priorPose);
 
     // Debugging/Initialization message.
     ROS_INFO("Initialised GTSAM SLAM system.");
@@ -89,7 +90,6 @@ gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     return gtsam::Pose2(x, y, yaw);
 }
 
-
 void AprilSlamCPP::odomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
     // Convert and process odometry messages
 }
@@ -116,6 +116,41 @@ void AprilSlamCPP::ISAM2Optimise() {
     graph_.resize(0);
     initial_estimates_.clear();
 }
+
+void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
+    index_of_pose += 1; // Increment the pose index for each new odometry message
+
+    // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
+    gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
+
+    // Store the initial pose for relative calculations
+    if (index_of_pose == 2) {
+        lastPoseSE2_ = poseSE2;
+        gtsam::Pose2 pose0(0.0, 0.0, 0.0); // Prior at origin
+        graph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('x', 1), pose0, priorNoise_));
+        initial_estimates_.insert(gtsam::Symbol('x', 1), pose0);
+        lastPose_ = pose0; // Keep track of the last pose for odometry calculation
+    }
+
+    // Calculate the relative motion since the last pose and create a GTSAM Pose2 object
+    gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
+
+    // Add this relative motion as an odometry factor to the graph
+    graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('x', index_of_pose - 1), gtsam::Symbol('x', index_of_pose), odometry, odometryNoise_));
+
+    // Update the last pose and initial estimates for the next iteration
+    lastPoseSE2_ = poseSE2;
+    initial_estimates_.insert(gtsam::Symbol('x', index_of_pose), poseSE2);
+
+    // Handle landmark observations similar to your Python code, adapted for C++
+    // For example, detecting landmarks and adding them to the graph goes here
+
+    // If needed, perform an ISAM2 optimization to update the map and robot pose estimates
+    if (index_of_pose % 1 == 0) { // Adjust this condition as necessary
+        ISAM2Optimise();
+    }
+}
+
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "april_slam_cpp");
