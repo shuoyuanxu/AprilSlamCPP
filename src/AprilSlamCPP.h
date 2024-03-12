@@ -29,6 +29,7 @@ private:
     tf2_ros::TransformListener tf_listener_;
     gtsam::NonlinearFactorGraph graph_;
     gtsam::Values initial_estimates_;
+    gtsam::Values landmarkEstimates;
     gtsam::ISAM2 isam_;
     gtsam::Pose2 lastPoseSE2_; // Last pose in SE2 format for relative calculations
     std::vector<std::string> possibleIds_; // Predefined tags in the environment
