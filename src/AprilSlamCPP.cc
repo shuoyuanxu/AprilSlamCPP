@@ -110,7 +110,7 @@ void AprilSlamCPP::ISAM2Optimise() {
 
     // Update the last pose based on the latest estimates
     // Assuming 'i' is properly maintained elsewhere in your class
-    auto lastPose_ = result.at<gtsam::Pose2>(X(index_of_pose));
+    gtsam::Pose2 lastPose_ = result.at<gtsam::Pose2>(X(index_of_pose));
 
     // Clear the graph and initial estimates for the next iteration
     graph_.resize(0);
@@ -132,19 +132,58 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
         lastPose_ = pose0; // Keep track of the last pose for odometry calculation
     }
 
-    // Calculate the relative motion since the last pose and create a GTSAM Pose2 object
+    // Predict the next pose based on odometry and add it as an initial estimate
     gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
+    gtsam::Pose2 predictedPose = lastPose_.compose(odometry)
 
     // Add this relative motion as an odometry factor to the graph
     graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('x', index_of_pose - 1), gtsam::Symbol('x', index_of_pose), odometry, odometryNoise_));
 
     // Update the last pose and initial estimates for the next iteration
-    lastPoseSE2_ = poseSE2;
+    lastPose_ = predictedPose;
     initial_estimates_.insert(gtsam::Symbol('x', index_of_pose), poseSE2);
+    landmarkEstimates.insert(gtsam::Symbol('x', index_of_pose), poseSE2);
+    
+    // Iterate through possible landmark IDs to check for observations
+    for (const auto& tag_id : possibleIds_) {    
+        // Check if a transform is available from base_link to the landmark
+        if (tf_buffer_.canTransform("base_link", tag_id, ros::Time(0), ros::Duration(0.1))) {
+            geometry_msgs::TransformStamped transformStamped;
+            try {
+                transformStamped = tf_buffer_.lookupTransform("base_link", tag_id, ros::Time(0), ros::Duration(0.1));
+            } catch (tf2::TransformException &ex) {
+                ROS_WARN("%s", ex.what());
+                continue;
+            }
 
-    // Handle landmark observations similar to your Python code, adapted for C++
-    // For example, detecting landmarks and adding them to the graph goes here
+            // Extract the transform details
+            double trans_x = transformStamped.transform.translation.x;
+            double trans_y = transformStamped.transform.translation.y;
+            
+            // Convert to bearing and range
+            double range = sqrt(pow(trans_x, 2) + pow(trans_y, 2));
+            double bearing = atan2(trans_y, trans_x);
+            
+            // Identify or create a landmark key
+            gtsam::Key landmarkKey;
+            auto it = tagToNodeIDMap_.find(tag_id);
+            if (it == tagToNodeIDMap_.end()) {
+                // New landmark detected
+                int newLandmarkId = ++landCount_;
+                tagToNodeIDMap_[tag_id] = newLandmarkId;
+                landmarkKey = gtsam::Symbol('l', newLandmarkId);
+                initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y)); // Simple initial estimate
+            } else {
+                // Existing landmark
+                landmarkKey = gtsam::Symbol('l', it->second);
+            }
 
+            // Add a bearing-range observation for this landmark to the graph
+            graph_.add(gtsam::BearingRangeFactor2D(gtsam::Symbol('x', i_), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise_));
+        }
+    }
+
+    lastPoseSE2_ = poseSE2;
     // If needed, perform an ISAM2 optimization to update the map and robot pose estimates
     if (index_of_pose % 1 == 0) { // Adjust this condition as necessary
         ISAM2Optimise();
