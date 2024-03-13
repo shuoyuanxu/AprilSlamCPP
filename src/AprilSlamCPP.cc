@@ -175,26 +175,24 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
             // Check if the landmark has been observed before
             if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
                 // Existing landmark
-                auto factor = gtsam::BearingRangeFactor2D(gtsam::Symbol('X', i_), landmarkKey, gtsam::Rot2::fromAngle(brng), rng, brNoise_);
+                auto factor = gtsam::BearingRangeFactor2D(gtsam::Symbol('X', i_), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise);
                 gtsam::Vector(2) error = factor.unwhitenedError(landmarkEstimates);
-                graph_.add(factor);
-                
-                if np.linalg.norm(error) < 100:
-                        self.graph.add(
-                            gtsam.BearingRangeFactor2D(self.i, landKey, gtsam.Rot2(brng), rng, self.BR_NOISE))
-                else:
-                        print('Error too high, not adding factor for landmark {}'.format(ii))
 
-
-            } else {
+                // Threshold for ||projection - measurement||
+                if (fabs(error[0]) < 0.2) graph_.add(factor);
+            } 
+            else {
                  // New landmark detected
                 tagToNodeIDMap_[tag_number] = landmarkKey;
                 initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y)); // Simple initial estimate
                 landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
-            }
 
-            // Add a bearing-range observation for this landmark to the graph
-            graph_.add(gtsam::BearingRangeFactor2D(gtsam::Symbol('X', i_), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise_));
+                // Add a prior for the landmark position to help with initial estimation.
+                graph_.add(gtsam::PriorFactorPoint2(landmarkKey, point, self.looseNoise))
+
+                // Add a bearing-range observation for this landmark to the graph
+                graph_.add(gtsam::BearingRangeFactor2D(gtsam::Symbol('X', i_), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise));
+            }
         }
     }
 
@@ -205,14 +203,18 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     }
 }
 
-
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
+    // Initialize the ROS system and specify the name of the node
     ros::init(argc, argv, "april_slam_cpp");
+
+    // Create a handle to this process' node
     ros::NodeHandle nh;
 
-    aprislamcpp::AprilSlamCPP aprilSlamNode(nh);
-    
-    ros::spin(); // Keep the node running and listening to callbacks.
+    // Create an instance of the AprilSlamCPP class, passing in the node handle
+    aprislamcpp::AprilSlamCPP slamNode(nh);
+
+    // ROS enters a loop, pumping callbacks. Internally, it will call all the callbacks waiting to be called at that point in time.
+    ros::spin();
+
     return 0;
 }
-
