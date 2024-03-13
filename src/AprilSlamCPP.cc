@@ -164,22 +164,37 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
             double range = sqrt(pow(trans_x, 2) + pow(trans_y, 2));
             double bearing = atan2(trans_y, trans_x);
             
-            // Identify or create a landmark key
-            gtsam::Key landmarkKey;
-            auto it = tagToNodeIDMap_.find(tag_id);
-            if (it == tagToNodeIDMap_.end()) {
-                // New landmark detected
-                int newLandmarkId = ++landCount_;
-                tagToNodeIDMap_[tag_id] = newLandmarkId;
-                landmarkKey = gtsam::Symbol('l', newLandmarkId);
-                initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y)); // Simple initial estimate
-            } else {
+            // Split the tag_id to get the tag number. Assume tag IDs are in the format "tag_X"
+            auto underscorePos = tag_id.find('_');
+            if (underscorePos == std::string::npos) continue; // Skip if the format is unexpected
+            int tag_number = std::stoi(tag_id.substr(underscorePos + 1));
+    
+            // Construct the landmark key
+            gtsam::Symbol landmarkKey('L', tag_number);
+
+            // Check if the landmark has been observed before
+            if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
                 // Existing landmark
-                landmarkKey = gtsam::Symbol('l', it->second);
+                auto factor = gtsam::BearingRangeFactor2D(gtsam::Symbol('X', i_), landmarkKey, gtsam::Rot2::fromAngle(brng), rng, brNoise_);
+                gtsam::Vector(2) error = factor.unwhitenedError(landmarkEstimates);
+                graph_.add(factor);
+                
+                if np.linalg.norm(error) < 100:
+                        self.graph.add(
+                            gtsam.BearingRangeFactor2D(self.i, landKey, gtsam.Rot2(brng), rng, self.BR_NOISE))
+                else:
+                        print('Error too high, not adding factor for landmark {}'.format(ii))
+
+
+            } else {
+                 // New landmark detected
+                tagToNodeIDMap_[tag_number] = landmarkKey;
+                initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y)); // Simple initial estimate
+                landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
             }
 
             // Add a bearing-range observation for this landmark to the graph
-            graph_.add(gtsam::BearingRangeFactor2D(gtsam::Symbol('x', i_), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise_));
+            graph_.add(gtsam::BearingRangeFactor2D(gtsam::Symbol('X', i_), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise_));
         }
     }
 
