@@ -6,7 +6,7 @@
 #include <gtsam/geometry/Pose2.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h> // For TF2 quaternion conversion functions
-#include <gtsam/navigation/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/navigation/GPSFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
@@ -15,7 +15,7 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/geometry/Pose2.h>
 
-using namespace aprislamcpp;
+namespace aprislamcpp {
 using symbol_shorthand::X; // For pose variables
 using symbol_shorthand::L; // For landmark variables
 
@@ -201,6 +201,7 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     if (index_of_pose % 1 == 0) { // Adjust this condition as necessary
         ISAM2Optimise();
     }
+}
 }
 
 int main(int argc, char **argv) {
