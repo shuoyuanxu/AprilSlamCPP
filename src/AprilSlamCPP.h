@@ -16,8 +16,7 @@ namespace aprislamcpp{
 
 class AprilSlamCPP {
 public:
-    AprilSlamCPP(const ros::NodeHandle& node_handle);
-    void initializeGTSAM();
+    explicit AprilSlamCPP(ros::NodeHandle node_handle); // Use explicit for single-argument constructors    void initializeGTSAM();
     gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg);
     void ISAM2Optimise(); // Declare the optimization method
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
