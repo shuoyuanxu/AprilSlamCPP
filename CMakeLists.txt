@@ -3,6 +3,7 @@ project(AprilSlamCPP)
 
 # Set GTSAM_DIR to the directory containing GTSAMConfig.cmake
 set(GTSAM_DIR "/usr/local/lib/cmake/GTSAM")
+set(CMAKE_CXX_STANDARD 17)
 
 find_package(catkin REQUIRED COMPONENTS
   nav_msgs
@@ -11,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   GTSAM
 )
+
+find_package(Eigen3 REQUIRED) # Find Eigen
 
 catkin_package(
   INCLUDE_DIRS include

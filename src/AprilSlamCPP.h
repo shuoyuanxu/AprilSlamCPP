@@ -12,7 +12,7 @@
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/slam/BetweenFactor.h>
 
-namespace aprislamcpp {
+namespace aprislamcpp{
 
 class AprilSlamCPP {
 public:

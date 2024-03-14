@@ -63,3 +63,12 @@ Python instruction:
 	sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
 	sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
 
+
+
+Some Remarks: 
+
+	1. error: ‘optional’ in namespace ‘std’ does not name a template type
+	std::optional is c++17 only, add this line to your cmake file:
+
+	set(CMAKE_CXX_STANDARD 17)
+
