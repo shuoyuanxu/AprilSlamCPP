@@ -21,8 +21,8 @@ using symbol_shorthand::L; // For landmark variables
 
 
 // Constructor
-AprilSlamCPP::AprilSlamCPP(const ros::NodeHandle& node_handle) :
-    nh_(node_handle), tf_listener_(tf_buffer_){ 
+AprilSlamCPP::AprilSlamCPP(ros::NodeHandle node_handle)
+    : nh_(node_handle), tf_listener_(tf_buffer_){ 
 
     // Initialize GTSAM components
     initializeGTSAM();
@@ -92,6 +92,7 @@ gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
 
 void AprilSlamCPP::odomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
     // Convert and process odometry messages
+    addOdomFactor(msg);
 }
 
 void AprilSlamCPP::ISAM2Optimise() {
