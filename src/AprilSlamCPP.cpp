@@ -64,7 +64,7 @@ gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     tf2::Quaternion tfQuat(qx, qy, qz, qw);
     double roll, pitch, yaw;
     tf2::Matrix3x3(tfQuat).getRPY(roll, pitch, yaw);
-
+    ROS_INFO("Translated_Pose: %d", x, y, yaw);
     return gtsam::Pose2(x, y, yaw);
 }
 
