@@ -1,24 +1,6 @@
-#include "AprilSlamCPP.h"
-#include <ros/ros.h>
-#include <tf2_ros/transform_listener.h>
-#include <geometry_msgs/TransformStamped.h>
-#include <nav_msgs/Odometry.h>
-#include <gtsam/geometry/Pose2.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h> // For TF2 quaternion conversion functions
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/navigation/GPSFactor.h>
-#include <gtsam/slam/BetweenFactor.h>
-#include <gtsam/slam/PriorFactor.h>
-#include <gtsam/inference/Symbol.h>
-#include <gtsam/nonlinear/ISAM2.h>
-#include <gtsam/nonlinear/Values.h>
-#include <gtsam/geometry/Pose2.h>
+#include "AprilSlam_Header.h"
 
 namespace aprislamcpp {
-using symbol_shorthand::X; // For pose variables
-using symbol_shorthand::L; // For landmark variables
-
 
 // Constructor
 AprilSlamCPP::AprilSlamCPP(ros::NodeHandle node_handle)
@@ -29,6 +11,7 @@ AprilSlamCPP::AprilSlamCPP(ros::NodeHandle node_handle)
 
     // Subscribe to odometry topic
     odom_sub_ = nh_.subscribe("/odometry/filtered", 1000, &AprilSlamCPP::odomCallback, this);
+    pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("slam_pose", 10);
 }
 
 
@@ -38,23 +21,19 @@ void AprilSlamCPP::initializeGTSAM() {
     priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 0.1, 0.3, 0.1).finished());
     brNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << 0.1, 0.8).finished()); // Note: Vector size matches bearing-range model
     pointNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << 10, 10).finished()); // Note: Vector size matches point landmark model
-   
+    
     // Initialize the factor graph
     graph_ = gtsam::NonlinearFactorGraph();
 
     // Initialize ISAM2 with parameters.
     gtsam::ISAM2Params parameters;
-    parameters.setRelinearizeThreshold = 0.1;  // Threshold for re-linearization
+    parameters.setRelinearizeThreshold(0.1);  // Threshold for re-linearization
     isam_ = gtsam::ISAM2(parameters);
     batchInitialization_ = true;  // Flag to indicate if batch initialization is required.
 
-    // Add a prior on the first pose at the origin
-    gtsam::Pose2 priorPose(0.0, 0.0, 0.0);
-    graph_.add(gtsam::PriorFactor<gtsam::Pose2>(X(1), priorPose, priorNoise));
 
     // Insert the initial pose estimate
-    index_of_pose = 1
-    initial_estimates_.insert(X(index_of_pose), priorPose);
+    index_of_pose = 1;
 
     // Debugging/Initialization message.
     ROS_INFO("Initialised GTSAM SLAM system.");
@@ -111,8 +90,23 @@ void AprilSlamCPP::ISAM2Optimise() {
 
     // Update the last pose based on the latest estimates
     // Assuming 'i' is properly maintained elsewhere in your class
-    gtsam::Pose2 lastPose_ = result.at<gtsam::Pose2>(X(index_of_pose));
+    gtsam::Pose2 lastPose_ = result.at<gtsam::Pose2>(gtsam::Symbol('x', index_of_pose));
 
+    // Convert lastPose_ to PoseStamped message
+    geometry_msgs::PoseStamped poseMsg;
+    poseMsg.header.frame_id = "map"; // Change according to your frame setup
+    poseMsg.header.stamp = ros::Time::now();
+    poseMsg.pose.position.x = lastPose_.x();
+    poseMsg.pose.position.y = lastPose_.y();
+    poseMsg.pose.position.z = 0; // Assuming 2D
+    
+    tf2::Quaternion quat;
+    quat.setRPY(0, 0, lastPose_.theta());
+    poseMsg.pose.orientation = tf2::toMsg(quat);
+
+    // Publish the pose
+    pose_pub_.publish(poseMsg);
+    
     // Clear the graph and initial estimates for the next iteration
     graph_.resize(0);
     initial_estimates_.clear();
@@ -128,17 +122,20 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     if (index_of_pose == 2) {
         lastPoseSE2_ = poseSE2;
         gtsam::Pose2 pose0(0.0, 0.0, 0.0); // Prior at origin
-        graph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('x', 1), pose0, priorNoise_));
+        ROS_INFO("adding pose priors");
+        graph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('x', 1), pose0, priorNoise));
+        ROS_INFO("added pose prior");
         initial_estimates_.insert(gtsam::Symbol('x', 1), pose0);
         lastPose_ = pose0; // Keep track of the last pose for odometry calculation
     }
 
     // Predict the next pose based on odometry and add it as an initial estimate
     gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
-    gtsam::Pose2 predictedPose = lastPose_.compose(odometry)
+    gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
 
     // Add this relative motion as an odometry factor to the graph
-    graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('x', index_of_pose - 1), gtsam::Symbol('x', index_of_pose), odometry, odometryNoise_));
+    ROS_INFO("adding first between");
+    graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('x', index_of_pose - 1), gtsam::Symbol('x', index_of_pose), odometry, odometryNoise));
 
     // Update the last pose and initial estimates for the next iteration
     lastPose_ = predictedPose;
@@ -168,7 +165,7 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
             // Split the tag_id to get the tag number. Assume tag IDs are in the format "tag_X"
             auto underscorePos = tag_id.find('_');
             if (underscorePos == std::string::npos) continue; // Skip if the format is unexpected
-            int tag_number = std::stoi(tag_id.substr(underscorePos + 1));
+            int tag_number = std::stoi(tag_id.substr(underscorePos + 1)) +1;
     
             // Construct the landmark key
             gtsam::Symbol landmarkKey('L', tag_number);
@@ -176,8 +173,11 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
             // Check if the landmark has been observed before
             if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
                 // Existing landmark
-                auto factor = gtsam::BearingRangeFactor2D(gtsam::Symbol('X', i_), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise);
-                gtsam::Vector(2) error = factor.unwhitenedError(landmarkEstimates);
+                ROS_INFO("Index of pose wrong: %d", index_of_pose);
+                gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                    gtsam::Symbol('x', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                );
+                gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
 
                 // Threshold for ||projection - measurement||
                 if (fabs(error[0]) < 0.2) graph_.add(factor);
@@ -189,10 +189,15 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
 
                 // Add a prior for the landmark position to help with initial estimation.
-                graph_.add(gtsam::PriorFactorPoint2(landmarkKey, point, self.looseNoise))
+                ROS_INFO("adding landmark priors");
+                graph_.add(gtsam::PriorFactor(landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise));
 
                 // Add a bearing-range observation for this landmark to the graph
-                graph_.add(gtsam::BearingRangeFactor2D(gtsam::Symbol('X', i_), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise));
+                ROS_INFO("adding BR factor");
+                ROS_INFO("Index of pose: %d", index_of_pose);
+                gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                    gtsam::Symbol('x', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                );
             }
         }
     }
