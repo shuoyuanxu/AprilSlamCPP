@@ -22,6 +22,9 @@ void AprilSlamCPP::initializeGTSAM() {
     brNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << 0.1, 0.8).finished()); // Note: Vector size matches bearing-range model
     pointNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << 10, 10).finished()); // Note: Vector size matches point landmark model
     
+    // Index to keep track of the sequential pose.
+    index_of_pose = 1;
+
     // Initialize the factor graph
     graph_ = gtsam::NonlinearFactorGraph();
 
@@ -30,10 +33,6 @@ void AprilSlamCPP::initializeGTSAM() {
     parameters.setRelinearizeThreshold(0.1);  // Threshold for re-linearization
     isam_ = gtsam::ISAM2(parameters);
     batchInitialization_ = true;  // Flag to indicate if batch initialization is required.
-
-
-    // Insert the initial pose estimate
-    index_of_pose = 1;
 
     // Debugging/Initialization message.
     ROS_INFO("Initialised GTSAM SLAM system.");
