@@ -1,6 +1,27 @@
 #include "AprilSlam_Header.h"
 
 namespace aprislamcpp {
+// Utility function to normalize an angle to the range [-pi, pi]
+double wrapToPi(double angle) {
+    angle = fmod(angle + M_PI, 2 * M_PI);
+    if (angle < 0)
+        angle += 2 * M_PI;
+    return angle - M_PI;
+}
+
+// Computes the relative pose between two Pose2 objects
+gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& PoseSE2) {
+    double dx = PoseSE2.x() - lastPoseSE2.x();
+    double dy = PoseSE2.y() - lastPoseSE2.y();
+
+    // Assuming the robot is always moving forward
+    double Dx = std::sqrt(dx * dx + dy * dy);
+    double dtheta = wrapToPi(PoseSE2.theta() - lastPoseSE2.theta());
+
+    // Create a Pose2 object for the relative pose
+    // Note: Since Dy is assumed to be zero, it's omitted in constructing the Pose2 object
+    return gtsam::Pose2(Dx, 0, dtheta);
+}
 
 // Constructor
 AprilSlamCPP::AprilSlamCPP(ros::NodeHandle node_handle)
@@ -64,7 +85,7 @@ gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     tf2::Quaternion tfQuat(qx, qy, qz, qw);
     double roll, pitch, yaw;
     tf2::Matrix3x3(tfQuat).getRPY(roll, pitch, yaw);
-    ROS_INFO("Translated_Pose: %d", x, y, yaw);
+    ROS_INFO("Translated_Pose: x=%f, y=%f, yaw=%f", x, y, yaw);
     return gtsam::Pose2(x, y, yaw);
 }
 
@@ -121,19 +142,19 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     if (index_of_pose == 2) {
         lastPoseSE2_ = poseSE2;
         gtsam::Pose2 pose0(0.0, 0.0, 0.0); // Prior at origin
-        ROS_INFO("adding pose priors");
         graph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('x', 1), pose0, priorNoise));
-        ROS_INFO("added pose prior");
+        ROS_INFO("added first pose prior");
         initial_estimates_.insert(gtsam::Symbol('x', 1), pose0);
         lastPose_ = pose0; // Keep track of the last pose for odometry calculation
     }
 
     // Predict the next pose based on odometry and add it as an initial estimate
-    gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
+    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
+    ROS_INFO("Odometry: x=%f, y=%f, yaw=%f", odometry.x(), odometry.y(), odometry.theta());
 
     // Add this relative motion as an odometry factor to the graph
-    ROS_INFO("adding first between");
+    ROS_INFO("adding between");
     graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('x', index_of_pose - 1), gtsam::Symbol('x', index_of_pose), odometry, odometryNoise));
 
     // Update the last pose and initial estimates for the next iteration
