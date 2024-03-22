@@ -31,7 +31,7 @@ AprilSlamCPP::AprilSlamCPP(ros::NodeHandle node_handle)
     initializeGTSAM();
 
     // Subscribe to odometry topic
-    odom_sub_ = nh_.subscribe("/odometry/filtered", 1000, &AprilSlamCPP::odomCallback, this);
+    odom_sub_ = nh_.subscribe("/odometry/filtered", 1000, &AprilSlamCPP::addOdomFactor, this);
     pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("slam_pose", 10);
 }
 
@@ -89,10 +89,6 @@ gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     return gtsam::Pose2(x, y, yaw);
 }
 
-void AprilSlamCPP::odomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
-    // Convert and process odometry messages
-    addOdomFactor(msg);
-}
 
 void AprilSlamCPP::ISAM2Optimise() {
     // Check if we need to perform a batch initialization
@@ -210,8 +206,9 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
 
                 // Add a prior for the landmark position to help with initial estimation.
                 ROS_INFO("adding landmark priors");
-                graph_.add(gtsam::PriorFactor(landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise));
-
+                graph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                    landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise)
+                );
                 // Add a bearing-range observation for this landmark to the graph
                 ROS_INFO("adding BR factor");
                 ROS_INFO("Index of pose: %d", index_of_pose);
