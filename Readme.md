@@ -31,12 +31,10 @@ Here they will ask for username and password, use token as your password instead
 
 Build the project: 
 1. Create the work directory:
-
-	
-	cd catkin/src
-	catkin_create_pkg AprilSlamCPP roscpp std_msgs tf2_ros nav_msgs
-	cd AprilSlamCPP/src
-	code ..
+		cd catkin/src
+		catkin_create_pkg AprilSlamCPP roscpp std_msgs tf2_ros nav_msgs
+		cd AprilSlamCPP/src
+		code ..
 	
 
 2. Modify cmake file:
