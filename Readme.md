@@ -75,10 +75,10 @@ Some Remarks:
 
 This is due to the fact that the default search directory of gtsam_wrapper.mexa64 is /usr/lib/ yet all related libs are installed to /usr/local/lib. All corresponding files (the ones mentioned in Matlab error message) needs to be copied to /usr/lib/
 
-	```
-	sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
-	sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
-	```
+```
+sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
+sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
+```
 		
 4. Matlab toolbox: cmake -D GTSAM_INSTALL_MATLAB_TOOLBOX=1 ..
 	copy the toolbox from usr/local/ to work directory, then add the folder to path in Matlab
