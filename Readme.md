@@ -1,16 +1,16 @@
 # A simple implemenatation of the TagSlam based on GTSAM 
 GitHub setup
 
-	#### 1. Create the token in Github webpage, activate the repo option
-	#### 2. Install Git's Credential Helper (to avoid typing password repetitively) 
+1. Create the token in Github webpage, activate the repo option
+2. Install Git's Credential Helper (to avoid typing password repetitively) 
 
 		sudo apt-get install libsecret-1-0 libsecret-1-dev
 		cd /usr/share/doc/git/contrib/credential/libsecret
 		sudo make
 		git config --global credential.helper /usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret
 
-	3. Create a repo on Github webpage
-	4. prepare local repo:
+4. Create a repo on Github webpage
+5. prepare local repo:
 
 		
 		git init
@@ -20,7 +20,7 @@ GitHub setup
 		git push -u origin main (--force)
 		
 
-		Here they will ask for username and password, use token as your password instead of github password
+Here they will ask for username and password, use token as your password instead of github password
 
 		Other useful commands
 		1. Rename branch: git branch -m master main
