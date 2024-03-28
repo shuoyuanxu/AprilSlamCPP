@@ -1,4 +1,5 @@
-# GitHub setup
+# A simple implemenatation of the TagSlam based on GTSAM 
+GitHub setup
 
 	#### 1. Create the token in Github webpage, activate the repo option
 	#### 2. Install Git's Credential Helper (to avoid typing password repetitively) 
