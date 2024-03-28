@@ -46,13 +46,13 @@ code ..
 
 Python instruction:
 
-	
-	sudo apt install python3-pip
-	pip install gtsam
-	
+```	
+sudo apt install python3-pip
+pip install gtsam
+```
 
 make the python script executable
-	chmod +x /home/shuoyuan/catkin_ws/src/april_slam/odomGTSAMTest.py
+```chmod +x /home/shuoyuan/catkin_ws/src/april_slam/odomGTSAMTest.py```
 
 If error, add #endif to the header when compiling gtsam (std_optional_serialization.h)
 
@@ -64,13 +64,14 @@ Some Remarks:
 1. error: ‘optional’ in namespace ‘std’ does not name a template type
 	std::optional is c++17 only, add this line to your cmake file:
 
-	set(CMAKE_CXX_STANDARD 17)
+```set(CMAKE_CXX_STANDARD 17)```
 
 2. error: static assertion failed: Error: GTSAM was built against a different version of Eigen
 
-	need to rebuild: cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..
+	need to rebuild:
+```cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..```
 
-3. error: gtsam_wrapper.mexa64 unable to find libgtsam.so.4
+4. error: gtsam_wrapper.mexa64 unable to find libgtsam.so.4
 
 This is due to the fact that the default search directory of gtsam_wrapper.mexa64 is /usr/lib/ yet all related libs are installed to /usr/local/lib. All corresponding files (the ones mentioned in Matlab error message) needs to be copied to /usr/lib/
 
@@ -83,4 +84,4 @@ This is due to the fact that the default search directory of gtsam_wrapper.mexa6
 	copy the toolbox from usr/local/ to work directory, then add the folder to path in Matlab
 
 5. To hide "Warning: TF_REPEATED_DATA ignoring data with redundant timestamp" error in terminal
-	rosrun AprilSlamCPP AprilSlamCPP 2> >(grep -v TF_REPEATED_DATA buffer_core)
+```rosrun AprilSlamCPP AprilSlamCPP 2> >(grep -v TF_REPEATED_DATA buffer_core)```
