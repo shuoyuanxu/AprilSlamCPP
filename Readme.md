@@ -1,6 +1,6 @@
 # GitHub setup
-	1. Create the token in Github webpage, activate the repo option
-	2. Install Git's Credential Helper (to avoid typing password repetitively) 
+	#### 1. Create the token in Github webpage, activate the repo option
+	#### 2. Install Git's Credential Helper (to avoid typing password repetitively) 
 
 		```
 		sudo apt-get install libsecret-1-0 libsecret-1-dev
