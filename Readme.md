@@ -53,8 +53,7 @@ Python instruction:
 	
 
 make the python script executable
-
-	```chmod +x /home/shuoyuan/catkin_ws/src/april_slam/odomGTSAMTest.py```
+	chmod +x /home/shuoyuan/catkin_ws/src/april_slam/odomGTSAMTest.py
 
 If error, add #endif to the header when compiling gtsam (std_optional_serialization.h)
 
