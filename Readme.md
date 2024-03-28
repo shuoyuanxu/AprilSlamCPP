@@ -2,12 +2,10 @@
 	#### 1. Create the token in Github webpage, activate the repo option
 	#### 2. Install Git's Credential Helper (to avoid typing password repetitively) 
 
-		```
-		sudo apt-get install libsecret-1-0 libsecret-1-dev
+		```sudo apt-get install libsecret-1-0 libsecret-1-dev
 		cd /usr/share/doc/git/contrib/credential/libsecret
 		sudo make
-		git config --global credential.helper /usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret
-		```
+		git config --global credential.helper /usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret```
 
 	3. Create a repo on Github webpage
 	4. prepare local repo:
