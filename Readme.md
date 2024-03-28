@@ -3,21 +3,21 @@
 	#### 1. Create the token in Github webpage, activate the repo option
 	#### 2. Install Git's Credential Helper (to avoid typing password repetitively) 
 
-		```sudo apt-get install libsecret-1-0 libsecret-1-dev
+		sudo apt-get install libsecret-1-0 libsecret-1-dev
 		cd /usr/share/doc/git/contrib/credential/libsecret
 		sudo make
-		git config --global credential.helper /usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret```
+		git config --global credential.helper /usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret
 
 	3. Create a repo on Github webpage
 	4. prepare local repo:
 
-		```
+		
 		git init
 		git add .
 		git commit -m "InitialCommit"
 		git remote add origin http://......
 		git push -u origin main (--force)
-		```
+		
 
 		Here they will ask for username and password, use token as your password instead of github password
 
@@ -32,12 +32,12 @@
 Build the project: 
     Create the work directory:
 
-	```
+	
 	cd catkin/src
 	catkin_create_pkg AprilSlamCPP roscpp std_msgs tf2_ros nav_msgs
 	cd AprilSlamCPP/src
 	code ..
-	```
+	
 
     Modify cmake file:
     
@@ -47,10 +47,10 @@ Build the project:
 
 Python instruction:
 
-	```
+	
 	sudo apt install python3-pip
 	pip install gtsam
-	```
+	
 
 	make the python script executable
 
