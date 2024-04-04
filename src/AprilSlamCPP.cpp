@@ -104,13 +104,6 @@ void AprilSlamCPP::initializeGTSAM() {
         possibleIds_.push_back("tag_" + std::to_string(j));
     }
     ROS_INFO_STREAM("Possible landmark IDs initialised.");
-
-    // Transform listener for real-time pose estimation.
-    // tf.TransformListener
-    // Determine the robot's relative position to observed landmarks.
-    // Update the SLAM graph with new measurements
-    // that refine the robot's estimated trajectory and the map of the environment.
-    landCount_ = 0; 
 }
 
 
