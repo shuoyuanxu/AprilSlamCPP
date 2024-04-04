@@ -255,9 +255,9 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
 
                 // Add a prior for the landmark position to help with initial estimation.
-                graph_.add(gtsam::PriorFactor<gtsam::Point2>(
-                    landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise)
-                );
+                // graph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                //     landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise)
+                // );
                 // Add a bearing-range observation for this landmark to the graph
                 gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
                     gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
