@@ -129,11 +129,13 @@ void AprilSlamCPP::ISAM2Optimise() {
     double elapsed;
     
     start = ros::WallTime::now(); // Start timing
+    ROS_INFO("Start Optimisation:");
     if (batchInitialization_) {
         gtsam::LevenbergMarquardtOptimizer batchOptimizer(graph_, initial_estimates_);
         initial_estimates_ = batchOptimizer.optimize();
         batchInitialization_ = false; // Only do this once
     }
+    ROS_INFO("Optimisation time: %f seconds", elapsed);
 
     // Update the iSAM2 instance with the new measurements
     isam_.update(graph_, initial_estimates_);
@@ -217,66 +219,13 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
             ROS_INFO("tramnsform time: %f seconds", elapsed);
 
             // Extract the transform details
-            // double trans_x = transformStamped.transform.translation.x;
-            // double trans_y = transformStamped.transform.translation.y;
-            
-            // // Convert to bearing and range
-            // double range = sqrt(pow(trans_x, 2) + pow(trans_y, 2));
-            // double bearing = atan2(trans_y, trans_x);
-            
-            // // Split the tag_id to get the tag number. Assume tag IDs are in the format "tag_X"
-            // auto underscorePos = tag_id.find('_');
-            // if (underscorePos == std::string::npos) continue; // Skip if the format is unexpected
-            // int tag_number = std::stoi(tag_id.substr(underscorePos + 1)) +1;
-    
-            // // Construct the landmark key
-            // gtsam::Symbol landmarkKey('L', tag_number);
-            // end = ros::WallTime::now();
-            // elapsed = (end - start).toSec();
-            // ROS_INFO("Odometry total: %f seconds", elapsed);
-
-            // // Check if the landmark has been observed before
-            // if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
-            //     // Existing landmark
-            //     gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-            //         gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-            //     );
-            //     // gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
-
-            //     // Threshold for ||projection - measurement||
-            //     // if (fabs(error[0]) < 0.2) graph_.push_back(factor);
-            //     ROS_INFO("landmark br factor added");
-            //     graph_.add(factor);
-            // } 
-            // else {
-            //      // New landmark detected
-            //     tagToNodeIDMap_[tag_number] = landmarkKey;
-            //     initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y)); // Simple initial estimate
-            //     landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
-
-            //     // Add a prior for the landmark position to help with initial estimation.
-            //     // graph_.add(gtsam::PriorFactor<gtsam::Point2>(
-            //     //     landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise)
-            //     // );
-            //     // Add a bearing-range observation for this landmark to the graph
-            //     gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-            //         gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-            //     );
-            //     graph_.add(factor);
-
-            // }
             double trans_x = transformStamped.transform.translation.x;
             double trans_y = transformStamped.transform.translation.y;
-            double qx = transformStamped.transform.rotation.x;
-            double qy = transformStamped.transform.rotation.y;
-            double qz = transformStamped.transform.rotation.z;
-            double qw = transformStamped.transform.rotation.w;
-            tf2::Quaternion tfQuatRel(qx, qy, qz, qw);
-            double rollRel, pitchRel, yawRel;
-            tf2::Matrix3x3(tfQuatRel).getRPY(rollRel, pitchRel, yawRel);
-
-            gtsam::Pose2 tagPoseInBaseLink(trans_x, trans_y, yawRel);
-
+            
+            // Convert to bearing and range
+            double range = sqrt(pow(trans_x, 2) + pow(trans_y, 2));
+            double bearing = atan2(trans_y, trans_x);
+            
             // Split the tag_id to get the tag number. Assume tag IDs are in the format "tag_X"
             auto underscorePos = tag_id.find('_');
             if (underscorePos == std::string::npos) continue; // Skip if the format is unexpected
@@ -284,26 +233,81 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     
             // Construct the landmark key
             gtsam::Symbol landmarkKey('L', tag_number);
-
-            if (tagToNodeIDMap_.find(tag_number) == tagToNodeIDMap_.end()) {
-                // New landmark detected
-                tagToNodeIDMap_[tag_number] = landmarkKey;
-                initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
-                landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
-                // Add a prior factor for the new landmark's position
-                graph_.add(gtsam::PriorFactor<gtsam::Point2>(landmarkKey, gtsam::Point2(), pointNoise));
-
-                // Additionally, add a BetweenFactor for the landmark and current pose
-                graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose), landmarkKey, tagPoseInBaseLink, pointNoise));
-                
-            } else {
-                // Existing landmark, only add a BetweenFactor
-                graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose), landmarkKey, tagPoseInBaseLink, pointNoise));
-            }
-
             end = ros::WallTime::now();
             elapsed = (end - start).toSec();
-            ROS_INFO("Landmark processing time: %f seconds", elapsed);
+            ROS_INFO("Odometry total: %f seconds", elapsed);
+
+            // Check if the landmark has been observed before
+            if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
+                // Existing landmark
+                gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                    gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                );
+                // gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
+
+                // Threshold for ||projection - measurement||
+                // if (fabs(error[0]) < 0.2) graph_.push_back(factor);
+                ROS_INFO("landmark br factor added");
+                graph_.add(factor);
+            } 
+            else {
+                 // New landmark detected
+                tagToNodeIDMap_[tag_number] = landmarkKey;
+                initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y)); // Simple initial estimate
+                landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
+
+                // Add a prior for the landmark position to help with initial estimation.
+                // graph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                //     landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise)
+                // );
+                // Add a bearing-range observation for this landmark to the graph
+                gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                    gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                );
+                graph_.add(factor);
+
+            }
+        //     double trans_x = transformStamped.transform.translation.x;
+        //     double trans_y = transformStamped.transform.translation.y;
+        //     double qx = transformStamped.transform.rotation.x;
+        //     double qy = transformStamped.transform.rotation.y;
+        //     double qz = transformStamped.transform.rotation.z;
+        //     double qw = transformStamped.transform.rotation.w;
+        //     tf2::Quaternion tfQuatRel(qx, qy, qz, qw);
+        //     double rollRel, pitchRel, yawRel;
+        //     tf2::Matrix3x3(tfQuatRel).getRPY(rollRel, pitchRel, yawRel);
+
+        //     gtsam::Pose2 tagPoseInBaseLink(trans_x, trans_y, yawRel);
+        //     ROS_INFO("tagPoseInBaseLink: x=%f, y=%f, yaw=%f", tagPoseInBaseLink.x(), tagPoseInBaseLink.y(), tagPoseInBaseLink.theta());
+        //     // Split the tag_id to get the tag number. Assume tag IDs are in the format "tag_X"
+        //     auto underscorePos = tag_id.find('_');
+        //     if (underscorePos == std::string::npos) continue; // Skip if the format is unexpected
+        //     int tag_number = std::stoi(tag_id.substr(underscorePos + 1)) +1;
+    
+        //     // Construct the landmark key
+        //     gtsam::Symbol landmarkKey('L', tag_number);
+
+        //     if (tagToNodeIDMap_.find(tag_number) == tagToNodeIDMap_.end()) {
+        //         // New landmark detected
+        //         tagToNodeIDMap_[tag_number] = landmarkKey;
+        //         initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
+        //         landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
+        //         // Add a prior factor for the new landmark's position
+        //         // graph_.add(gtsam::PriorFactor<gtsam::Point2>(landmarkKey, gtsam::Point2(), pointNoise));
+
+        //         // Add a BetweenFactor for the landmark and current pose
+        //         graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose), landmarkKey, tagPoseInBaseLink, pointNoise));
+
+        //         ROS_INFO("New tag Detected");
+
+        //     } else {
+        //         // Existing landmark, only add a BetweenFactor
+        //         graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose), landmarkKey, tagPoseInBaseLink, pointNoise));
+        //     }
+        //     ROS_INFO("Landmark ID: %d", tag_number);
+        //     end = ros::WallTime::now();
+        //     elapsed = (end - start).toSec();
+        //     ROS_INFO("Landmark processing time: %f seconds", elapsed);
         
         }
         catch (tf2::TransformException &ex) {
