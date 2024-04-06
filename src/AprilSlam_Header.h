@@ -46,7 +46,6 @@ private:
     std::map<int, gtsam::Symbol> tagToNodeIDMap_; // Map from tag IDs to node IDs
     int index_of_pose;
     bool batchInitialization_;
-    int landCount_;
 
     // Noise Models
     gtsam::noiseModel::Diagonal::shared_ptr odometryNoise;
