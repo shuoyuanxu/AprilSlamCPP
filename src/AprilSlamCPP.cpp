@@ -91,6 +91,8 @@ void AprilSlamCPP::ISAM2Optimise() {
     // Assuming 'i' is properly maintained elsewhere in your class
     gtsam::Pose2 lastPose_ = result.at<gtsam::Pose2>(gtsam::Symbol('x', index_of_pose));
 
+    
+
     // Convert lastPose_ to PoseStamped message
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id = "map"; // Change according to your frame setup
@@ -130,7 +132,7 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
 
     // Predict the next pose based on odometry and add it as an initial estimate
     gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
-    gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
+    gtsam::Pose2 predictedPose = lastPose_.compose(odometry);.
 
     // Add this relative motion as an odometry factor to the graph
     ROS_INFO("adding first between");
