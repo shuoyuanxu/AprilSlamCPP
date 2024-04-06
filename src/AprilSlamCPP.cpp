@@ -193,15 +193,12 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     }
 
     // Predict the next pose based on odometry and add it as an initial estimate
-<<<<<<< HEAD
     gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);.
-=======
     start = ros::WallTime::now();
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
     ROS_INFO("Odometry: x=%f, y=%f, yaw=%f", odometry.x(), odometry.y(), odometry.theta());
->>>>>>> fede498a35026bfb8aecc12e85db4cf8bea1f72c
 
     // Add this relative motion as an odometry factor to the graph
     graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1), gtsam::Symbol('X', index_of_pose), odometry, odometryNoise));
