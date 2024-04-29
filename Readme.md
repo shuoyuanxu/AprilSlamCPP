@@ -84,4 +84,23 @@ sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
 	copy the toolbox from usr/local/ to work directory, then add the folder to path in Matlab
 
 5. To hide "Warning: TF_REPEATED_DATA ignoring data with redundant timestamp" error in terminal
-```rosrun AprilSlamCPP AprilSlamCPP 2> >(grep -v TF_REPEATED_DATA buffer_core)```
+```
+source devel/setup.bash
+rosrun AprilSlamCPP AprilSlamCPP 2> >(grep -v TF_REPEATED_DATA buffer_core)
+rosbag play --pause rerecord_3_HDL.bag
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
