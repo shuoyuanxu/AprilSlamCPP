@@ -149,6 +149,8 @@ void AprilSlamCPP::ISAM2Optimise() {
     elapsed = (end - start).toSec();
     ROS_INFO("Optimisation time: %f seconds", elapsed);
 
+    
+
     // Convert lastPose_ to PoseStamped message
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id = "map"; // Change according to your frame setup
@@ -191,6 +193,8 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     }
 
     // Predict the next pose based on odometry and add it as an initial estimate
+    gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
+    gtsam::Pose2 predictedPose = lastPose_.compose(odometry);.
     start = ros::WallTime::now();
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
