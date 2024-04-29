@@ -89,7 +89,10 @@ source devel/setup.bash
 rosrun AprilSlamCPP AprilSlamCPP 2> >(grep -v TF_REPEATED_DATA buffer_core)
 rosbag play --pause rerecord_3_HDL.bag
 ```
-
+6. Compile:
+```
+catkin_make --pkg AprilSlamCPP
+```
 
 
 
