@@ -72,7 +72,7 @@ AprilSlamCPP::AprilSlamCPP(ros::NodeHandle node_handle)
     initializeGTSAM();
 
     // Subscribe to odometry topic
-    odom_sub_ = nh_.subscribe("/odometry/filtered", 1000, &AprilSlamCPP::addOdomFactor, this);
+    odom_sub_ = nh_.subscribe("/odometry/filtered", 10, &AprilSlamCPP::addOdomFactor, this);
     pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("slam_pose", 10);
 }
 
@@ -94,7 +94,7 @@ void AprilSlamCPP::initializeGTSAM() {
     gtsam::ISAM2Params parameters;
     parameters.setRelinearizeThreshold(0.1);  // Threshold for re-linearization
     isam_ = gtsam::ISAM2(parameters);
-    batchInitialization_ = true;  // Flag to indicate if batch initialization is required.
+    batchOptimisation_ = true;  // Flag to indicate if batch optimisation is required.
 
     // Debugging/Initialization message.
     ROS_INFO("Initialised GTSAM SLAM system.");
@@ -130,10 +130,10 @@ void AprilSlamCPP::ISAM2Optimise() {
     
     start = ros::WallTime::now(); // Start timing
     ROS_INFO("Start Optimisation:");
-    if (batchInitialization_) {
+    if (batchOptimisation_) {
         gtsam::LevenbergMarquardtOptimizer batchOptimizer(graph_, initial_estimates_);
         initial_estimates_ = batchOptimizer.optimize();
-        batchInitialization_ = false; // Only do this once
+        batchOptimisation_ = false; // Only do this once
     }
     ROS_INFO("Optimisation time: %f seconds", elapsed);
 

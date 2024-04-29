@@ -45,7 +45,7 @@ private:
     std::vector<std::string> possibleIds_; // Predefined tags in the environment
     std::map<int, gtsam::Symbol> tagToNodeIDMap_; // Map from tag IDs to node IDs
     int index_of_pose;
-    bool batchInitialization_;
+    bool batchOptimisation_;
 
     // Noise Models
     gtsam::noiseModel::Diagonal::shared_ptr odometryNoise;
