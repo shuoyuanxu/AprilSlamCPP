@@ -1,4 +1,4 @@
-#include "AprilSlam_Header.h"
+#include "aprilslamheader.h"
 
 namespace aprislamcpp {
 // Utility function to normalize an angle to the range [-pi, pi]
@@ -65,19 +65,19 @@ void saveGraphToDot(const gtsam::NonlinearFactorGraph& graph, const gtsam::Value
 
 
 // Constructor
-AprilSlamCPP::AprilSlamCPP(ros::NodeHandle node_handle)
+aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     : nh_(node_handle), tf_listener_(tf_buffer_){ 
 
     // Initialize GTSAM components
     initializeGTSAM();
 
     // Subscribe to odometry topic
-    odom_sub_ = nh_.subscribe("/odometry/filtered", 10, &AprilSlamCPP::addOdomFactor, this);
+    odom_sub_ = nh_.subscribe("/odometry/filtered", 10, &aprilslamcpp::addOdomFactor, this);
     pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("slam_pose", 10);
 }
 
 
-void AprilSlamCPP::initializeGTSAM() {
+void aprilslamcpp::initializeGTSAM() {
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 0.0001, 0.01, 0.0001).finished());
     priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 0.1, 0.3, 0.1).finished());
@@ -107,7 +107,7 @@ void AprilSlamCPP::initializeGTSAM() {
 }
 
 
-gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
+gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
     double x = msg->pose.pose.position.x;
     double y = msg->pose.pose.position.y;
 
@@ -124,7 +124,7 @@ gtsam::Pose2 AprilSlamCPP::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
 }
 
 
-void AprilSlamCPP::ISAM2Optimise() {
+void aprilslamcpp::ISAM2Optimise() {
     ros::WallTime start, end; // Declare variables to hold start and end times
     double elapsed;
     
@@ -149,8 +149,6 @@ void AprilSlamCPP::ISAM2Optimise() {
     elapsed = (end - start).toSec();
     ROS_INFO("Optimisation time: %f seconds", elapsed);
 
-    
-
     // Convert lastPose_ to PoseStamped message
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id = "map"; // Change according to your frame setup
@@ -171,7 +169,7 @@ void AprilSlamCPP::ISAM2Optimise() {
     initial_estimates_.clear();
 }
 
-void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
+void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     ros::WallTime start, end; // Declare variables to hold start and end times
     double elapsed;
     
@@ -194,10 +192,10 @@ void AprilSlamCPP::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
 
     // Predict the next pose based on odometry and add it as an initial estimate
     gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
-    gtsam::Pose2 predictedPose = lastPose_.compose(odometry);.
-    start = ros::WallTime::now();
-    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
+    start = ros::WallTime::now();
+    // gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
+    // gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
     ROS_INFO("Odometry: x=%f, y=%f, yaw=%f", odometry.x(), odometry.y(), odometry.theta());
 
     // Add this relative motion as an odometry factor to the graph
@@ -335,8 +333,8 @@ int main(int argc, char **argv) {
     // Create a handle to this process' node
     ros::NodeHandle nh;
 
-    // Create an instance of the AprilSlamCPP class, passing in the node handle
-    aprislamcpp::AprilSlamCPP slamNode(nh);
+    // Create an instance of the aprilslamcpp class, passing in the node handle
+    aprislamcpp::aprilslamcpp slamNode(nh);
 
     // ROS enters a loop, pumping callbacks. Internally, it will call all the callbacks waiting to be called at that point in time.
     ros::spin();

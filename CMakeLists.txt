@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(AprilSlamCPP)
+project(aprilslamcpp)
 
 # Set GTSAM_DIR to the directory containing GTSAMConfig.cmake
 set(GTSAM_DIR "/home/shuoyuan/GTSAM/build")
@@ -10,7 +10,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   tf2_ros
-  GTSAM
 )
 
 find_package(Eigen3 REQUIRED) # Find Eigen
@@ -34,12 +33,14 @@ include_directories(
   ${GTSAM_INCLUDE_DIR}
 )
 
-add_executable(${PROJECT_NAME} src/AprilSlamCPP.cpp)
+add_executable(${PROJECT_NAME} src/aprilslamcpp.cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(
+  ${PROJECT_NAME}
   ${catkin_LIBRARIES}
-  gtsam
+  gtsam 
+  tbb
 )
 
 #############
@@ -47,7 +48,7 @@ target_link_libraries(${PROJECT_NAME}
 #############
 
 install(
-  TARGETS AprilSlamCPP 
+  TARGETS aprilslamcpp 
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

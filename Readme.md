@@ -33,8 +33,8 @@ Build the project:
 1. Create the work directory:
 ```
 cd catkin/src
-catkin_create_pkg AprilSlamCPP roscpp std_msgs tf2_ros nav_msgs
-cd AprilSlamCPP/src
+catkin_create_pkg aprilslamcpp roscpp std_msgs tf2_ros nav_msgs
+cd aprilslamcpp/src
 code ..
 ```
 
@@ -86,7 +86,7 @@ sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
 5. To hide "Warning: TF_REPEATED_DATA ignoring data with redundant timestamp" error in terminal
 ```
 source devel/setup.bash
-rosrun AprilSlamCPP AprilSlamCPP 2> >(grep -v TF_REPEATED_DATA buffer_core)
+rosrun aprilslamcpp aprilslamcpp 2> >(grep -v TF_REPEATED_DATA buffer_core)
 rosbag play --pause rerecord_3_HDL.bag
 ```
 
