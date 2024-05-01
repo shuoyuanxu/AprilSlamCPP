@@ -1,6 +1,5 @@
-#ifndef AprilSlam_Header
-#define AprilSlam_Header
-
+#ifndef aprilslamheader
+#define aprilslamheader
 #include <ros/ros.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -22,9 +21,9 @@
 
 namespace aprislamcpp{
 
-class AprilSlamCPP {
+class aprilslamcpp {
 public:
-    explicit AprilSlamCPP(ros::NodeHandle node_handle); // Constructor declaration
+    explicit aprilslamcpp(ros::NodeHandle node_handle); // Constructor declaration
     void initializeGTSAM(); // Method to initialize GTSAM components
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise();
@@ -64,5 +63,5 @@ private:
 
 } 
 
-#endif // AprilSlamCPP
+#endif // aprilslamcpp
 

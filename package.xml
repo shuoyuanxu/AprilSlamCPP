@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>AprilSlamCPP</name>
+  <name>aprilslamcpp</name>
   <version>0.0.0</version>
-  <description>The AprilSlamCPP package</description>
+  <description>The aprilslamcpp package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
