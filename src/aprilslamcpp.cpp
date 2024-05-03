@@ -74,7 +74,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("slam_pose", 10);
 }
 
-
+//Intilialisation
 void aprilslamcpp::initializeGTSAM() {
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 0.0001, 0.01, 0.0001).finished());
@@ -90,7 +90,7 @@ void aprilslamcpp::initializeGTSAM() {
 
     // Initialize ISAM2 with parameters.
     gtsam::ISAM2Params parameters;
-    parameters.setRelinearizeThreshold(0.1);  // Threshold for re-linearization
+    // parameters.setRelinearizeThreshold(0.1);  // Threshold for re-linearization
     isam_ = gtsam::ISAM2(parameters);
     batchOptimisation_ = true;  // Flag to indicate if batch optimisation is required.
 
