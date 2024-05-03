@@ -4,8 +4,6 @@ namespace aprislamcpp {
 // Utility function to normalize an angle to the range [-pi, pi]
 double wrapToPi(double angle) {
     angle = fmod(angle + M_PI, 2 * M_PI);
-    if (angle < 0)
-        angle += 2 * M_PI;
     return angle - M_PI;
 }
 
