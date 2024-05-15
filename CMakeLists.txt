@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(aprilslamcpp)
 
 # Set GTSAM_DIR to the directory containing GTSAMConfig.cmake
-set(GTSAM_DIR "/home/shuoyuan/GTSAM/build")
+set(GTSAM_DIR "/home/shu/GTSAM/build")
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(catkin REQUIRED COMPONENTS
