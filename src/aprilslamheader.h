@@ -28,7 +28,7 @@ public:
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise();
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
-    ros::Publisher pose_pub_;
+    ros::Publisher path_pub_;
 
 private:
     ros::NodeHandle nh_;
@@ -45,7 +45,6 @@ private:
     std::map<int, gtsam::Symbol> tagToNodeIDMap_; // Map from tag IDs to node IDs
     int index_of_pose;
     bool batchOptimisation_;
-
     // Noise Models
     gtsam::noiseModel::Diagonal::shared_ptr odometryNoise;
     gtsam::noiseModel::Diagonal::shared_ptr priorNoise;
@@ -64,4 +63,3 @@ private:
 } 
 
 #endif // aprilslamcpp
-
