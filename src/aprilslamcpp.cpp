@@ -1,9 +1,6 @@
 #include "aprilslamheader.h"
-#include <nav_msgs/Path.h>
 
 namespace aprislamcpp {
-nav_msgs::Path path;
-path.header.frame_id = "map";
 // Utility function to normalize an angle to the range [-pi, pi]
 double wrapToPi(double angle) {
     angle = fmod(angle + M_PI, 2 * M_PI);
@@ -35,6 +32,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     odom_sub_ = nh_.subscribe("/odom", 10, &aprilslamcpp::addOdomFactor, this);
     // Publish trajectory
     path_pub_ = nh_.advertise<nav_msgs::Path>("trajectory", 1, true);
+    path.header.frame_id = "map"; 
 }
 
 //Intilialisation

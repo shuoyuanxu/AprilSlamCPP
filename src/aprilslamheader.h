@@ -18,6 +18,7 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/linear/NoiseModel.h>
+#include <nav_msgs/Path.h>
 
 namespace aprislamcpp{
 
@@ -29,6 +30,7 @@ public:
     void ISAM2Optimise();
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
     ros::Publisher path_pub_;
+    nav_msgs::Path path;
 
 private:
     ros::NodeHandle nh_;
