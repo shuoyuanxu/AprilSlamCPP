@@ -32,8 +32,7 @@ public:
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise();
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
-    void publishLandmarks(const std::map<int, gtsam::Point2>& landmarks);
-
+    
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
@@ -57,16 +56,9 @@ private:
     gtsam::noiseModel::Diagonal::shared_ptr priorNoise;
     gtsam::noiseModel::Diagonal::shared_ptr brNoise;
     gtsam::noiseModel::Diagonal::shared_ptr pointNoise;
-    double tranformation_search_range;
+    double transformation_search_range;
     double add2graph_threshold;
     std::string frame_id;
-    // ROS odometry message callback
-    void odomCallback(const nav_msgs::Odometry::ConstPtr& msg);
-
-    // Helper methods
-    gtsam::Pose2 convertOdometryToGTSAMPose(const nav_msgs::Odometry::ConstPtr& msg);
-    void addOdometryFactor(const gtsam::Pose2& odometry);
-    void updateAndOptimize();
 };
 
 } 

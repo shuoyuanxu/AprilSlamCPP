@@ -43,7 +43,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("noise_models/point", point_noise);
 
     // Read transformation search range (seconds) 
-    nh_.getParam("tranformation_search_range", tranformation_search_range);
+    nh_.getParam("transformation_search_range", transformation_search_range);
 
     // Read error thershold for a landmark to be added to the graph
     nh_.getParam("add2graph_threshold", add2graph_threshold);
@@ -130,12 +130,13 @@ void aprilslamcpp::ISAM2Optimise() {
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
     // Clear the graph and initial estimates for the next iteration
-    // graph_.resize(0);
+    graph_.resize(0);
     initial_estimates_.clear();
 }   
 
 void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
-    
+    ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times=
+    double elapsed;
     index_of_pose += 1; // Increment the pose index for each new odometry message
 
     // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
@@ -161,11 +162,12 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     lastPose_ = predictedPose;
     initial_estimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
-
+    
     // Iterate through possible landmark IDs to check for observations
+    start_loop = ros::WallTime::now();
     for (const auto& tag_id : possibleIds_) {    
         try {
-            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform("base_link", tag_id, ros::Time(0), ros::Duration(tranformation_search_range));
+            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform("base_link", tag_id, ros::Time(0), ros::Duration(transformation_search_range));
             // Use the transform as needed
 
             // Extract the transform details
@@ -193,7 +195,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
 
                 // Threshold for ||projection - measurement||
-                if (fabs(error[0]) < add2graph_threshold) graph_.push_back(factor);
+                if (fabs(error[0]) < add2graph_threshold) graph_.add(factor);
             } 
             else {
                  // New landmark detected
@@ -217,11 +219,18 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 continue;
         }
 }    
+    end_loop = ros::WallTime::now();
+    elapsed = (end_loop - start_loop).toSec();
+    ROS_INFO("transform total: %f seconds", elapsed);
     lastPoseSE2_ = poseSE2;
     // ISAM2 optimization to update the map and robot pose estimates
     if (index_of_pose % 1 == 0) {
         ISAM2Optimise();
     }
+    end_loop = ros::WallTime::now();
+    elapsed = (end_loop - start_loop).toSec();
+    ROS_INFO("optimisation: %f seconds", elapsed);
+
 }
 }
 
