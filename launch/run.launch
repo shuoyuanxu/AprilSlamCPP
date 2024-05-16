@@ -1,9 +1,13 @@
 <launch>
+  <!-- Load parameters -->
+  <rosparam file="$(find aprilslamcpp)/config/params.yaml" command="load"/>
 
+  <!-- TagSLAM Node -->
   <node name="aprilslamcpp" pkg="aprilslamcpp" type="aprilslamcpp" output="screen">
+  </node>
 
-    <rosparam file="$(find aprilslamcpp)/config/params.yaml" command="load"/>
-
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find aprilslamcpp)/launch/Visulisation.rviz">
+  <param name="output" value="screen"/>
   </node>
 
 </launch>
