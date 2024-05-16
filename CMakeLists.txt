@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(aprilslamcpp)
 
 # Set GTSAM_DIR to the directory containing GTSAMConfig.cmake
-set(GTSAM_DIR "/home/shu/GTSAM/build")
+set(GTSAM_DIR "/home/shuoyuan/GTSAM/build")
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -27,13 +27,14 @@ catkin_package(
 
 ## Specify additional locations of header files
 include_directories(
+  include
   ${PROJECT_SOURCE_DIR}/src
   ${EIGEN3_INCLUDE_DIR}
   ${catkin_INCLUDE_DIRS}
   ${GTSAM_INCLUDE_DIR}
 )
 
-add_executable(${PROJECT_NAME} src/aprilslamcpp.cpp)
+add_executable(${PROJECT_NAME} src/aprilslamcpp.cpp src/publishing_utils.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(
