@@ -1,6 +1,7 @@
 #include "aprilslamheader.h"
+#include "publishing_utils.h"
 
-namespace aprislamcpp {
+namespace aprilslam {
 // Utility function to normalize an angle to the range [-pi, pi]
 double wrapToPi(double angle) {
     angle = fmod(angle + M_PI, 2 * M_PI);
@@ -24,25 +25,56 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 // Constructor
 aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     : nh_(node_handle), tf_listener_(tf_buffer_){ 
+    
+    // Read topics
+    std::string odom_topic, trajectory_topic;
+    nh_.getParam("odom_topic", odom_topic);
+    nh_.getParam("trajectory_topic", trajectory_topic);
+    nh_.getParam("frame_id", frame_id);
+    
+    // Read batch optimization flag
+    nh_.getParam("batch_optimisation", batchOptimisation_);
+
+    // Read noise models
+    std::vector<double> odometry_noise, prior_noise, bearing_range_noise, point_noise;
+    nh_.getParam("noise_models/odometry", odometry_noise);
+    nh_.getParam("noise_models/prior", prior_noise);
+    nh_.getParam("noise_models/bearing_range", bearing_range_noise);
+    nh_.getParam("noise_models/point", point_noise);
+
+    // Read transformation search range (seconds) 
+    nh_.getParam("tranformation_search_range", tranformation_search_range);
+
+    // Read error thershold for a landmark to be added to the graph
+    nh_.getParam("add2graph_threshold", add2graph_threshold);
+
+    // Initialize noise models
+    odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << odometry_noise[0], odometry_noise[1], odometry_noise[2]).finished());
+    priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << prior_noise[0], prior_noise[1], prior_noise[2]).finished());
+    brNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << bearing_range_noise[0], bearing_range_noise[1]).finished());
+    pointNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << point_noise[0], point_noise[1]).finished());
+
+    // Total number of IDs
+    int total_tags;
+    nh_.getParam("total_tags", total_tags);
+    // Predefined tags to search for in the environment.
+    for (int j = 0; j < total_tags; ++j) {
+        possibleIds_.push_back("tag_" + std::to_string(j));
+    }
 
     // Initialize GTSAM components
     initializeGTSAM();
 
-    // Subscribe to odometry topic
-    odom_sub_ = nh_.subscribe("/odom", 10, &aprilslamcpp::addOdomFactor, this);
-    // Publish trajectory
-    path_pub_ = nh_.advertise<nav_msgs::Path>("trajectory", 1, true);
-    path.header.frame_id = "map"; 
+    // Subscriptions and Publications
+    odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
+    path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
+    landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
+    path.header.frame_id = frame_id; 
+
 }
 
 //Intilialisation
-void aprilslamcpp::initializeGTSAM() {
-    // Initialize noise models
-    odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 0.0001, 0.01, 0.0001).finished());
-    priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << 0.1, 0.3, 0.1).finished());
-    brNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << 0.1, 0.8).finished()); // Note: Vector size matches bearing-range model
-    pointNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << 10, 10).finished()); // Note: Vector size matches point landmark model
-    
+void aprilslamcpp::initializeGTSAM() { 
     // Index to keep track of the sequential pose.
     index_of_pose = 1;
 
@@ -52,16 +84,8 @@ void aprilslamcpp::initializeGTSAM() {
     // Initialize ISAM2 with parameters.
     gtsam::ISAM2Params parameters;
     isam_ = gtsam::ISAM2(parameters);
-    batchOptimisation_ = true;  // Flag to indicate if batch optimisation is required.
 
-    // Debugging/Initialization message.
-    ROS_INFO("Initialised GTSAM SLAM system.");
-
-    // Predefined tags to search for in the environment.
-    for (int j = 0; j < 88; ++j) {
-        possibleIds_.push_back("tag_" + std::to_string(j));
-    }
-    ROS_INFO_STREAM("Possible landmark IDs initialised.");
+    ROS_INFO_STREAM("Initilisation Done");
 }
 
 
@@ -77,23 +101,15 @@ gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     tf2::Quaternion tfQuat(qx, qy, qz, qw);
     double roll, pitch, yaw;
     tf2::Matrix3x3(tfQuat).getRPY(roll, pitch, yaw);
-    // ROS_INFO("Translated_Pose: x=%f, y=%f, yaw=%f", x, y, yaw);
     return gtsam::Pose2(x, y, yaw);
 }
 
-
-void aprilslamcpp::ISAM2Optimise() {
-    ros::WallTime start, end; // Declare variables to hold start and end times
-    double elapsed;
-    
-    start = ros::WallTime::now(); // Start timing
-    ROS_INFO("Start Optimisation:");
+void aprilslamcpp::ISAM2Optimise() {    
     if (batchOptimisation_) {
         gtsam::LevenbergMarquardtOptimizer batchOptimizer(graph_, initial_estimates_);
         initial_estimates_ = batchOptimizer.optimize();
         batchOptimisation_ = false; // Only do this once
     }
-    ROS_INFO("Optimisation time: %f seconds", elapsed);
 
     // Update the iSAM2 instance with the new measurements
     isam_.update(graph_, initial_estimates_);
@@ -101,48 +117,29 @@ void aprilslamcpp::ISAM2Optimise() {
     // Calculate the current best estimate
     auto result = isam_.calculateEstimate();
 
-    // Update the last pose based on the latest estimates
-    gtsam::Pose2 lastPose_ = result.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose));
-    end = ros::WallTime::now(); // End timing
-    elapsed = (end - start).toSec();
-    // ROS_INFO("Optimisation time: %f seconds", elapsed);
-
-    // Convert lastPose_ to PoseStamped message
-    geometry_msgs::PoseStamped poseMsg;
-    poseMsg.header.frame_id = "map"; // Change according to your frame setup
-    poseMsg.header.stamp = ros::Time::now();
-    poseMsg.pose.position.x = lastPose_.x();
-    poseMsg.pose.position.y = lastPose_.y();
-    poseMsg.pose.position.z = 0; // Assuming 2D
-    
-    tf2::Quaternion quat;
-    quat.setRPY(0, 0, lastPose_.theta());
-    poseMsg.pose.orientation = tf2::toMsg(quat);
-    // Append the new pose to the path
-
-    path.poses.push_back(poseMsg);
-    // Update the path header time stamp
-    path.header.stamp = ros::Time::now();
+     // Extract landmark estimates from result
+    std::map<int, gtsam::Point2> landmarks;
+    for (const auto& key_value : result) {
+        gtsam::Key key = key_value.key;  // Get the key
+        if (gtsam::Symbol(key).chr() == 'L') {
+            gtsam::Point2 point = result.at<gtsam::Point2>(key); // Directly access the Point2 value
+            landmarks[gtsam::Symbol(key).index()] = point;
+        }
+    }
     // Publish the pose
-    path_pub_.publish(path);
-    
+    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
+    aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
     // Clear the graph and initial estimates for the next iteration
     // graph_.resize(0);
     initial_estimates_.clear();
 }   
 
 void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
-    ros::WallTime start, end; // Declare variables to hold start and end times
-    ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times=
-    double elapsed;
     
     index_of_pose += 1; // Increment the pose index for each new odometry message
 
     // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
-    end = ros::WallTime::now();
-    elapsed = (end - start).toSec();
-    // ROS_INFO("Odometry message translation time: %f seconds", elapsed);
 
     // Store the initial pose for relative calculations
     if (index_of_pose == 2) {
@@ -154,12 +151,8 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     }
 
     // Predict the next pose based on odometry and add it as an initial estimate
-    // gtsam::Pose2 odometry = poseSE2.compose(lastPoseSE2_.inverse());
-    // gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
-    start = ros::WallTime::now();
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
-    ROS_INFO("Odometry: x=%f, y=%f, yaw=%f", odometry.x(), odometry.y(), odometry.theta());
 
     // Add this relative motion as an odometry factor to the graph
     graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1), gtsam::Symbol('X', index_of_pose), odometry, odometryNoise));
@@ -169,20 +162,11 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     initial_estimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
 
-    end = ros::WallTime::now();
-    elapsed = (end - start).toSec();
-    // ROS_INFO("Pose prediction and graph update time: %f seconds", elapsed);
-
     // Iterate through possible landmark IDs to check for observations
-    start_loop = ros::WallTime::now();
     for (const auto& tag_id : possibleIds_) {    
         try {
-            start = ros::WallTime::now();
-            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform("base_link", tag_id, ros::Time(0), ros::Duration(0.01));
+            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform("base_link", tag_id, ros::Time(0), ros::Duration(tranformation_search_range));
             // Use the transform as needed
-            end = ros::WallTime::now();
-            elapsed = (end - start).toSec();
-            ROS_INFO("transform time: %f seconds", elapsed);
 
             // Extract the transform details
             double trans_x = transformStamped.transform.translation.x;
@@ -199,9 +183,6 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     
             // Construct the landmark key
             gtsam::Symbol landmarkKey('L', tag_number);
-            end = ros::WallTime::now();
-            elapsed = (end - start).toSec();
-            ROS_INFO("Odometry total: %f seconds", elapsed);
 
             // Check if the landmark has been observed before
             if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
@@ -212,7 +193,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
 
                 // Threshold for ||projection - measurement||
-                if (fabs(error[0]) < 0.2) graph_.push_back(factor);
+                if (fabs(error[0]) < add2graph_threshold) graph_.push_back(factor);
             } 
             else {
                  // New landmark detected
@@ -241,7 +222,6 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     if (index_of_pose % 1 == 0) {
         ISAM2Optimise();
     }
-
 }
 }
 
@@ -253,7 +233,7 @@ int main(int argc, char **argv) {
     ros::NodeHandle nh;
 
     // Create an instance of the aprilslamcpp class, passing in the node handle
-    aprislamcpp::aprilslamcpp slamNode(nh);
+    aprilslam::aprilslamcpp slamNode(nh);
 
     // ROS enters a loop, pumping callbacks. Internally, it will call all the callbacks waiting to be called at that point in time.
     ros::spin();

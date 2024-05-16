@@ -1,0 +1,11 @@
+<launch>
+
+  <node name="aprilslamcpp" pkg="aprilslamcpp" type="aprilslamcpp" output="screen">
+
+    <rosparam file="$(find aprilslamcpp)/config/params.yaml" command="load"/>
+
+  </node>
+
+</launch>
+
+
