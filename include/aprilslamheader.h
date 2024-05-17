@@ -27,7 +27,7 @@ namespace aprilslam {
 
 class aprilslamcpp {
 public:
-    explicit aprilslamcpp(ros::NodeHandle node_handle); // Constructor declaration
+    explicit aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time); // Constructor declaration
     void initializeGTSAM(); // Method to initialize GTSAM components
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise();
