@@ -12,14 +12,26 @@ double wrapToPi(double angle) {
 gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& PoseSE2) {
     double dx = PoseSE2.x() - lastPoseSE2.x();
     double dy = PoseSE2.y() - lastPoseSE2.y();
-
-    // Assuming the robot is always moving forward
-    double Dx = std::sqrt(dx * dx + dy * dy);
     double dtheta = wrapToPi(PoseSE2.theta() - lastPoseSE2.theta());
 
-    // Create a Pose2 object for the relative pose
-    // Note: Since Dy is assumed to be zero, it's omitted in constructing the Pose2 object
-    return gtsam::Pose2(Dx, 0, dtheta);
+    // Compute the distance moved along the robot's forward direction
+    double distance = std::sqrt(dx * dx + dy * dy);
+    double direction = std::atan2(dy, dx);
+    
+    // Adjust the distance based on the robot's heading to account for backward movement
+    // double relative_angle = wrapToPi(direction - lastPoseSE2.theta());
+    // if (std::cos(relative_angle) < 0) {
+    //     distance = -distance;
+    // }
+
+    // OR
+    // double theta = lastPoseSE2.theta();
+    // double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
+    // double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
+    // return gtsam::Pose2(dx_body, dy_body, dtheta);
+
+    // Return the relative pose assuming robot cant move sideways: dy = 0
+    return gtsam::Pose2(distance, 0, dtheta);
 }
 
 // Constructor
