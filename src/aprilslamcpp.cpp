@@ -241,10 +241,13 @@ int main(int argc, char **argv) {
     // Create a handle to this process' node
     ros::NodeHandle nh;
 
-    ros::Duration cache_time(0.1);
+    // Setting buffer cache time
+    double transformation_search_range;
+    nh.getParam("transformation_search_range", transformation_search_range);
+    ros::Duration tsr(transformation_search_range); 
 
     // Create an instance of the aprilslamcpp class, passing in the node handle
-    aprilslam::aprilslamcpp slamNode(nh, cache_time);
+    aprilslam::aprilslamcpp slamNode(nh, tsr);
 
     // ROS enters a loop, pumping callbacks. Internally, it will call all the callbacks waiting to be called at that point in time.
     ros::spin();
