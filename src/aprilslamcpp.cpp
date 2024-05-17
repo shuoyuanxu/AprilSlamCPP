@@ -31,7 +31,8 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("odom_topic", odom_topic);
     nh_.getParam("trajectory_topic", trajectory_topic);
     nh_.getParam("frame_id", frame_id);
-    
+    nh_.getParam("timewindow", timeWindow);
+
     // Read batch optimization flag
     nh_.getParam("batch_optimisation", batchOptimisation_);
 
@@ -88,6 +89,26 @@ void aprilslamcpp::initializeGTSAM() {
     ROS_INFO_STREAM("Initilisation Done");
 }
 
+//Prune graph to balance accuracy and efficiencys
+void aprilslamcpp::pruneOldFactors(double current_time, double timewindow) {
+    // Define a threshold for old factors and variables
+    double time_threshold = current_time - timewindow;
+    // Identify factors to remove
+    gtsam::FastList<size_t> factors_to_remove;
+    for (const auto& factor_time : factorTimestamps_) {
+        if (factor_time.second < time_threshold) {
+            factors_to_remove.push_back(factor_time.first);
+        }
+    }
+
+    // Remove old factors
+    if (!factors_to_remove.empty()) {
+        for (const auto& factor_index : factors_to_remove) {
+            graph_.remove(factor_index);
+            factorTimestamps_.erase(factor_index);
+        }
+    }
+}
 
 gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
     double x = msg->pose.pose.position.x;
@@ -129,12 +150,15 @@ void aprilslamcpp::ISAM2Optimise() {
     // Publish the pose
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
-    // Clear the graph and initial estimates for the next iteration
-    // graph_.resize(0);
+     // Prune the graph to maintain a predefined time window
+    double current_time = ros::Time::now().toSec();
+    pruneOldFactors(current_time, timeWindow);
+    // Clear estimates for the next iteration
     initial_estimates_.clear();
 }   
 
 void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
+    double current_time = ros::Time::now().toSec();
     ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times=
     double elapsed;
     index_of_pose += 1; // Increment the pose index for each new odometry message
@@ -147,6 +171,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
         lastPoseSE2_ = poseSE2;
         gtsam::Pose2 pose0(0.0, 0.0, 0.0); // Prior at origin
         graph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('X', 1), pose0, priorNoise));
+        factorTimestamps_[graph_.size() - 1] = current_time;
         initial_estimates_.insert(gtsam::Symbol('X', 1), pose0);
         lastPose_ = pose0; // Keep track of the last pose for odometry calculation
     }
@@ -157,7 +182,8 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
 
     // Add this relative motion as an odometry factor to the graph
     graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1), gtsam::Symbol('X', index_of_pose), odometry, odometryNoise));
-
+    factorTimestamps_[graph_.size() - 1] = current_time;
+    
     // Update the last pose and initial estimates for the next iteration
     lastPose_ = predictedPose;
     initial_estimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
@@ -195,7 +221,8 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
 
                 // Threshold for ||projection - measurement||
-                if (fabs(error[0]) < add2graph_threshold) graph_.push_back(factor);
+                if (fabs(error[0]) < add2graph_threshold) graph_.add(factor);
+                factorTimestamps_[graph_.size() - 1] = current_time;
             } 
             else {
                  // New landmark detected
@@ -207,12 +234,13 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 graph_.add(gtsam::PriorFactor<gtsam::Point2>(
                     landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise)
                 );
+                factorTimestamps_[graph_.size() - 1] = current_time;
                 // Add a bearing-range observation for this landmark to the graph
                 gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
                     gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
                 );
                 graph_.add(factor);
-
+                factorTimestamps_[graph_.size() - 1] = current_time;
             }
         }
         catch (tf2::TransformException &ex) {
