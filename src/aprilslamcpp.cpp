@@ -23,8 +23,8 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 }
 
 // Constructor
-aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
-    : nh_(node_handle), tf_listener_(tf_buffer_){ 
+aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time)
+    : nh_(node_handle), tf_buffer_(cache_time), tf_listener_(tf_buffer_){ 
     
     // Read topics
     std::string odom_topic, trajectory_topic;
@@ -130,7 +130,7 @@ void aprilslamcpp::ISAM2Optimise() {
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
     // Clear the graph and initial estimates for the next iteration
-    graph_.resize(0);
+    // graph_.resize(0);
     initial_estimates_.clear();
 }   
 
@@ -167,8 +167,8 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     start_loop = ros::WallTime::now();
     for (const auto& tag_id : possibleIds_) {    
         try {
-            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform("base_link", tag_id, ros::Time(0), ros::Duration(transformation_search_range));
-            // Use the transform as needed
+            // Find transformation between vehicle and landmarks (see if landmarks are detected)
+            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform("base_link", tag_id, ros::Time(0));
 
             // Extract the transform details
             double trans_x = transformStamped.transform.translation.x;
@@ -195,7 +195,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
 
                 // Threshold for ||projection - measurement||
-                if (fabs(error[0]) < add2graph_threshold) graph_.add(factor);
+                if (fabs(error[0]) < add2graph_threshold) graph_.push_back(factor);
             } 
             else {
                  // New landmark detected
@@ -241,8 +241,10 @@ int main(int argc, char **argv) {
     // Create a handle to this process' node
     ros::NodeHandle nh;
 
+    ros::Duration cache_time(0.1);
+
     // Create an instance of the aprilslamcpp class, passing in the node handle
-    aprilslam::aprilslamcpp slamNode(nh);
+    aprilslam::aprilslamcpp slamNode(nh, cache_time);
 
     // ROS enters a loop, pumping callbacks. Internally, it will call all the callbacks waiting to be called at that point in time.
     ros::spin();
