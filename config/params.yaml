@@ -4,7 +4,7 @@ trajectory_topic: "trajectory"
 frame_id: "map"
 batch_optimisation: true
 total_tags: 88
-transformation_search_range: 0.01
+transformation_search_range: 0.1
 add2graph_threshold: 0.2
 noise_models:
   odometry:
