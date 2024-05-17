@@ -31,7 +31,6 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("odom_topic", odom_topic);
     nh_.getParam("trajectory_topic", trajectory_topic);
     nh_.getParam("frame_id", frame_id);
-    nh_.getParam("timewindow", timeWindow);
 
     // Read batch optimization flag
     nh_.getParam("batch_optimisation", batchOptimisation_);
@@ -48,6 +47,11 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
 
     // Read error thershold for a landmark to be added to the graph
     nh_.getParam("add2graph_threshold", add2graph_threshold);
+
+    // Read Prune conditions
+    nh_.getParam("timewindow", timeWindow);
+    nh_.getParam("maxfactors", maxfactors);
+    nh_.getParam("useprunebytime", useprunebytime);
 
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << odometry_noise[0], odometry_noise[1], odometry_noise[2]).finished());
@@ -89,8 +93,7 @@ void aprilslamcpp::initializeGTSAM() {
     ROS_INFO_STREAM("Initilisation Done");
 }
 
-//Prune graph to balance accuracy and efficiencys
-void aprilslamcpp::pruneOldFactors(double current_time, double timewindow) {
+void aprilslamcpp::pruneOldFactorsByTime(double current_time, double timewindow) {
     // Define a threshold for old factors and variables
     double time_threshold = current_time - timewindow;
     // Identify factors to remove
@@ -107,6 +110,15 @@ void aprilslamcpp::pruneOldFactors(double current_time, double timewindow) {
             graph_.remove(factor_index);
             factorTimestamps_.erase(factor_index);
         }
+    }
+}
+
+void aprilslamcpp::pruneOldFactorsBySize(double maxfactors) {
+    // Prune factors if the total number of factors exceeds maxFactors_
+    while (factorTimestamps_.size() > maxfactors) {
+        auto oldest = factorTimestamps_.begin();
+        graph_.remove(oldest->first);
+        factorTimestamps_.erase(oldest);
     }
 }
 
@@ -152,7 +164,12 @@ void aprilslamcpp::ISAM2Optimise() {
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
      // Prune the graph to maintain a predefined time window
     double current_time = ros::Time::now().toSec();
-    pruneOldFactors(current_time, timeWindow);
+    if (useprunebytime) {
+        pruneOldFactorsByTime(current_time, timeWindow);
+    }
+    else {
+        pruneOldFactorsBySize(maxfactors);
+    }
     // Clear estimates for the next iteration
     initial_estimates_.clear();
 }   
