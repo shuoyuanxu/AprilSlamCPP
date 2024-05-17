@@ -32,7 +32,8 @@ public:
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise();
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
-    void pruneOldFactors(double current_time, double timewindow);
+    void pruneOldFactorsByTime(double current_time, double timewindow);
+    void pruneOldFactorsBySize(double maxfactors);
 
 private:
     ros::Publisher path_pub_;
@@ -60,12 +61,10 @@ private:
     double transformation_search_range;
     double add2graph_threshold;
     std::string frame_id;
-
-    // Additional members to track timestamps
-    std::map<gtsam::Key, double> keyTimestamps_; // Track timestamps of keys
     std::map<size_t, double> factorTimestamps_; // Track timestamps of factors
     double timeWindow; // The time window for maintaining the graph
-
+    double maxfactors; // Allowed total number of factors in the graph before pruning
+    bool useprunebytime;
 };
 
 } 
