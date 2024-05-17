@@ -6,6 +6,7 @@ batch_optimisation: true
 total_tags: 88
 transformation_search_range: 0.1
 add2graph_threshold: 0.2
+timewindow: 50
 noise_models:
   odometry:
     - 0.0001
