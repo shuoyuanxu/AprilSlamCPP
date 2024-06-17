@@ -228,7 +228,13 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
             // Extract the transform details
             double trans_x = transformStamped.transform.translation.x;
             double trans_y = transformStamped.transform.translation.y;
-            
+            double theta = lastPose_.theta();
+            tf2::Matrix3x3 R;
+            R.setEulerYPR(theta, 0, 0);  // yaw (theta), pitch, roll
+            tf2::Vector3 trans(trans_x, trans_y, 0.0);
+            tf2::Vector3 rotP = R * trans;
+            gtsam::Point2 priorLand(rotP.x() + lastPose_.x(), rotP.y() + lastPose_.y());
+
             // Convert to bearing and range
             double range = sqrt(pow(trans_x, 2) + pow(trans_y, 2));
             double bearing = atan2(trans_y, trans_x);
@@ -256,12 +262,12 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
             else {
                  // New landmark detected
                 tagToNodeIDMap_[tag_number] = landmarkKey;
-                initial_estimates_.insert(landmarkKey, gtsam::Point2(trans_x, trans_y)); // Simple initial estimate
-                landmarkEstimates.insert(landmarkKey, gtsam::Point2(trans_x, trans_y));
+                initial_estimates_.insert(landmarkKey, priorLand); // Simple initial estimate
+                landmarkEstimates.insert(landmarkKey, priorLand);
 
                 // Add a prior for the landmark position to help with initial estimation.
                 graph_.add(gtsam::PriorFactor<gtsam::Point2>(
-                    landmarkKey, gtsam::Point2(trans_x, trans_y), pointNoise)
+                    landmarkKey, priorLand, pointNoise)
                 );
                 factorTimestamps_[graph_.size() - 1] = current_time;
                 // Add a bearing-range observation for this landmark to the graph
