@@ -25,10 +25,10 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
     // }
 
     // OR
-    // double theta = lastPoseSE2.theta();
-    // double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
-    // double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
-    // return gtsam::Pose2(dx_body, dy_body, dtheta);
+    double theta = lastPoseSE2.theta();
+    double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
+    double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
+    distance = dx_body;
 
     // Return the relative pose assuming robot cant move sideways: dy = 0
     return gtsam::Pose2(distance, 0, dtheta);
@@ -64,6 +64,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("timewindow", timeWindow);
     nh_.getParam("maxfactors", maxfactors);
     nh_.getParam("useprunebytime", useprunebytime);
+    nh_.getParam("useprunebysize", useprunebysize);
 
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << odometry_noise[0], odometry_noise[1], odometry_noise[2]).finished());
@@ -179,8 +180,11 @@ void aprilslamcpp::ISAM2Optimise() {
     if (useprunebytime) {
         pruneOldFactorsByTime(current_time, timeWindow);
     }
-    else {
+    else if (useprunebysize) {
         pruneOldFactorsBySize(maxfactors);
+    }
+     else {
+        // Do nothing if no pruning is required
     }
     // Clear estimates for the next iteration
     initial_estimates_.clear();
@@ -286,6 +290,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     elapsed = (end_loop - start_loop).toSec();
     ROS_INFO("transform total: %f seconds", elapsed);
     lastPoseSE2_ = poseSE2;
+    start_loop = ros::WallTime::now();
     // ISAM2 optimization to update the map and robot pose estimates
     if (index_of_pose % 1 == 0) {
         ISAM2Optimise();
