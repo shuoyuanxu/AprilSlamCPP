@@ -69,6 +69,7 @@ private:
     double timeWindow; // The time window for maintaining the graph
     double maxfactors; // Allowed total number of factors in the graph before pruning
     bool useprunebytime;
+    bool useprunebysize;
 };
 
 } 
