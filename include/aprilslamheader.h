@@ -66,6 +66,7 @@ private:
     std::string frame_id;
     std::string pathtosavelandmarkcsv;
     std::string pathtoloadlandmarkcsv;
+    std::string calibrationrun;
     std::map<size_t, double> factorTimestamps_; // Track timestamps of factors
     double timeWindow; // The time window for maintaining the graph
     double maxfactors; // Allowed total number of factors in the graph before pruning
