@@ -5,6 +5,7 @@ frame_id: "map"
 pathtosavelandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
 pathtoloadlandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
 batch_optimisation: true
+calibrationrun: true
 total_tags: 88
 transformation_search_range: 0.1
 add2graph_threshold: 0.2
