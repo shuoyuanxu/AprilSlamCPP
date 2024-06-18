@@ -43,6 +43,8 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("odom_topic", odom_topic);
     nh_.getParam("trajectory_topic", trajectory_topic);
     nh_.getParam("frame_id", frame_id);
+    nh_.getParam("pathtosavelandmarkcsv", pathtosavelandmarkcsv);
+    nh_.getParam("pathtoloadlandmarkcsv", pathtoloadlandmarkcsv);
 
     // Read batch optimization flag
     nh_.getParam("batch_optimisation", batchOptimisation_);
@@ -65,7 +67,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("maxfactors", maxfactors);
     nh_.getParam("useprunebytime", useprunebytime);
     nh_.getParam("useprunebysize", useprunebysize);
-
+    
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << odometry_noise[0], odometry_noise[1], odometry_noise[2]).finished());
     priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << prior_noise[0], prior_noise[1], prior_noise[2]).finished());
@@ -175,7 +177,10 @@ void aprilslamcpp::ISAM2Optimise() {
     // Publish the pose
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
-     // Prune the graph to maintain a predefined time window
+
+    // Save the landmarks into a csv file 
+    saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
+    // Prune the graph to maintain a predefined time window
     double current_time = ros::Time::now().toSec();
     if (useprunebytime) {
         pruneOldFactorsByTime(current_time, timeWindow);

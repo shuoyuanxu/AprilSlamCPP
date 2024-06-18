@@ -82,5 +82,24 @@ void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_
     path_pub.publish(path);
 }
 
+void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename) {
+    std::ofstream file;
+    file.open(filename, std::ios::out); // Open file in write mode
+
+    if (!file) {
+        std::cerr << "Failed to open the file!" << std::endl;
+        return;
+    }
+
+    for (const auto& landmark : landmarks) {
+        int id = landmark.first;
+        gtsam::Point2 point = landmark.second;
+        file << id << "," << point.x() << "," << point.y() << "\n";
+    }
+
+    file.close();
+}
+
 } // namespace aprilslamcpp
+
 

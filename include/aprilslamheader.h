@@ -26,7 +26,6 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/Values.h>
 
-
 namespace aprilslam {
 
 class aprilslamcpp {
@@ -38,7 +37,7 @@ public:
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
     void pruneOldFactorsByTime(double current_time, double timewindow);
     void pruneOldFactorsBySize(double maxfactors);
-
+    
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
@@ -65,6 +64,8 @@ private:
     double transformation_search_range;
     double add2graph_threshold;
     std::string frame_id;
+    std::string pathtosavelandmarkcsv;
+    std::string pathtoloadlandmarkcsv;
     std::map<size_t, double> factorTimestamps_; // Track timestamps of factors
     double timeWindow; // The time window for maintaining the graph
     double maxfactors; // Allowed total number of factors in the graph before pruning

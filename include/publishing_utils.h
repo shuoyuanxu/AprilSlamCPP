@@ -12,11 +12,14 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h> // For TF2 quaternion conversion functions
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/Values.h>
+#include <fstream>
+#include <iostream>
 
 namespace aprilslam {
 
 void publishLandmarks(ros::Publisher& landmark_pub, const std::map<int, gtsam::Point2>& landmarks, const std::string& frame_id);
 void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_index, const std::string& frame_id);
+void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename);
 }
 
 #endif
