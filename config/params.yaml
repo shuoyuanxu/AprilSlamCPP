@@ -2,6 +2,8 @@
 odom_topic: "/odom"
 trajectory_topic: "trajectory"
 frame_id: "map"
+pathtosavelandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
+pathtoloadlandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
 batch_optimisation: true
 total_tags: 88
 transformation_search_range: 0.1
