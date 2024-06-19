@@ -12,8 +12,8 @@ transformation_search_range: 0.1
 add2graph_threshold: 0.2
 timewindow: 50
 maxfactors: 400
-useprunebytime: true
-useprunebysize: true
+useprunebytime: false
+useprunebysize: false
 
 noise_models:
   odometry:

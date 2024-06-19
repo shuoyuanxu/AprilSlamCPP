@@ -19,16 +19,9 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
     double direction = std::atan2(dy, dx);
     
     // Adjust the distance based on the robot's heading to account for backward movement
-    // double relative_angle = wrapToPi(direction - lastPoseSE2.theta());
-    // if (std::cos(relative_angle) < 0) {
-    //     distance = -distance;
-    // }
-
-    // OR
     double theta = lastPoseSE2.theta();
     double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
     double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
-    distance = dx_body;
 
     // Return the relative pose assuming robot cant move sideways: dy = 0
     return gtsam::Pose2(distance, 0, dtheta);
