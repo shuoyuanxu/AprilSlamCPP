@@ -67,8 +67,14 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("useprunebysize", useprunebysize);
     
     // Read calibration and localisation settings
-    nh_.getParam("pathtosavelandmarkcsv", pathtosavelandmarkcsv);
-    nh_.getParam("pathtoloadlandmarkcsv", pathtoloadlandmarkcsv);
+    std::string package_path = ros::package::getPath("aprilslamcpp");
+    std::string save_path, load_path;
+    nh_.getParam("pathtosavelandmarkcsv", save_path);
+    nh_.getParam("pathtoloadlandmarkcsv", load_path);
+
+    // Construct the full paths
+    pathtosavelandmarkcsv = package_path + "/" + save_path;
+    pathtoloadlandmarkcsv = package_path + "/" + load_path;
     nh_.getParam("savetaglocation", savetaglocation);
     nh_.getParam("usepriortagtable", usepriortagtable);
 
@@ -285,7 +291,11 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 factorTimestamps_[graph_.size() - 1] = current_time;
             } 
             else {
-                if (!usepriortagtable) {
+                // If the current landmark was not detected in the calibration run 
+                // Or it's on calibration mode
+                if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
+                    ROS_INFO("Condition1 (!initial_estimates_.exists(landmarkL21Key)): %s", !initial_estimates_.exists(landmarkKey) ? "true" : "false");
+                    ROS_INFO("Condition2 (!usepriortagtable): %s", !usepriortagtable ? "true" : "false");
                     // New landmark detected
                     tagToNodeIDMap_[tag_number] = landmarkKey;
                     initial_estimates_.insert(landmarkKey, priorLand); // Simple initial estimate
