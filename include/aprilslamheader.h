@@ -1,6 +1,7 @@
 #ifndef aprilslamheader
 #define aprilslamheader
 #include <ros/ros.h>
+#include <ros/package.h>
 #include <tf2_ros/buffer.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>

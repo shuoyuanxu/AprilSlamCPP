@@ -2,19 +2,18 @@
 odom_topic: "/odom"
 trajectory_topic: "trajectory"
 frame_id: "map"
-pathtosavelandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
-pathtoloadlandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
+pathtosavelandmarkcsv: "config/landmark.csv"
+pathtoloadlandmarkcsv: "config/landmark.csv"
 savetaglocation: false
 usepriortagtable: true
 batch_optimisation: true
-calibrationrun: true
-total_tags: 88
+total_tags: 89
 transformation_search_range: 0.1
 add2graph_threshold: 0.2
 timewindow: 50
 maxfactors: 400
 useprunebytime: false
-useprunebysize: false
+useprunebysize: true
 
 noise_models:
   odometry:
