@@ -4,6 +4,8 @@ trajectory_topic: "trajectory"
 frame_id: "map"
 pathtosavelandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
 pathtoloadlandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
+savetaglocation: false
+usepriortagtable: true
 batch_optimisation: true
 calibrationrun: true
 total_tags: 88
@@ -12,7 +14,7 @@ add2graph_threshold: 0.2
 timewindow: 50
 maxfactors: 400
 useprunebytime: false
-useprunebytime: false
+useprunebysize: false
 
 noise_models:
   odometry:
@@ -27,5 +29,5 @@ noise_models:
     - 0.1
     - 0.8
   point:
-    - 10
-    - 10
+    - 0.1
+    - 0.1

@@ -20,6 +20,7 @@ namespace aprilslam {
 void publishLandmarks(ros::Publisher& landmark_pub, const std::map<int, gtsam::Point2>& landmarks, const std::string& frame_id);
 void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_index, const std::string& frame_id);
 void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename);
+std::map<int, gtsam::Point2> loadLandmarksFromCSV(const std::string& filename);
 }
 
 #endif

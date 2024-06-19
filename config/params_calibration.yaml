@@ -1,0 +1,33 @@
+# config.yaml
+odom_topic: "/odom"
+trajectory_topic: "trajectory"
+frame_id: "map"
+pathtosavelandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
+pathtoloadlandmarkcsv: "/home/shuoyuan/Downloads/landmark.csv"
+savetaglocation: true
+usepriortagtable: false
+batch_optimisation: true
+calibrationrun: true
+total_tags: 88
+transformation_search_range: 0.1
+add2graph_threshold: 0.2
+timewindow: 50
+maxfactors: 400
+useprunebytime: false
+useprunebysize: false
+
+noise_models:
+  odometry:
+    - 0.0001
+    - 0.01
+    - 0.0001
+  prior:
+    - 0.1
+    - 0.3
+    - 0.1
+  bearing_range:
+    - 0.1
+    - 0.8
+  point:
+    - 10
+    - 10
