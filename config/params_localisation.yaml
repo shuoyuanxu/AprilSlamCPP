@@ -13,7 +13,7 @@ add2graph_threshold: 0.2
 timewindow: 50
 maxfactors: 400
 useprunebytime: false
-useprunebysize: true
+useprunebysize: false
 
 noise_models:
   odometry:
