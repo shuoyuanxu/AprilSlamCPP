@@ -72,6 +72,9 @@ private:
     double maxfactors; // Allowed total number of factors in the graph before pruning
     bool useprunebytime;
     bool useprunebysize;
+    bool savetaglocation;
+    bool usepriortagtable;
+    std::map<int, gtsam::Point2> savedLandmarks;
 };
 
 } 

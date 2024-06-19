@@ -38,13 +38,11 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time)
     : nh_(node_handle), tf_buffer_(cache_time), tf_listener_(tf_buffer_){ 
     
-    // Read topics
+    // Read topics and corresponding frame
     std::string odom_topic, trajectory_topic;
     nh_.getParam("odom_topic", odom_topic);
     nh_.getParam("trajectory_topic", trajectory_topic);
     nh_.getParam("frame_id", frame_id);
-    nh_.getParam("pathtosavelandmarkcsv", pathtosavelandmarkcsv);
-    nh_.getParam("pathtoloadlandmarkcsv", pathtoloadlandmarkcsv);
 
     // Read batch optimization flag
     nh_.getParam("batch_optimisation", batchOptimisation_);
@@ -68,6 +66,12 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("useprunebytime", useprunebytime);
     nh_.getParam("useprunebysize", useprunebysize);
     
+    // Read calibration and localisation settings
+    nh_.getParam("pathtosavelandmarkcsv", pathtosavelandmarkcsv);
+    nh_.getParam("pathtoloadlandmarkcsv", pathtoloadlandmarkcsv);
+    nh_.getParam("savetaglocation", savetaglocation);
+    nh_.getParam("usepriortagtable", usepriortagtable);
+
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << odometry_noise[0], odometry_noise[1], odometry_noise[2]).finished());
     priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << prior_noise[0], prior_noise[1], prior_noise[2]).finished());
@@ -179,7 +183,9 @@ void aprilslamcpp::ISAM2Optimise() {
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
 
     // Save the landmarks into a csv file 
-    saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
+    if (savetaglocation) {
+        saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
+    }
     // Prune the graph to maintain a predefined time window
     double current_time = ros::Time::now().toSec();
     if (useprunebytime) {
@@ -212,6 +218,16 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
         factorTimestamps_[graph_.size() - 1] = current_time;
         initial_estimates_.insert(gtsam::Symbol('X', 1), pose0);
         lastPose_ = pose0; // Keep track of the last pose for odometry calculation
+            // Load calibrated landmarks as priors if avaliable
+        if (usepriortagtable) {
+            std::map<int, gtsam::Point2> savedLandmarks = loadLandmarksFromCSV(pathtoloadlandmarkcsv);
+            for (const auto& landmark : savedLandmarks) {
+                gtsam::Symbol landmarkKey('L', landmark.first);
+                graph_.add(gtsam::PriorFactor<gtsam::Point2>(landmarkKey, landmark.second, pointNoise));
+                initial_estimates_.insert(landmarkKey, landmark.second);
+                landmarkEstimates.insert(landmarkKey, landmark.second);
+                }
+        }
     }
 
     // Predict the next pose based on odometry and add it as an initial estimate
@@ -227,7 +243,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     initial_estimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     
-    // Iterate through possible landmark IDs to check for observations
+    // Iterate through all landmark IDs to if detected
     start_loop = ros::WallTime::now();
     for (const auto& tag_id : possibleIds_) {    
         try {
@@ -269,15 +285,16 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 factorTimestamps_[graph_.size() - 1] = current_time;
             } 
             else {
-                 // New landmark detected
-                tagToNodeIDMap_[tag_number] = landmarkKey;
-                initial_estimates_.insert(landmarkKey, priorLand); // Simple initial estimate
-                landmarkEstimates.insert(landmarkKey, priorLand);
-
-                // Add a prior for the landmark position to help with initial estimation.
-                graph_.add(gtsam::PriorFactor<gtsam::Point2>(
-                    landmarkKey, priorLand, pointNoise)
-                );
+                if (!usepriortagtable) {
+                    // New landmark detected
+                    tagToNodeIDMap_[tag_number] = landmarkKey;
+                    initial_estimates_.insert(landmarkKey, priorLand); // Simple initial estimate
+                    landmarkEstimates.insert(landmarkKey, priorLand);
+                    // Add a prior for the landmark position to help with initial estimation.
+                    graph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                        landmarkKey, priorLand, pointNoise)
+                    );
+                }
                 factorTimestamps_[graph_.size() - 1] = current_time;
                 // Add a bearing-range observation for this landmark to the graph
                 gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(

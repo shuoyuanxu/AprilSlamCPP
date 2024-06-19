@@ -100,6 +100,30 @@ void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std
     file.close();
 }
 
+std::map<int, gtsam::Point2> loadLandmarksFromCSV(const std::string& filename) {
+    std::map<int, gtsam::Point2> landmarks;
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open the file!" << std::endl;
+        return landmarks;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream ss(line);
+        std::string id_str, x_str, y_str;
+        if (std::getline(ss, id_str, ',') && std::getline(ss, x_str, ',') && std::getline(ss, y_str, ',')) {
+            int id = std::stoi(id_str);
+            double x = std::stod(x_str);
+            double y = std::stod(y_str);
+            landmarks[id] = gtsam::Point2(x, y);
+        }
+    }
+
+    file.close();
+    return landmarks;
+}
+
 } // namespace aprilslamcpp
 
 
