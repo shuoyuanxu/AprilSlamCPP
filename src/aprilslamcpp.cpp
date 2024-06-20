@@ -17,7 +17,8 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
     // Compute the distance moved along the robot's forward direction
     double distance = std::sqrt(dx * dx + dy * dy);
     double direction = std::atan2(dy, dx);
-    
+    // return gtsam::Pose2(distance, 0, dtheta);
+
     // Adjust the distance based on the robot's heading to account for backward movement
     double theta = lastPoseSE2.theta();
     double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
