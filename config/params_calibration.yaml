@@ -1,5 +1,5 @@
 # config.yaml
-odom_topic: "/odom"
+odom_topic: "/robot/dlo/odom_node/odom"
 trajectory_topic: "trajectory"
 frame_id: "map"
 pathtosavelandmarkcsv: "config/landmark.csv"
