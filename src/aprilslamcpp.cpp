@@ -37,6 +37,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("odom_topic", odom_topic);
     nh_.getParam("trajectory_topic", trajectory_topic);
     nh_.getParam("frame_id", frame_id);
+    nh_.getParam("robot_frame", robot_frame);
 
     // Read batch optimization flag
     nh_.getParam("batch_optimisation", batchOptimisation_);
@@ -47,6 +48,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("noise_models/prior", prior_noise);
     nh_.getParam("noise_models/bearing_range", bearing_range_noise);
     nh_.getParam("noise_models/point", point_noise);
+
 
     // Read transformation search range (seconds) 
     nh_.getParam("transformation_search_range", transformation_search_range);
@@ -248,7 +250,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     for (const auto& tag_id : possibleIds_) {    
         try {
             // Find transformation between vehicle and landmarks (see if landmarks are detected)
-            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform("base_link", tag_id, ros::Time(0));
+            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform(robot_frame, tag_id, ros::Time(0));
 
             // Extract the transform details
             double trans_x = transformStamped.transform.translation.x;
