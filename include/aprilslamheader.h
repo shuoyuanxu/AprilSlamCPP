@@ -65,6 +65,7 @@ private:
     double transformation_search_range;
     double add2graph_threshold;
     std::string frame_id;
+    std::string robot_frame;
     std::string pathtosavelandmarkcsv;
     std::string pathtoloadlandmarkcsv;
     std::string calibrationrun;
