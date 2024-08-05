@@ -31,3 +31,6 @@ noise_models:
   point:
     - 0.1
     - 0.1
+  loopClosureNoise:
+    - 0.1
+    - 0.1
