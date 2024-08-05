@@ -6,7 +6,7 @@ namespace aprilslam {
 double wrapToPi(double angle) {
     angle = fmod(angle + M_PI, 2 * M_PI);
     return angle - M_PI;
-}
+}   
 
 // Computes the relative pose between two Pose2 objects
 gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& PoseSE2) {
