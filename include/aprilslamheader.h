@@ -38,6 +38,7 @@ public:
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
     void pruneOldFactorsByTime(double current_time, double timewindow);
     void pruneOldFactorsBySize(double maxfactors);
+    void aprilslamcpp::checkLoopClosure(const std::map<int, int>& landmarkCount, double current_time);
     
 private:
     ros::Publisher path_pub_;
