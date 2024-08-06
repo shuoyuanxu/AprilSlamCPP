@@ -16,6 +16,15 @@ maxfactors: 400
 useprunebytime: false
 useprunebysize: false
 
+# Loop closure
+loopClosureEnableFlag: true
+loopClosureFrequency: 1.0
+surroundingKeyframeSize: 50
+historyKeyframeSearchRadius: 15.0
+historyKeyframeSearchTimeDiff: 30.0
+historyKeyframeSearchNum: 25
+historyKeyframeFitnessScore: 0.3
+
 noise_models:
   odometry:
     - 0.0001
@@ -29,5 +38,8 @@ noise_models:
     - 0.1
     - 0.8
   point:
+    - 0.1
+    - 0.1
+  loopClosureNoise:
     - 0.1
     - 0.1

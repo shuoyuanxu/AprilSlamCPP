@@ -62,6 +62,14 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("useprunebytime", useprunebytime);
     nh_.getParam("useprunebysize", useprunebysize);
     
+    // Read loop closure parameters
+    nh_.getParam("loopClosureEnableFlag", loopClosureEnableFlag);
+    nh_.getParam("loopClosureFrequency", loopClosureFrequency);
+    nh_.getParam("surroundingKeyframeSize", surroundingKeyframeSize);
+    nh_.getParam("historyKeyframeSearchRadius", historyKeyframeSearchRadius);
+    nh_.getParam("historyKeyframeSearchTimeDiff", historyKeyframeSearchTimeDiff);
+    nh_.getParam("historyKeyframeSearchNum", historyKeyframeSearchNum);
+
     // Read calibration and localisation settings
     std::string package_path = ros::package::getPath("aprilslamcpp");
     std::string save_path, load_path;
@@ -201,8 +209,34 @@ void aprilslamcpp::ISAM2Optimise() {
     }
     // Clear estimates for the next iteration
     initial_estimates_.clear();
-}   
+}
 
+void aprilslamcpp::checkLoopClosure(const std::map<int, int>& landmarkCount, double current_time) {
+    if (loopClosureEnableFlag) {
+        int count = 0;
+        for (const auto& landmark : landmarkCount) {
+            if (count >= historyKeyframeSearchNum) break;
+
+            // Find the previous pose that observed this landmark
+            for (int i = 1; i < index_of_pose; ++i) {
+                if (landmarkEstimates.exists(gtsam::Symbol('X', i))) {
+                    gtsam::Pose2 previousPose = landmarkEstimates.at<gtsam::Pose2>(gtsam::Symbol('X', i));
+                    double distance = lastPose_.range(previousPose);
+                    double timeDiff = current_time - factorTimestamps_[i];
+
+                    // Check if the previous pose is within the search radius and time difference
+                    if (distance <= historyKeyframeSearchRadius && timeDiff >= historyKeyframeSearchTimeDiff) {
+                        // Add loop closure constraint
+                        graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', i), gtsam::Symbol('X', index_of_pose), relPoseFG(previousPose, lastPoseSE2_), odometryNoise));
+                        factorTimestamps_[graph_.size() - 1] = current_time;
+                        count++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
 void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     double current_time = ros::Time::now().toSec();
     ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times=
@@ -245,6 +279,9 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     initial_estimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     
+     // Loop closure detection setup
+    std::map<int, int> landmarkCount;
+
     // Iterate through all landmark IDs to if detected
     start_loop = ros::WallTime::now();
     for (const auto& tag_id : possibleIds_) {    
