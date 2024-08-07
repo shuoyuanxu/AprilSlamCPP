@@ -38,7 +38,7 @@ public:
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
     void pruneOldFactorsByTime(double current_time, double timewindow);
     void pruneOldFactorsBySize(double maxfactors);
-    void aprilslamcpp::checkLoopClosure(const std::map<int, int>& landmarkCount, double current_time);
+    void checkLoopClosure(const std::map<int, int>& landmarkCount, double current_time);
     
 private:
     ros::Publisher path_pub_;
@@ -75,6 +75,12 @@ private:
     double maxfactors; // Allowed total number of factors in the graph before pruning
     bool useprunebytime;
     bool useprunebysize;
+    bool loopClosureEnableFlag;
+    int loopClosureFrequency;
+    int surroundingKeyframeSize;
+    double historyKeyframeSearchRadius;
+    int historyKeyframeSearchTimeDiff;
+    int historyKeyframeSearchNum;
     bool savetaglocation;
     bool usepriortagtable;
     std::map<int, gtsam::Point2> savedLandmarks;

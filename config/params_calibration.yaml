@@ -13,11 +13,11 @@ transformation_search_range: 0.1
 add2graph_threshold: 0.2
 timewindow: 50
 maxfactors: 400
-useprunebytime: false
+useprunebytime: true
 useprunebysize: false
 
 # Loop closure
-loopClosureEnableFlag: true
+loopClosureEnableFlag: false
 loopClosureFrequency: 1.0
 surroundingKeyframeSize: 50
 historyKeyframeSearchRadius: 15.0
