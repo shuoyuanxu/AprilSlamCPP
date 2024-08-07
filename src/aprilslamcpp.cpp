@@ -213,12 +213,19 @@ void aprilslamcpp::ISAM2Optimise() {
 
 void aprilslamcpp::checkLoopClosure(const std::map<int, int>& landmarkCount, double current_time) {
     if (loopClosureEnableFlag) {
+        int reobservedLandmarks = 0;
         int count = 0;
-        for (const auto& landmark : landmarkCount) {
-            if (count >= historyKeyframeSearchNum) break;
 
-            // Find the previous pose that observed this landmark
-            for (int i = 1; i < index_of_pose; ++i) {
+        // Check how many landmarks have been re-detected
+        for (const auto& landmark : landmarkCount) {
+            if (landmark.second > 1) {
+                reobservedLandmarks++;
+            }
+        }
+
+        // Proceed with loop closure only if at least three landmarks have been re-detected
+        if (reobservedLandmarks >= 3) {
+            for (int i = 1; i < index_of_pose && count < historyKeyframeSearchNum; ++i) {
                 if (landmarkEstimates.exists(gtsam::Symbol('X', i))) {
                     gtsam::Pose2 previousPose = landmarkEstimates.at<gtsam::Pose2>(gtsam::Symbol('X', i));
                     double distance = lastPose_.range(previousPose);
@@ -230,13 +237,13 @@ void aprilslamcpp::checkLoopClosure(const std::map<int, int>& landmarkCount, dou
                         graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', i), gtsam::Symbol('X', index_of_pose), relPoseFG(previousPose, lastPoseSE2_), odometryNoise));
                         factorTimestamps_[graph_.size() - 1] = current_time;
                         count++;
-                        break;
                     }
                 }
             }
         }
     }
 }
+
 void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     double current_time = ros::Time::now().toSec();
     ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times=
@@ -311,6 +318,9 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
             // Construct the landmark key
             gtsam::Symbol landmarkKey('L', tag_number);
 
+            // Count the landmark observations for loop closure
+            landmarkCount[tag_number]++;           
+            
             // Check if the landmark has been observed before
             if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
                 // Existing landmark
@@ -350,7 +360,10 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
         catch (tf2::TransformException &ex) {
                 continue;
         }
-}    
+    }  
+    // Loop closure check
+    checkLoopClosure(landmarkCount, current_time);
+
     end_loop = ros::WallTime::now();
     elapsed = (end_loop - start_loop).toSec();
     ROS_INFO("transform total: %f seconds", elapsed);
