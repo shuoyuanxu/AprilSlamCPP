@@ -13,7 +13,7 @@ transformation_search_range: 0.1
 add2graph_threshold: 0.2
 timewindow: 50
 maxfactors: 400
-useprunebytime: true
+useprunebytime: false
 useprunebysize: false
 
 # Loop closure
@@ -21,7 +21,7 @@ loopClosureEnableFlag: false
 loopClosureFrequency: 1.0
 surroundingKeyframeSize: 50
 historyKeyframeSearchRadius: 15.0
-historyKeyframeSearchTimeDiff: 30.0
+historyKeyframeSearchTimeDiff: 300.0
 historyKeyframeSearchNum: 25
 historyKeyframeFitnessScore: 0.3
 

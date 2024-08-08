@@ -286,8 +286,8 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     initial_estimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     
-     // Loop closure detection setup
-    std::map<int, int> landmarkCount;
+    // Loop closure detection setup
+    std::set<gtsam::Symbol> detectedLandmarks;
 
     // Iterate through all landmark IDs to if detected
     start_loop = ros::WallTime::now();
@@ -332,6 +332,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 // Threshold for ||projection - measurement||
                 if (fabs(error[0]) < add2graph_threshold) graph_.add(factor);
                 factorTimestamps_[graph_.size() - 1] = current_time;
+                detectedLandmarks.insert(landmarkKey);
             } 
             else {
                 // If the current landmark was not detected in the calibration run 
@@ -355,12 +356,16 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 );
                 graph_.add(factor);
                 factorTimestamps_[graph_.size() - 1] = current_time;
+                detectedLandmarks.insert(landmarkKey);
             }
         }
         catch (tf2::TransformException &ex) {
                 continue;
         }
-    }  
+    } 
+    // Update the pose to landmarks mapping
+    poseToLandmarks[gtsam::Symbol('X', index_of_pose)] = detectedLandmarks;
+     
     // Loop closure check
     checkLoopClosure(landmarkCount, current_time);
 
