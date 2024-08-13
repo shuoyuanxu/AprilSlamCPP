@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2_ros
   roslib
+  pcl_ros
+  pcl_conversions
 )
 
 find_package(Eigen3 REQUIRED)
@@ -20,8 +22,8 @@ catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS roscpp std_msgs tf2_ros nav_msgs 
   DEPENDS GTSAM
+  DEPENDS PCL
 )
-
 
 ###########
 ## Build ##
@@ -37,14 +39,21 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME} src/aprilslamcpp.cpp src/publishing_utils.cpp src/PcClustering.cpp)
-
-## Specify libraries to link a library or executable target against
+# Main aprilslamcpp executable
+# add_executable(${PROJECT_NAME} src/aprilslamcpp.cpp src/publishing_utils.cpp)
+# target_link_libraries(
+#   aprilslamcpp
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   gtsam 
+#   tbb
+# )
+# PcClustering executable
+add_executable(PcClustering_node src/PcClustering.cpp)
 target_link_libraries(
-  ${PROJECT_NAME}
+  PcClustering_node
   ${catkin_LIBRARIES}
-  gtsam 
-  tbb
+  ${PCL_LIBRARIES}
 )
 
 #############
@@ -52,7 +61,7 @@ target_link_libraries(
 #############
 
 install(
-  TARGETS aprilslamcpp 
+  TARGETS PcClustering_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -38,7 +38,7 @@ public:
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
     void pruneOldFactorsByTime(double current_time, double timewindow);
     void pruneOldFactorsBySize(double maxfactors);
-    void checkLoopClosure(const std::map<int, int>& landmarkCount, double current_time);
+    void checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks);
     
 private:
     ros::Publisher path_pub_;
