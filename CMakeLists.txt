@@ -13,7 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   roslib
 )
 
-find_package(Eigen3 REQUIRED) # Find Eigen
+find_package(Eigen3 REQUIRED)
+find_package(PCL REQUIRED) 
 
 catkin_package(
   INCLUDE_DIRS include
@@ -33,9 +34,10 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${catkin_INCLUDE_DIRS}
   ${GTSAM_INCLUDE_DIR}
+  ${PCL_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME} src/aprilslamcpp.cpp src/publishing_utils.cpp)
+add_executable(${PROJECT_NAME} src/aprilslamcpp.cpp src/publishing_utils.cpp src/PcClustering.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(
