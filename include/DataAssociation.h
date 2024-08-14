@@ -1,5 +1,5 @@
-#ifndef PcClustering
-#define PcClustering
+#ifndef DataAssociation
+#define DataAssociation
 
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -15,15 +15,14 @@
 #include <pcl/filters/passthrough.h>
 #include <tf/tf.h>
 #include <pcl/common/centroid.h>
-#include <pcl/filters/passthrough.h>
 
 namespace aprilslam {
     typedef pcl::PointXYZ PointT;
 
-    class TreeTrunkDetector
+    class DataAssociation
     {
     public:
-        TreeTrunkDetector(); // Constructor
+        DataAssociation(); // Constructor
         void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& input); // Callback function for LIDAR data
         void odomCallback(const nav_msgs::Odometry::ConstPtr& msg); // Callback function for odometry data
 
