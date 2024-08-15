@@ -1,5 +1,5 @@
-#ifndef PcClustering
-#define PcClustering
+#ifndef PC_ClUSTERING_H
+#define PC_ClUSTERING_H
 
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -16,6 +16,7 @@
 #include <tf/tf.h>
 #include <pcl/common/centroid.h>
 #include <pcl/filters/passthrough.h>
+#include "DataAssociation.h"
 
 namespace aprilslam {
     typedef pcl::PointXYZ PointT;
@@ -26,7 +27,7 @@ namespace aprilslam {
         TreeTrunkDetector(); // Constructor
         void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& input); // Callback function for LIDAR data
         void odomCallback(const nav_msgs::Odometry::ConstPtr& msg); // Callback function for odometry data
-
+        Eigen::Vector3f transformToGlobal(const Eigen::Vector3f& local_point); //convert landmark locations from local frame to global
     private:
         ros::NodeHandle nh_;           // ROS node handle
         ros::Subscriber sub_;          // ROS subscriber for point cloud data
@@ -35,6 +36,7 @@ namespace aprilslam {
 
         nav_msgs::Odometry current_odom_; // Latest odometry data
         int marker_id_;  // Variable to track the marker IDs
+        DataAssociation data_association_; // Data association object to track clusters
     };
 }
 

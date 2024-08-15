@@ -1,5 +1,3 @@
-// publishing_utils.h
-
 #ifndef PUBLISHING_UTILS_H
 #define PUBLISHING_UTILS_H
 

@@ -1,142 +1,97 @@
 #include "DataAssociation.h"
 
 namespace aprilslam {
-    TreeTrunkDetector::TreeTrunkDetector() {
-        sub_ = nh_.subscribe("/ouster/points", 1, &TreeTrunkDetector::cloudCallback, this);
-        odom_sub_ = nh_.subscribe("/odometry/filtered", 1, &TreeTrunkDetector::odomCallback, this);
-        cluster_centers_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("cluster_centers", 1);
-        marker_id_ = 0;  // Initialize marker ID counter
-    }
 
-    void TreeTrunkDetector::odomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
-        current_odom_ = *msg;  // Store the latest odometry information
-    }
-
-    void TreeTrunkDetector::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& input) {
-        pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
-        pcl::fromROSMsg(*input, *cloud);
-        ROS_INFO("Received point cloud with %zu points.", cloud->points.size());
-
-        pcl::PointCloud<PointT>::Ptr cloud_filtered_azimuth(new pcl::PointCloud<PointT>);
-        for (const auto& point : cloud->points) {
-            float azimuth = std::atan2(point.y, point.x);
-            if (azimuth >= -3*M_PI / 4 && azimuth <= 3*M_PI / 4) {  // Filter for -135° to 135°
-                cloud_filtered_azimuth->points.push_back(point);
-            }
-        }
-        ROS_INFO("Filtered point cloud based on azimuth, remaining %zu points.", cloud_filtered_azimuth->points.size());
-
-        pcl::PointCloud<PointT>::Ptr cloud_filtered_z(new pcl::PointCloud<PointT>);
-        pcl::PassThrough<PointT> pass;
-        pass.setInputCloud(cloud_filtered_azimuth);
-        pass.setFilterFieldName("z");
-        pass.setFilterLimits(-0.8, -0.5); 
-        pass.filter(*cloud_filtered_z);
-        ROS_INFO("Filtered point cloud based on height, remaining %zu points.", cloud_filtered_z->points.size());
-
-        pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
-        pcl::StatisticalOutlierRemoval<PointT> sor;
-        sor.setInputCloud(cloud_filtered_z);
-        sor.setMeanK(50);  
-        sor.setStddevMulThresh(1.0); 
-        sor.filter(*cloud_filtered);
-        ROS_INFO("After noise removal, %zu points remain.", cloud_filtered->points.size());
-
-        pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
-        tree->setInputCloud(cloud_filtered);
-
-        std::vector<pcl::PointIndices> cluster_indices;
-        pcl::EuclideanClusterExtraction<PointT> ec;
-        ec.setClusterTolerance(0.3); 
-        ec.setMinClusterSize(5);  
-        ec.setMaxClusterSize(10000);  
-        ec.setSearchMethod(tree);
-        ec.setInputCloud(cloud_filtered);
-        ec.extract(cluster_indices);
-
-        ROS_INFO("Detected %zu clusters.", cluster_indices.size());
-
-        visualization_msgs::MarkerArray marker_array;
-
-        // First, delete old markers
-        for (int i = 0; i < marker_id_; i++) {
-            visualization_msgs::Marker marker;
-            marker.header.frame_id = "map";  // Global frame
-            marker.header.stamp = ros::Time::now();
-            marker.ns = "tree_trunk_centers";
-            marker.id = i;
-            marker.action = visualization_msgs::Marker::DELETE; // Delete marker
-            marker_array.markers.push_back(marker);
-        }
-
-        int j = 0;
-        for (const auto& indices : cluster_indices) {
-            pcl::PointCloud<PointT>::Ptr cloud_cluster(new pcl::PointCloud<PointT>);
-            Eigen::Vector4f centroid;
-            for (const auto& idx : indices.indices)
-                cloud_cluster->points.push_back(cloud_filtered->points[idx]);
-
-            pcl::compute3DCentroid(*cloud_cluster, centroid);
-
-            // Transform centroid to global frame using odometry information
-            tf::Vector3 point(centroid[0], centroid[1], centroid[2]);
-            tf::Quaternion orientation(
-                current_odom_.pose.pose.orientation.x,
-                current_odom_.pose.pose.orientation.y,
-                current_odom_.pose.pose.orientation.z,
-                current_odom_.pose.pose.orientation.w
-            );
-
-            tf::Transform transform(orientation, tf::Vector3(
-                current_odom_.pose.pose.position.x,
-                current_odom_.pose.pose.position.y,
-                current_odom_.pose.pose.position.z
-            ));
-
-            tf::Vector3 global_point = transform * point;
-
-            // Create a marker for the centroid in the global frame
-            visualization_msgs::Marker marker;
-            marker.header.frame_id = "map";  // Global frame
-            marker.header.stamp = ros::Time::now();
-            marker.ns = "tree_trunk_centers";
-            marker.id = j;
-            marker.type = visualization_msgs::Marker::SPHERE;
-            marker.action = visualization_msgs::Marker::ADD;  // Add marker
-            marker.pose.position.x = global_point.x();
-            marker.pose.position.y = global_point.y();
-            marker.pose.position.z = global_point.z();
-            marker.pose.orientation.w = 1.0;
-            marker.scale.x = 0.1;
-            marker.scale.y = 0.1;
-            marker.scale.z = 0.1;
-            marker.color.r = 1.0f;
-            marker.color.g = 0.0f;
-            marker.color.b = 0.0f;
-            marker.color.a = 1.0f;
-
-            marker_array.markers.push_back(marker);
-            j++;
-        }
-
-        marker_id_ = j;  // Update marker count
-
-        if (!cluster_indices.empty()) {
-            ROS_INFO("Publishing %zu clusters and their centroids.", cluster_indices.size());
-        } else {
-            ROS_WARN("No clusters found in the filtered point cloud.");
-        }
-
-        cluster_centers_pub_.publish(marker_array);
-    }
+DataAssociation::DataAssociation() {
+    associated_clusters_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("associated_clusters", 1);
 }
 
-int main(int argc, char** argv) {
-    ros::init(argc, argv, "tree_trunk_detector");
+int DataAssociation::associateCluster(const Eigen::Vector3f& current_center) {
+    int associated_id = -1;
+    float min_distance = association_threshold_;
 
-    aprilslam::TreeTrunkDetector detector;
+    for (const auto& [id, previous_center] : previous_cluster_centers_) {
+        // float distance = (current_center - previous_center).norm();
+        float distance = std::sqrt(std::pow(current_center.x() - previous_center.x(), 2) +
+                     std::pow(current_center.y() - previous_center.y(), 2));
 
-    ros::spin();
+        if (distance < min_distance) {
+            min_distance = distance;
+            associated_id = id;
+        }
+    }
 
-    return 0;
+    if (associated_id == -1) {
+        associated_id = next_id_++;
+    }
+
+    previous_cluster_centers_[associated_id] = current_center;
+    return associated_id;
 }
+
+void DataAssociation::associateClusters(const std::vector<Eigen::Vector3f>& cluster_centers, const std::string& frame_id) {
+    std::unordered_map<int, Eigen::Vector3f> current_cluster_centers;
+    visualization_msgs::MarkerArray marker_array;
+
+    int j = 0;
+    for (const auto& center : cluster_centers) {
+        // Associate the global center with an ID
+        int cluster_id = associateCluster(center);
+        current_cluster_centers[cluster_id] = center;
+
+        // Create a marker for the cluster center
+        visualization_msgs::Marker marker;
+        marker.header.frame_id = frame_id;  // Global frame
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "associated_clusters";
+        marker.id = cluster_id;
+        marker.type = visualization_msgs::Marker::SPHERE;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.pose.position.x = center[0];
+        marker.pose.position.y = center[1];
+        marker.pose.position.z = center[2];
+        marker.pose.orientation.w = 1.0;
+        marker.scale.x = 0.1;
+        marker.scale.y = 0.1;
+        marker.scale.z = 0.1;
+        marker.color.r = 0.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0f;
+
+        // Add the sphere marker to the array
+        marker_array.markers.push_back(marker);
+
+        // Create a marker for the text displaying the ID
+        visualization_msgs::Marker text_marker;
+        text_marker.header.frame_id = frame_id;  // Global frame
+        text_marker.header.stamp = ros::Time::now();
+        text_marker.ns = "associated_clusters";
+        text_marker.id = cluster_id + 1000; // Use a different ID to avoid conflicts with sphere markers
+        text_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+        text_marker.action = visualization_msgs::Marker::ADD;
+        text_marker.pose.position.x = center[0];
+        text_marker.pose.position.y = center[1];
+        text_marker.pose.position.z = center[2] + 0.2;  // Slightly above the cluster center
+        text_marker.pose.orientation.w = 1.0;
+        text_marker.scale.z = 0.2;  // Text height
+        text_marker.color.r = 1.0f;
+        text_marker.color.g = 1.0f;
+        text_marker.color.b = 1.0f;
+        text_marker.color.a = 1.0f;
+        text_marker.text = std::to_string(cluster_id); // Display the cluster ID
+
+        // Add the text marker to the array
+        marker_array.markers.push_back(text_marker);
+
+        j++;
+    }
+
+    // Update the previous cluster centers for the next frame
+    previous_cluster_centers_ = current_cluster_centers;
+
+    // Publish the marker array with associated IDs and text markers
+    associated_clusters_pub_.publish(marker_array);
+}
+
+} // namespace aprilslam

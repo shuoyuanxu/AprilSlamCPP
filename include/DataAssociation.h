@@ -1,40 +1,30 @@
-#ifndef DataAssociation
-#define DataAssociation
+#ifndef DATA_ASSOCIATION_H
+#define DATA_ASSOCIATION_H
 
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <pcl/point_types.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/filters/statistical_outlier_removal.h>
-#include <pcl/segmentation/extract_clusters.h>
-#include <pcl/visualization/cloud_viewer.h>
 #include <geometry_msgs/Point.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <visualization_msgs/Marker.h>
-#include <nav_msgs/Odometry.h>
-#include <pcl/filters/passthrough.h>
-#include <tf/tf.h>
-#include <pcl/common/centroid.h>
+#include <unordered_map>
+#include <Eigen/Dense>
 
 namespace aprilslam {
-    typedef pcl::PointXYZ PointT;
 
-    class DataAssociation
-    {
-    public:
-        DataAssociation(); // Constructor
-        void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& input); // Callback function for LIDAR data
-        void odomCallback(const nav_msgs::Odometry::ConstPtr& msg); // Callback function for odometry data
+class DataAssociation {
+public:
+    DataAssociation(); // Constructor
+    void associateClusters(const std::vector<Eigen::Vector3f>& cluster_centers, const std::string& frame_id);
 
-    private:
-        ros::NodeHandle nh_;           // ROS node handle
-        ros::Subscriber sub_;          // ROS subscriber for point cloud data
-        ros::Subscriber odom_sub_;     // ROS subscriber for odometry data
-        ros::Publisher cluster_centers_pub_; // ROS publisher for cluster centers
+private:
+    std::unordered_map<int, Eigen::Vector3f> previous_cluster_centers_; // Store previous cluster centers and their IDs
+    int next_id_ = 0; // ID counter for new clusters
+    float association_threshold_ = 2.0f; // Distance threshold for association (in meters)
+    
+    ros::NodeHandle nh_;
+    ros::Publisher associated_clusters_pub_; // Publisher for associated cluster IDs and centers
 
-        nav_msgs::Odometry current_odom_; // Latest odometry data
-        int marker_id_;  // Variable to track the marker IDs
-    };
-}
+    int associateCluster(const Eigen::Vector3f& current_center); // Method to associate clusters with unique IDs
+};
 
-#endif
+} // namespace aprilslam
+
+#endif // DATA_ASSOCIATION_H

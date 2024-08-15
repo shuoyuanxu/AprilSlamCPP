@@ -1,5 +1,5 @@
-#ifndef aprilslamheader
-#define aprilslamheader
+#ifndef APRIL_SLAM_H
+#define APRIL_SLAM_H
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <tf2_ros/buffer.h>
