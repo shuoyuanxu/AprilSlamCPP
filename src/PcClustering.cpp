@@ -67,7 +67,7 @@ void TreeTrunkDetector::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& in
     pcl::PassThrough<PointT> pass_x;
     pass_x.setInputCloud(cloud_filtered_z);  // Assuming cloud_filtered_azimuth is your input cloud
     pass_x.setFilterFieldName("x");
-    pass_x.setFilterLimits(5.0, 5.0);  // Set limits for X range
+    pass_x.setFilterLimits(-5.0, 5.0);  // Set limits for X range
     pass_x.filter(*cloud_filtered_x);
     ROS_INFO("Filtered point cloud based on X range, remaining %zu points.", cloud_filtered_x->points.size());
 
@@ -95,10 +95,10 @@ void TreeTrunkDetector::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& in
 
     std::vector<pcl::PointIndices> cluster_indices;
     pcl::EuclideanClusterExtraction<PointT> ec;
-    ec.setClusterTolerance(0.3);
+    ec.setClusterTolerance(0.1);
     ec.setMinClusterSize(5);
     ec.setMaxClusterSize(10000);
-    ec.setSearchMethod(tree);
+    ec.setSearchMethod(tree);3
     ec.setInputCloud(cloud_filtered);
     ec.extract(cluster_indices);
 
