@@ -17,7 +17,7 @@ public:
 private:
     std::unordered_map<int, Eigen::Vector3f> previous_cluster_centers_; // Store previous cluster centers and their IDs
     int next_id_ = 0; // ID counter for new clusters
-    float association_threshold_ = 2.0f; // Distance threshold for association (in meters)
+    float association_threshold_ ; // Distance threshold for association (in meters)
     
     ros::NodeHandle nh_;
     ros::Publisher associated_clusters_pub_; // Publisher for associated cluster IDs and centers

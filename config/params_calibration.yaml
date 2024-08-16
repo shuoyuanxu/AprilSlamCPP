@@ -1,4 +1,3 @@
-# config.yaml
 odom_topic: "/robot/dlo/odom_node/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"

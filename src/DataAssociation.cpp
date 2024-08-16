@@ -3,6 +3,7 @@
 namespace aprilslam {
 
 DataAssociation::DataAssociation() {
+    nh_.getParam("association_threshold", association_threshold_);
     associated_clusters_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("associated_clusters", 1);
 }
 
