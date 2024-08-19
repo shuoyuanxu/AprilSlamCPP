@@ -39,6 +39,7 @@ public:
     void pruneOldFactorsByTime(double current_time, double timewindow);
     void pruneOldFactorsBySize(double maxfactors);
     void checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks);
+    bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
     
 private:
     ros::Publisher path_pub_;

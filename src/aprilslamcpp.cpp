@@ -122,6 +122,21 @@ void aprilslamcpp::initializeGTSAM() {
     ROS_INFO_STREAM("Initilisation Done");
 }
 
+bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose) {
+    // Calculate the distance between the current pose and the last keyframe pose
+    double distance = lastPose.range(currentPose);
+
+    // Calculate the difference in orientation (theta) between the current pose and the last keyframe pose
+    double angleDifference = std::abs(wrapToPi(currentPose.theta() - lastPose.theta()));
+
+    // Check if either the distance moved or the rotation exceeds the threshold
+    if (distance > distanceThreshold || angleDifference > rotationThreshold) {
+        return true;  // Add a new keyframe
+    }
+
+    return false;  // Do not add a keyframe
+}
+
 void aprilslamcpp::pruneOldFactorsByTime(double current_time, double timewindow) {
     // Define a threshold for old factors and variables
     double time_threshold = current_time - timewindow;
@@ -377,7 +392,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     }
     end_loop = ros::WallTime::now();
     elapsed = (end_loop - start_loop).toSec();
-    ROS_INFO("optimisation: %f seconds", elapsed);
+    ROS_INFO("optimisation: %f seconds", elapsed);STE and or mapping
 
 }
 }

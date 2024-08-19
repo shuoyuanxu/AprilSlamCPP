@@ -11,7 +11,7 @@ int DataAssociation::associateCluster(const Eigen::Vector3f& current_center) {
     int associated_id = -1;
     float min_distance = association_threshold_;
 
-    for (const auto& [id, previous_center] : previous_cluster_centers_) {
+    for (const auto& [id, previous_center] : ) {
         // float distance = (current_center - previous_center).norm();
         float distance = std::sqrt(std::pow(current_center.x() - previous_center.x(), 2) +
                      std::pow(current_center.y() - previous_center.y(), 2));
