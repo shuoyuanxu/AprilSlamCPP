@@ -52,6 +52,14 @@ private:
     gtsam::NonlinearFactorGraph graph_;
     gtsam::Values initial_estimates_;
     gtsam::Values landmarkEstimates;
+
+    gtsam::NonlinearFactorGraph keyframeGraph_;  // Keyframe graph: All keyframes and associated landmarks
+    gtsam::Values keyframeEstimates_;            // Estimates for keyframes
+
+    gtsam::NonlinearFactorGraph windowGraph_;    // Window graph: Current time window, built on top of keyframeGraph
+    gtsam::Values windowEstimates_;              // Estimates for current time window
+
+ 
     gtsam::ISAM2 isam_;
     gtsam::Pose2 lastPoseSE2_;
     gtsam::Pose2 lastPose_;

@@ -11,7 +11,7 @@ int DataAssociation::associateCluster(const Eigen::Vector3f& current_center) {
     int associated_id = -1;
     float min_distance = association_threshold_;
 
-    for (const auto& [id, previous_center] : previous_cluster_centers_) {
+    for (const auto& [id, previous_center] : previous_cluster_centers_ ) {
         // float distance = (current_center - previous_center).norm();
         float distance = std::sqrt(std::pow(current_center.x() - previous_center.x(), 2) +
                      std::pow(current_center.y() - previous_center.y(), 2));
@@ -68,7 +68,7 @@ void DataAssociation::associateClusters(const std::vector<Eigen::Vector3f>& clus
         text_marker.header.frame_id = frame_id;  // Global frame
         text_marker.header.stamp = ros::Time::now();
         text_marker.ns = "associated_clusters";
-        text_marker.id = cluster_id + 1000; // Use a different ID to avoid conflicts with sphere markers
+        text_marker.id = cluster_id + 10000; // Use a different ID to avoid conflicts with sphere markers
         text_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
         text_marker.action = visualization_msgs::Marker::ADD;
         text_marker.pose.position.x = center[0];
