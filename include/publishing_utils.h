@@ -12,12 +12,26 @@
 #include <gtsam/nonlinear/Values.h>
 #include <fstream>
 #include <iostream>
+#include <vector>
+#include <Eigen/Dense>
+#include <apriltag_ros/AprilTagDetectionArray.h>
 
 namespace aprilslam {
     void publishLandmarks(ros::Publisher& landmark_pub, const std::map<int, gtsam::Point2>& landmarks, const std::string& frame_id);
     void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_index, const std::string& frame_id);
     void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename);
     std::map<int, gtsam::Point2> loadLandmarksFromCSV(const std::string& filename);
+    void processDetections(const apriltag_ros::AprilTagDetectionArray::ConstPtr& cam_msg, 
+        const Eigen::Vector3d& xyTrans_cam_baselink, 
+        std::vector<int>& Ids, 
+        std::vector<Eigen::Vector2d>& tagPoss);
+    std::pair<std::vector<int>, std::vector<Eigen::Vector2d>> getCamDetections(
+        const apriltag_ros::AprilTagDetectionArray::ConstPtr& mCam_msg,
+        const apriltag_ros::AprilTagDetectionArray::ConstPtr& rCam_msg,
+        const apriltag_ros::AprilTagDetectionArray::ConstPtr& lCam_msg,
+        const Eigen::Vector3d& xyTrans_lcam_baselink,
+        const Eigen::Vector3d& xyTrans_rcam_baselink,
+        const Eigen::Vector3d& xyTrans_mcam_baselink);
 }
 
 #endif

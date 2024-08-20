@@ -124,6 +124,44 @@ std::map<int, gtsam::Point2> loadLandmarksFromCSV(const std::string& filename) {
     return landmarks;
 }
 
+// funtion for computing tag locations from coordinate transformation
+void processDetections(const apriltag_ros::AprilTagDetectionArray::ConstPtr& cam_msg, 
+                       const Eigen::Vector3d& xyTrans_cam_baselink,
+                       std::vector<int>& Ids, 
+                       std::vector<Eigen::Vector2d>& tagPoss) {
+    if (cam_msg) {
+        for (const auto& detection : cam_msg->detections) {
+            Ids.push_back(detection.id[0]);
+            double rotTheta = xyTrans_cam_baselink(2);
+            Eigen::Matrix2d R;
+            R << cos(rotTheta), -sin(rotTheta),
+                 sin(rotTheta),  cos(rotTheta);
+            Eigen::Vector2d rotP = R * Eigen::Vector2d(detection.pose.pose.pose.position.z, -detection.pose.pose.pose.position.x);
+            tagPoss.push_back(rotP + xyTrans_cam_baselink.head<2>());
+        }
+    }
+}
+
+// funtion for processing tag detection topics into IDs and TagPoss
+std::pair<std::vector<int>, std::vector<Eigen::Vector2d>> getCamDetections(
+    const apriltag_ros::AprilTagDetectionArray::ConstPtr& mCam_msg,
+    const apriltag_ros::AprilTagDetectionArray::ConstPtr& rCam_msg,
+    const apriltag_ros::AprilTagDetectionArray::ConstPtr& lCam_msg,
+    const Eigen::Vector3d& xyTrans_lcam_baselink,
+    const Eigen::Vector3d& xyTrans_rcam_baselink,
+    const Eigen::Vector3d& xyTrans_mcam_baselink) {
+
+    std::vector<int> Ids;
+    std::vector<Eigen::Vector2d> tagPoss;
+
+    // Process detections from each camera
+    processDetections(mCam_msg, xyTrans_mcam_baselink, Ids, tagPoss);
+    processDetections(rCam_msg, xyTrans_rcam_baselink, Ids, tagPoss);
+    processDetections(lCam_msg, xyTrans_lcam_baselink, Ids, tagPoss);
+
+    return std::make_pair(Ids, tagPoss);
+}
+
 } // namespace aprilslamcpp
 
 

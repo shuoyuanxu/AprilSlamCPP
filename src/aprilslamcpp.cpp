@@ -136,7 +136,6 @@ bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::
 
     return false;  // Do not add a keyframe
 }
-
 void aprilslamcpp::pruneOldFactorsByTime(double current_time, double timewindow) {
     // Define a threshold for old factors and variables
     double time_threshold = current_time - timewindow;
@@ -392,9 +391,9 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     }
     end_loop = ros::WallTime::now();
     elapsed = (end_loop - start_loop).toSec();
-    ROS_INFO("optimisation: %f seconds", elapsed);STE and or mapping
-
+    ROS_INFO("optimisation: %f seconds", elapsed);
 }
+
 }
 
 int main(int argc, char **argv) {
