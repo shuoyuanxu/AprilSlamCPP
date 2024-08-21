@@ -40,7 +40,9 @@ public:
     void pruneOldFactorsBySize(double maxfactors);
     void checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks);
     bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
-    
+    void updateKeyframeGraphWithOptimizedResults(const gtsam::Values& optimizedResults);
+    void createNewKeyframe(const gtsam::Pose2& predictedPose, double currentTime);
+
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
@@ -49,9 +51,9 @@ private:
     ros::Subscriber odom_sub_;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
-    gtsam::NonlinearFactorGraph graph_;
-    gtsam::Values initial_estimates_;
-    gtsam::Values landmarkEstimates;
+    // gtsam::NonlinearFactorGraph graph_;
+    // gtsam::Values initial_estimates_;
+    gtsam::Values landmarkEstimates;  // for unwhitten error computing 
 
     gtsam::NonlinearFactorGraph keyframeGraph_;  // Keyframe graph: All keyframes and associated landmarks
     gtsam::Values keyframeEstimates_;            // Estimates for keyframes
