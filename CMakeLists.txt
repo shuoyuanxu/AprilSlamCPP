@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   roslib
   pcl_ros
   pcl_conversions
+  apriltag_ros
 )
 
 find_package(Eigen3 REQUIRED)
@@ -20,7 +21,7 @@ find_package(PCL REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp std_msgs tf2_ros nav_msgs 
+  CATKIN_DEPENDS roscpp std_msgs tf2_ros nav_msgs apriltag_ros
   DEPENDS GTSAM
   DEPENDS PCL
 )

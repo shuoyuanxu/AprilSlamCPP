@@ -144,6 +144,7 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, double c
     // Add the keyframe pose to the keyframe graph
     keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(keyframeSymbol, predictedPose, priorNoise));
     keyframeEstimates_.insert(keyframeSymbol, predictedPose);
+    ROS_INFO("key inserted");
 
     // Add associated landmarks to the keyframe graph
     for (const auto& landmarkSymbol : poseToLandmarks[keyframeSymbol]) {
@@ -198,7 +199,7 @@ gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     double x = msg->pose.pose.position.x;
     double y = msg->pose.pose.position.y;
 
-    double qx = msg->pose.pose.orientation.x;fix
+    double qx = msg->pose.pose.orientation.x;
     double qy = msg->pose.pose.orientation.y;
     double qz = msg->pose.pose.orientation.z;
     double qw = msg->pose.pose.orientation.w;
@@ -345,6 +346,10 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     // Determine if this pose should be a keyframe
     if (shouldAddKeyframe(lastPose_, predictedPose)) {
         createNewKeyframe(predictedPose, current_time);
+        ROS_INFO("keyframe added");
+    }
+    else{
+        windowEstimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     }
 
     // Add this relative motion as an odometry factor to the graph
@@ -355,8 +360,6 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     
     // Update the last pose and initial estimates for the next iteration
     lastPose_ = predictedPose;
-    windowEstimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
-    ROS_INFO("estimated added");
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
     ROS_INFO("estimated added");
 
