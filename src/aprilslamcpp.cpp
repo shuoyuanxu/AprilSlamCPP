@@ -198,7 +198,7 @@ gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     double x = msg->pose.pose.position.x;
     double y = msg->pose.pose.position.y;
 
-    double qx = msg->pose.pose.orientation.x;
+    double qx = msg->pose.pose.orientation.x;fix
     double qy = msg->pose.pose.orientation.y;
     double qz = msg->pose.pose.orientation.z;
     double qw = msg->pose.pose.orientation.w;
@@ -273,6 +273,7 @@ void aprilslamcpp::ISAM2Optimise() {
     }
     // Clear estimates for the next iteration (????necessary)
     windowEstimates_.clear();
+    // landmarkEstimates.clear();
 }
 
 // void aprilslamcpp::checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks) {
@@ -348,13 +349,17 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
 
     // Add this relative motion as an odometry factor to the graph
     windowGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1), gtsam::Symbol('X', index_of_pose), odometry, odometryNoise));
+    ROS_INFO("factor added");
+
     factorTimestamps_[windowGraph_.size() - 1] = current_time;
     
     // Update the last pose and initial estimates for the next iteration
     lastPose_ = predictedPose;
     windowEstimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
+    ROS_INFO("estimated added");
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
-    
+    ROS_INFO("estimated added");
+
     // Loop closure detection setup
     std::set<gtsam::Symbol> detectedLandmarks;
 
@@ -404,8 +409,8 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 // If the current landmark was not detected in the calibration run 
                 // Or it's on calibration mode
                 if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
-                    ROS_INFO("Condition1 (!initial_estimates_.exists(landmarkL21Key)): %s", !windowEstimates_.exists(landmarkKey) ? "true" : "false");
-                    ROS_INFO("Condition2 (!usepriortagtable): %s", !usepriortagtable ? "true" : "false");
+                    // ROS_INFO("Condition1 (!initial_estimates_.exists(landmarkL21Key)): %s", !windowEstimates_.exists(landmarkKey) ? "true" : "false");
+                    // ROS_INFO("Condition2 (usepriortagtable): %s", usepriortagtable ? "true" : "false");
                     // New landmark detected
                     tagToNodeIDMap_[tag_number] = landmarkKey;
                     windowEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
