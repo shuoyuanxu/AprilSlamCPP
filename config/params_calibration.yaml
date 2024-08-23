@@ -16,14 +16,16 @@ useprunebytime: false
 useprunebysize: false
 
 # Loop closure
-loopClosureEnableFlag: false
-loopClosureFrequency: 1.0
 surroundingKeyframeSize: 50
 historyKeyframeSearchRadius: 15.0
 historyKeyframeSearchTimeDiff: 300.0
 historyKeyframeSearchNum: 25
 historyKeyframeFitnessScore: 0.3
 
+# Keyframe info
+distanceThreshold: 1.0
+rotationThreshold: 5.0
+  
 noise_models:
   odometry:
     - 0.0001

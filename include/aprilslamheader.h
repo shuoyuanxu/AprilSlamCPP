@@ -61,7 +61,7 @@ private:
     gtsam::NonlinearFactorGraph windowGraph_;    // Window graph: Current time window, built on top of keyframeGraph
     gtsam::Values windowEstimates_;              // Estimates for current time window
 
- 
+    gtsam::Pose2 Key_previous;
     gtsam::ISAM2 isam_;
     gtsam::Pose2 lastPoseSE2_;
     gtsam::Pose2 lastPose_;
@@ -96,8 +96,8 @@ private:
     bool usepriortagtable;
     std::map<int, gtsam::Point2> savedLandmarks;
     std::map<gtsam::Symbol, std::set<gtsam::Symbol>> poseToLandmarks; // Maps pose index to a set of detected landmark IDs, e.g. X1: L1,L2,L3.
-    double distanceThreshold;
-    double rotationThreshold;
+    double distanceThreshold = 1.0;
+    double rotationThreshold = 5.0;
 };
 
 } 
