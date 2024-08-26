@@ -96,8 +96,8 @@ private:
     bool usepriortagtable;
     std::map<int, gtsam::Point2> savedLandmarks;
     std::map<gtsam::Symbol, std::set<gtsam::Symbol>> poseToLandmarks; // Maps pose index to a set of detected landmark IDs, e.g. X1: L1,L2,L3.
-    double distanceThreshold = 1.0;
-    double rotationThreshold = 5.0;
+    double distanceThreshold;
+    double rotationThreshold;
 };
 
 } 
