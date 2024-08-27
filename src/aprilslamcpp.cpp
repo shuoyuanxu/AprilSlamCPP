@@ -248,39 +248,71 @@ gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
 }
 
 void aprilslamcpp::updateKeyframeGraphWithOptimizedResults(const gtsam::Values& optimizedResults) {
+    ROS_INFO("Entered updateKeyframeGraphWithOptimizedResults");
+
     // Update keyframe estimates with the optimized values
     for (const auto& keyframe : keyframeEstimates_) {
         gtsam::Key key = keyframe.key;
+        ROS_INFO("Processing key: %s", gtsam::DefaultKeyFormatter(key).c_str());
         if (optimizedResults.exists(key)) {
-            keyframeEstimates_.update(key, optimizedResults.at<gtsam::Pose2>(key));
+            try {
+                keyframeEstimates_.update(key, optimizedResults.at<gtsam::Pose2>(key));
+                ROS_INFO("Updated keyframe estimate for key: %s", gtsam::DefaultKeyFormatter(key).c_str());
+            } catch (const std::exception& e) {
+                ROS_ERROR("Exception while updating keyframe estimate: %s", e.what());
+            }
+        } else {
+            ROS_WARN("Key %s does not exist in optimized results", gtsam::DefaultKeyFormatter(key).c_str());
         }
     }
-
+    ROS_INFO("Update keyframe estimates with the optimized values");
     // Update any associated landmarks in the keyframe graph
     for (const auto& key_value : optimizedResults) {
         gtsam::Key key = key_value.key;
+        ROS_INFO("Processing key for landmarks: %s", gtsam::DefaultKeyFormatter(key).c_str());
         if (gtsam::Symbol(key).chr() == 'L' && keyframeEstimates_.exists(key)) {
-            keyframeEstimates_.update(key, optimizedResults.at<gtsam::Point2>(key));
+            try {
+                keyframeEstimates_.update(key, optimizedResults.at<gtsam::Point2>(key));
+                ROS_INFO("Updated landmark estimate for key: %s", gtsam::DefaultKeyFormatter(key).c_str());
+            } catch (const std::exception& e) {
+                ROS_ERROR("Exception while updating landmark estimate: %s", e.what());
+            }
         }
     }
+
+    ROS_INFO("Completed updateKeyframeGraphWithOptimizedResults");
 }
 
 void aprilslamcpp::graphvisulisation(gtsam::NonlinearFactorGraph& Graph_) {
-    
     for (size_t i = 0; i < Graph_.size(); ++i) {
-    // Use the correct shared pointer type for NonlinearFactorGraph
-    gtsam::NonlinearFactor::shared_ptr factor = Graph_[i];
-    
-    // Print the factor type using typeid
-    std::string factorType = typeid(*factor).name();
-    ROS_INFO("Factor %zu: Type = %s", i, factorType.c_str());
+        // Use the correct shared pointer type for NonlinearFactorGraph
+        gtsam::NonlinearFactor::shared_ptr factor = Graph_[i];
+        
+        // Demangle the factor type using abi::__cxa_demangle
+        std::string factorType = typeid(*factor).name();
+        int status = 0;
+        char* demangledName = abi::__cxa_demangle(factorType.c_str(), nullptr, nullptr, &status);
+        
+        // If demangling was successful, use the demangled name
+        std::string readableType = (status == 0) ? demangledName : factorType;
+        std::string simplifiedType = readableType.substr(readableType.find_last_of(':') + 1); // Simplify type name
 
-    // Print the keys involved in this factor
-    ROS_INFO("Keys involved in Factor %zu:", i);
-    for (const gtsam::Key& key : factor->keys()) {
-        ROS_INFO("  Key: %s", gtsam::DefaultKeyFormatter(key).c_str());
+        // Free the memory allocated by abi::__cxa_demangle
+        if (demangledName) {
+            free(demangledName);
+        }
+
+        // Print the factor type and keys involved in a simplified format
+        std::ostringstream oss;
+        // oss << "  Factor " << i << " (" << simplifiedType << "):";
+        oss << "  Factor " << i;
+
+        for (const gtsam::Key& key : factor->keys()) {
+            oss << " " << gtsam::DefaultKeyFormatter(key);
+        }
+
+        ROS_INFO("%s", oss.str().c_str());
     }
-}
 }
 
 void aprilslamcpp::ISAM2Optimise() {    
@@ -314,9 +346,11 @@ void aprilslamcpp::ISAM2Optimise() {
     // Publish the pose
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
+    ROS_INFO("optimisation done");
 
     // Update keyframe estimates with the results from the optimized window graph
     updateKeyframeGraphWithOptimizedResults(result);
+    ROS_INFO("keyframe update done");
 
     // Save the landmarks into a csv file 
     if (savetaglocation) {
@@ -334,7 +368,7 @@ void aprilslamcpp::ISAM2Optimise() {
         // Do nothing if no pruning is required
     }
     // Clear estimates for the next iteration (????necessary)
-    // windowEstimates_.clear();
+    windowEstimates_.clear();
     // landmarkEstimates.clear();
 }
 
@@ -398,11 +432,15 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 landmarkEstimates.insert(landmarkKey, landmark.second);
                 }
         }
+
         keyframeGraph_ = windowGraph_;
         keyframeEstimates_ = windowEstimates_;
-        ROS_INFO("keyframe added");
     }
-    
+    ROS_INFO("Initial window graph:");
+    graphvisulisation(windowGraph_);
+    ROS_INFO("Initial key graph:");
+    graphvisulisation(keyframeGraph_);
+
     // Predict the next pose based on odometry and add it as an initial estimate
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);

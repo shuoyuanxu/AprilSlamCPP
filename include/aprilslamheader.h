@@ -26,6 +26,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h> // For TF2 quaternion conversion functions
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/Values.h>
+#include <cxxabi.h>
 
 namespace aprilslam {
 
