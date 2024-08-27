@@ -141,7 +141,7 @@ bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::
     return false;  // Do not add a keyframe
 }
 
-void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, double currentTime) {
+void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose) {
     gtsam::Symbol keyframeSymbol('X', index_of_pose);
     
     // Log the start of keyframe creation
@@ -265,25 +265,30 @@ void aprilslamcpp::updateKeyframeGraphWithOptimizedResults(const gtsam::Values& 
     }
 }
 
+void aprilslamcpp::graphvisulisation(gtsam::NonlinearFactorGraph& Graph_) {
+    
+    for (size_t i = 0; i < Graph_.size(); ++i) {
+    // Use the correct shared pointer type for NonlinearFactorGraph
+    gtsam::NonlinearFactor::shared_ptr factor = Graph_[i];
+    
+    // Print the factor type using typeid
+    std::string factorType = typeid(*factor).name();
+    ROS_INFO("Factor %zu: Type = %s", i, factorType.c_str());
+
+    // Print the keys involved in this factor
+    ROS_INFO("Keys involved in Factor %zu:", i);
+    for (const gtsam::Key& key : factor->keys()) {
+        ROS_INFO("  Key: %s", gtsam::DefaultKeyFormatter(key).c_str());
+    }
+}
+}
+
 void aprilslamcpp::ISAM2Optimise() {    
     // Debug message: print the factor graph structure before optimization
     ROS_INFO("Factor graph structure before optimization:");
     
-    // Iterate over each factor in the windowGraph_
-    for (size_t i = 0; i < windowGraph_.size(); ++i) {
-        // Use the correct shared pointer type for NonlinearFactorGraph
-        gtsam::NonlinearFactor::shared_ptr factor = windowGraph_[i];
-        
-        // Print the factor type using typeid
-        std::string factorType = typeid(*factor).name();
-        ROS_INFO("Factor %zu: Type = %s", i, factorType.c_str());
-
-        // Print the keys involved in this factor
-        ROS_INFO("Keys involved in Factor %zu:", i);
-        for (const gtsam::Key& key : factor->keys()) {
-            ROS_INFO("  Key: %s", gtsam::DefaultKeyFormatter(key).c_str());
-        }
-    }
+    // Graph visulisation
+    graphvisulisation(windowGraph_);
 
     if (batchOptimisation_) {
         gtsam::LevenbergMarquardtOptimizer batchOptimizer(windowGraph_, windowEstimates_);
@@ -329,7 +334,7 @@ void aprilslamcpp::ISAM2Optimise() {
         // Do nothing if no pruning is required
     }
     // Clear estimates for the next iteration (????necessary)
-    windowEstimates_.clear();
+    // windowEstimates_.clear();
     // landmarkEstimates.clear();
 }
 
@@ -393,16 +398,18 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
                 landmarkEstimates.insert(landmarkKey, landmark.second);
                 }
         }
-        Key_previous = poseSE2;
+        keyframeGraph_ = windowGraph_;
+        keyframeEstimates_ = windowEstimates_;
+        ROS_INFO("keyframe added");
     }
-
+    
     // Predict the next pose based on odometry and add it as an initial estimate
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
 
     // Determine if this pose should be a keyframe
     if (shouldAddKeyframe(Key_previous, predictedPose)) {
-        createNewKeyframe(predictedPose, current_time);
+        createNewKeyframe(predictedPose);
         ROS_INFO("keyframe added");
         Key_previous = poseSE2;
     }

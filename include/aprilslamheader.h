@@ -41,7 +41,8 @@ public:
     void checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks);
     bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
     void updateKeyframeGraphWithOptimizedResults(const gtsam::Values& optimizedResults);
-    void createNewKeyframe(const gtsam::Pose2& predictedPose, double currentTime);
+    void createNewKeyframe(const gtsam::Pose2& predictedPose);
+    void graphvisulisation(gtsam::NonlinearFactorGraph& Graph_);
 
 private:
     ros::Publisher path_pub_;
