@@ -396,7 +396,7 @@ void aprilslamcpp::ISAM2Optimise() {
         // Do nothing if no pruning is required
     }
     // Clear estimates for the next iteration (????necessary)
-    // windowEstimates_.clear();
+    windowEstimates_.clear();
     // landmarkEstimates.clear();
 }
 
