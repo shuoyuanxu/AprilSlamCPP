@@ -141,16 +141,30 @@ bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::
     return false;  // Do not add a keyframe
 }
 
-void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose) {
-    gtsam::Symbol keyframeSymbol('X', index_of_pose);
+void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::Symbol& previousKeyframeSymbol) {
+    gtsam::Symbol currentKeyframeSymbol('X', index_of_pose);
     
     // Log the start of keyframe creation
-    ROS_INFO("Creating new keyframe with symbol: %s", gtsam::DefaultKeyFormatter(keyframeSymbol).c_str());
+    ROS_INFO("Creating new keyframe with symbol: %s", gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
 
     // Add the keyframe pose to the keyframe graph
-    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(keyframeSymbol, predictedPose, priorNoise));
-    keyframeEstimates_.insert(keyframeSymbol, predictedPose);
+    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(currentKeyframeSymbol, predictedPose, priorNoise));
+    keyframeEstimates_.insert(currentKeyframeSymbol, predictedPose);
     ROS_INFO("Keyframe pose inserted into keyframe graph and estimates.");
+
+    // Compute and add the between factor between the current keyframe and the previous keyframe
+    if (index_of_pose > 1) {  // Ensure there is a previous keyframe
+        ROS_INFO("Computing and adding between factor between %s and %s.",
+                 gtsam::DefaultKeyFormatter(previousKeyframeSymbol).c_str(),
+                 gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
+        
+        gtsam::Pose2 previousPose = keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol);
+        gtsam::Pose2 relativePose = previousPose.between(predictedPose);
+        keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
+        ROS_INFO("Between factor between %s and %s added to keyframe graph.",
+                 gtsam::DefaultKeyFormatter(previousKeyframeSymbol).c_str(),
+                 gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
+    }
 
     // Copy any existing landmark priors from the window graph to the keyframe graph
     for (const auto& key_value : windowEstimates_) {
@@ -166,9 +180,9 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose) {
     }
 
     // Add associated landmarks to the keyframe graph
-    if (poseToLandmarks.find(keyframeSymbol) != poseToLandmarks.end()) {
-        ROS_INFO("Adding associated landmarks for keyframe %s.", gtsam::DefaultKeyFormatter(keyframeSymbol).c_str());
-        for (const auto& landmarkSymbol : poseToLandmarks[keyframeSymbol]) {
+    if (poseToLandmarks.find(currentKeyframeSymbol) != poseToLandmarks.end()) {
+        ROS_INFO("Adding associated landmarks for keyframe %s.", gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
+        for (const auto& landmarkSymbol : poseToLandmarks[currentKeyframeSymbol]) {
             ROS_INFO("Processing landmark with symbol: %s", gtsam::DefaultKeyFormatter(landmarkSymbol).c_str());
             
             if (!keyframeEstimates_.exists(landmarkSymbol)) {
@@ -177,7 +191,7 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose) {
             }
             
             keyframeGraph_.add(gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double>(
-                keyframeSymbol, landmarkSymbol, 
+                currentKeyframeSymbol, landmarkSymbol, 
                 gtsam::Rot2::fromAngle(atan2(
                     windowEstimates_.at<gtsam::Point2>(landmarkSymbol).y() - predictedPose.y(),
                     windowEstimates_.at<gtsam::Point2>(landmarkSymbol).x() - predictedPose.x()
@@ -185,11 +199,11 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose) {
                 predictedPose.range(windowEstimates_.at<gtsam::Point2>(landmarkSymbol)), brNoise));
             
             ROS_INFO("Added bearing-range factor between keyframe %s and landmark %s to keyframe graph.",
-                     gtsam::DefaultKeyFormatter(keyframeSymbol).c_str(),
+                     gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str(),
                      gtsam::DefaultKeyFormatter(landmarkSymbol).c_str());
         }
     } else {
-        ROS_WARN("No landmarks found for keyframe %s.", gtsam::DefaultKeyFormatter(keyframeSymbol).c_str());
+        ROS_WARN("No landmarks found for keyframe %s.", gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
     }
 
     // Clear the window graph and reset it with the new keyframe graph as its base
@@ -197,8 +211,19 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose) {
     windowGraph_.resize(0); // Clear the current window graph
     windowEstimates_.clear(); // Clear current window estimates
 
-    // Add all keyframe graph factors to the window graph to serve as the base
-    windowGraph_.add(keyframeGraph_); // Add all factors from the keyframe graph
+    // Add all keyframe graph factors to the window graph to serve as the base, except X147-X148 factor
+    for (size_t i = 0; i < keyframeGraph_.size(); ++i) {
+        auto factor = keyframeGraph_.at(i);
+        if (auto betweenFactor = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose2>>(factor)) {
+            gtsam::Symbol symbol1(betweenFactor->keys()[0]);
+            gtsam::Symbol symbol2(betweenFactor->keys()[1]);
+            if (!(symbol1 == gtsam::Symbol('X', 147) && symbol2 == currentKeyframeSymbol)) {
+                windowGraph_.add(factor);
+            }
+        } else {
+            windowGraph_.add(factor);
+        }
+    }
     windowEstimates_.insert(keyframeEstimates_); // Add all estimates from the keyframe graph
     ROS_INFO("Window graph and estimates reset with keyframe graph.");
 }
@@ -349,7 +374,7 @@ void aprilslamcpp::ISAM2Optimise() {
     ROS_INFO("optimisation done");
 
     // Update keyframe estimates with the results from the optimized window graph
-    updateKeyframeGraphWithOptimizedResults(result);
+    // updateKeyframeGraphWithOptimizedResults(result);
     ROS_INFO("keyframe update done");
 
     // Save the landmarks into a csv file 
@@ -435,6 +460,7 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
 
         keyframeGraph_ = windowGraph_;
         keyframeEstimates_ = windowEstimates_;
+        previousKeyframeSymbol = gtsam::Symbol('X', 1);
     }
     ROS_INFO("Initial window graph:");
     graphvisulisation(windowGraph_);
@@ -446,10 +472,11 @@ void aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
 
     // Determine if this pose should be a keyframe
-    if (shouldAddKeyframe(Key_previous, predictedPose)) {
-        createNewKeyframe(predictedPose);
+    if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
+        createNewKeyframe(predictedPose, previousKeyframeSymbol);
         ROS_INFO("keyframe added");
-        Key_previous = poseSE2;
+        Key_previous_pos = poseSE2;
+        previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
     }
     else{
         windowEstimates_.insert(gtsam::Symbol('X', index_of_pose), poseSE2);

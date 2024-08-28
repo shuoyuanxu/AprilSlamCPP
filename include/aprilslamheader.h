@@ -27,6 +27,7 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/Values.h>
 #include <cxxabi.h>
+#include <boost/pointer_cast.hpp>
 
 namespace aprilslam {
 
@@ -42,7 +43,7 @@ public:
     void checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks);
     bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
     void updateKeyframeGraphWithOptimizedResults(const gtsam::Values& optimizedResults);
-    void createNewKeyframe(const gtsam::Pose2& predictedPose);
+    void createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::Symbol& previousKeyframeSymbol);
     void graphvisulisation(gtsam::NonlinearFactorGraph& Graph_);
 
 private:
@@ -63,7 +64,8 @@ private:
     gtsam::NonlinearFactorGraph windowGraph_;    // Window graph: Current time window, built on top of keyframeGraph
     gtsam::Values windowEstimates_;              // Estimates for current time window
 
-    gtsam::Pose2 Key_previous;
+    gtsam::Pose2 Key_previous_pos;
+    gtsam::Symbol previousKeyframeSymbol;
     gtsam::ISAM2 isam_;
     gtsam::Pose2 lastPoseSE2_;
     gtsam::Pose2 lastPose_;
