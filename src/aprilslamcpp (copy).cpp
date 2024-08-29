@@ -418,3 +418,96 @@ int main(int argc, char **argv) {
     ros::spin();
     return 0;
 }
+
+
+void aprilslamcpp::updateKeyframeGraphWithOptimizedResults(const gtsam::Values& optimizedResults) {
+    ROS_INFO("Entered updateKeyframeGraphWithOptimizedResults");
+
+    // Update keyframe estimates with the optimized values
+    for (const auto& keyframe : keyframeEstimates_) {
+        gtsam::Key key = keyframe.key;
+        ROS_INFO("Processing key: %s", gtsam::DefaultKeyFormatter(key).c_str());
+        if (optimizedResults.exists(key)) {
+            try {
+                keyframeEstimates_.update(key, optimizedResults.at<gtsam::Pose2>(key));
+                ROS_INFO("Updated keyframe estimate for key: %s", gtsam::DefaultKeyFormatter(key).c_str());
+            } catch (const std::exception& e) {
+                ROS_ERROR("Exception while updating keyframe estimate: %s", e.what());
+            }
+        } else {
+            ROS_WARN("Key %s does not exist in optimized results", gtsam::DefaultKeyFormatter(key).c_str());
+        }
+    }
+    ROS_INFO("Update keyframe estimates with the optimized values");
+    // Update any associated landmarks in the keyframe graph
+    for (const auto& key_value : optimizedResults) {
+        gtsam::Key key = key_value.key;
+        ROS_INFO("Processing key for landmarks: %s", gtsam::DefaultKeyFormatter(key).c_str());
+        if (gtsam::Symbol(key).chr() == 'L' && keyframeEstimates_.exists(key)) {
+            try {
+                keyframeEstimates_.update(key, optimizedResults.at<gtsam::Point2>(key));
+                ROS_INFO("Updated landmark estimate for key: %s", gtsam::DefaultKeyFormatter(key).c_str());
+            } catch (const std::exception& e) {
+                ROS_ERROR("Exception while updating landmark estimate: %s", e.what());
+            }
+        }
+    }
+
+    ROS_INFO("Completed updateKeyframeGraphWithOptimizedResults");
+}
+
+
+// void aprilslamcpp::checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks) {
+//     if (loopClosureEnableFlag) {
+//         double spatialThreshold = 2.0; // meters
+//         double temporalThreshold = 30.0; // seconds
+//         int requiredReobservedLandmarks = 3; // Minimum number of re-detected landmarks to trigger loop closure
+
+//         for (const auto& keyframe : keyframes) {
+//             gtsam::Symbol keyframeSymbol = keyframe.first;
+//             gtsam::Pose2 keyframePose = keyframe.second;
+//             double keyframeTime = keyframeTimestamps[keyframeSymbol];
+
+//             double distance = lastPose_.range(keyframePose);
+//             double timeDiff = current_time - keyframeTime;
+
+//             if (distance < spatialThreshold && timeDiff > temporalThreshold) {
+//                 // Count the number of re-detected landmarks in this keyframe
+//                 std::set<gtsam::Symbol> intersection;
+//                 std::set_intersection(detectedLandmarks.begin(), detectedLandmarks.end(),
+//                                       poseToLandmarks[keyframeSymbol].begin(), poseToLandmarks[keyframeSymbol].end(),
+//                                       std::inserter(intersection, intersection.begin()));
+
+//                 int reobservedLandmarks = intersection.size();
+//                 if (reobservedLandmarks >= requiredReobservedLandmarks) {
+//                     // Add loop closure constraint
+//                     graph_.add(gtsam::BetweenFactor<gtsam::Pose2>(keyframeSymbol, gtsam::Symbol('X', index_of_pose), relPoseFG(keyframePose, lastPoseSE2_), odometryNoise));
+//                     factorTimestamps_[graph_.size() - 1] = current_time;
+//                     break;
+//                 }
+//             }
+//         }
+//     }
+// }
+
+void aprilslamcpp::printWindowEstimates(const gtsam::Values& windowEstimates) {
+    ROS_INFO("Printing windowEstimates_ contents:");
+    for (const auto& key_value : windowEstimates) {
+        gtsam::Key key = key_value.key;
+        
+        if (gtsam::Symbol(key).chr() == 'X') {  // Pose2
+            gtsam::Pose2 pose = windowEstimates.at<gtsam::Pose2>(key);
+            ROS_INFO("Pose %s: [x: %f, y: %f, theta: %f]", 
+                     gtsam::DefaultKeyFormatter(key).c_str(),
+                     pose.x(), pose.y(), pose.theta());
+        } else if (gtsam::Symbol(key).chr() == 'L') {  // Point2 (landmark)
+            gtsam::Point2 point = windowEstimates.at<gtsam::Point2>(key);
+            ROS_INFO("Landmark %s: [x: %f, y: %f]", 
+                     gtsam::DefaultKeyFormatter(key).c_str(),
+                     point.x(), point.y());
+        } else {
+            ROS_WARN("Unknown key %s in windowEstimates_.", gtsam::DefaultKeyFormatter(key).c_str());
+        }
+    }
+}
+

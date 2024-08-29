@@ -45,7 +45,7 @@ public:
     void updateKeyframeGraphWithOptimizedResults(const gtsam::Values& optimizedResults);
     void createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::Symbol& previousKeyframeSymbol);
     void graphvisulisation(gtsam::NonlinearFactorGraph& Graph_);
-
+    void printWindowEstimates(const gtsam::Values& windowEstimates);
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
