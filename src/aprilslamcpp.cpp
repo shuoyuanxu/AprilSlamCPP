@@ -133,24 +133,16 @@ bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::
     if (distance > distanceThreshold || angleDifference > rotationThreshold) {
         return true;  // Add a new keyframe
     }
-
     return false;  // Do not add a keyframe
 }
 
-
 void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::Symbol& previousKeyframeSymbol) {
-    ROS_INFO("Keygraph before:");
-    graphvisulisation(windowGraph_);
-    
     gtsam::Symbol currentKeyframeSymbol('X', index_of_pose);
-    
-    // Log the start of keyframe creation
-    ROS_INFO("Creating new keyframe with symbol: %s", gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
 
     // Add the keyframe pose to the keyframe graph
-    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(currentKeyframeSymbol, predictedPose, priorNoise));
-    keyframeEstimates_.insert(currentKeyframeSymbol, predictedPose);
-    ROS_INFO("Keyframe pose inserted into keyframe graph and estimates.");
+    // keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(currentKeyframeSymbol, predictedPose, priorNoise));
+    // keyframeEstimates_.insert(currentKeyframeSymbol, predictedPose);
+    // ROS_INFO("Keyframe pose inserted into keyframe graph and estimates.");
 
     // Compute and add the between factor between the current keyframe and the previous keyframe
     if (index_of_pose > 1) {  // Ensure there is a previous keyframe
@@ -214,7 +206,7 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::S
         ROS_WARN("No landmarks found for keyframe %s.", gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
     }
 
-    graphvisulisation(windowGraph_);
+    graphvisulisation(keyframeGraph_);
 
     // Clear the window graph and reset it with the new keyframe graph as its base
     ROS_INFO("Clearing window graph and estimates, and resetting with keyframe graph as base.");
@@ -320,7 +312,7 @@ void aprilslamcpp::graphvisulisation(gtsam::NonlinearFactorGraph& Graph_) {
 
 void aprilslamcpp::ISAM2Optimise() {    
     // Debug message: print the factor graph structure before optimization
-    ROS_INFO("Factor graph structure before optimization:");
+    // ROS_INFO("Factor graph structure before optimization:");
     
     // Graph visulisation
     // graphvisulisation(windowGraph_);
@@ -333,11 +325,11 @@ void aprilslamcpp::ISAM2Optimise() {
 
     // Update the iSAM2 instance with the new measurements
     isam_.update(windowGraph_, windowEstimates_);
-    ROS_INFO("Update done");
+    // ROS_INFO("Update done");
 
     // Calculate the current best estimate
     auto result = isam_.calculateEstimate();
-    ROS_INFO("estimate done");
+    // ROS_INFO("estimate done");
 
      // Extract landmark estimates from result
     std::map<int, gtsam::Point2> landmarks;
@@ -351,11 +343,11 @@ void aprilslamcpp::ISAM2Optimise() {
     // Publish the pose
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
-    ROS_INFO("optimisation done");
+    // ROS_INFO("optimisation done");
 
     // Update keyframe estimates with the results from the optimized window graph
     // updateKeyframeGraphWithOptimizedResults(result);
-    ROS_INFO("keyframe update done");
+    // ROS_INFO("keyframe update done");
 
     // Save the landmarks into a csv file 
     if (savetaglocation) {
