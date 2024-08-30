@@ -54,8 +54,8 @@ private:
     ros::Subscriber odom_sub_;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
-    // gtsam::NonlinearFactorGraph graph_;
-    // gtsam::Values initial_estimates_;
+    std::map<gtsam::Symbol, std::map<gtsam::Symbol, std::tuple<double, double>>> poseToLandmarkMeasurementsMap;  //storing X-L pair
+    std::map<gtsam::Key, gtsam::Point2> historicLandmarks;     // Maintain a persistent storage for historic landmarks
     gtsam::Values landmarkEstimates;  // for unwhitten error computing 
 
     gtsam::NonlinearFactorGraph keyframeGraph_;  // Keyframe graph: All keyframes and associated landmarks
