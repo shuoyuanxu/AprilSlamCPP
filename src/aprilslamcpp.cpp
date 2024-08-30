@@ -232,15 +232,7 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::S
     // Add all keyframe graph factors to the window graph to serve as the base, except X147-X148 factor
     for (size_t i = 0; i < keyframeGraph_.size(); ++i) {
         auto factor = keyframeGraph_.at(i);
-        if (auto betweenFactor = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose2>>(factor)) {
-            gtsam::Symbol symbol1(betweenFactor->keys()[0]);
-            gtsam::Symbol symbol2(betweenFactor->keys()[1]);
-            if (!(symbol1 == gtsam::Symbol('X', 147) && symbol2 == currentKeyframeSymbol)) {
-                windowGraph_.add(factor);
-            }
-        } else {
-            windowGraph_.add(factor);
-        }
+        windowGraph_.add(factor);
     }
 
     // Insert updated estimates from keyframeEstimates_ into windowEstimates_
