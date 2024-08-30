@@ -23,7 +23,7 @@ historyKeyframeSearchNum: 25
 historyKeyframeFitnessScore: 0.3
 
 # Keyframe info
-distanceThreshold: 0.2
+distanceThreshold: 1
 rotationThreshold: 2
   
 noise_models:

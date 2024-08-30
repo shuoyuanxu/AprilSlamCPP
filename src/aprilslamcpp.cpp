@@ -193,36 +193,29 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::S
         }
     }
 
-    // Add associated landmarks to the keyframe graph
-    if (poseToLandmarks.find(currentKeyframeSymbol) != poseToLandmarks.end()) {
-        // ROS_INFO("Adding associated landmarks for keyframe %s.", gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
-        for (const auto& landmarkSymbol : poseToLandmarks[currentKeyframeSymbol]) {
-            if (!keyframeGraph_.exists(landmarkSymbol)) {  // Only add if not already in the graph
-                // ROS_INFO("Processing landmark with symbol: %s", gtsam::DefaultKeyFormatter(landmarkSymbol).c_str());
+    // Add br factors with X-L detection
+    if (poseToLandmarkMeasurementsMap.find(currentKeyframeSymbol) != poseToLandmarkMeasurementsMap.end()) {
+        for (const auto& landmarkMeasurement : poseToLandmarkMeasurementsMap[currentKeyframeSymbol]) {
+            gtsam::Symbol landmarkSymbol = landmarkMeasurement.first;  // Get the landmark (L) symbol
+            double bearing = std::get<0>(landmarkMeasurement.second);  // Extract bearing
+            double range = std::get<1>(landmarkMeasurement.second);    // Extract range
 
+            // Add the bearing-range factor between the current keyframe pose and the landmark
+            if (!keyframeGraph_.exists(landmarkSymbol)) {  // Only add if not already in the graph
                 keyframeGraph_.add(gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double>(
                     currentKeyframeSymbol, landmarkSymbol, 
-                    gtsam::Rot2::fromAngle(atan2(
-                        result.at<gtsam::Point2>(landmarkSymbol).y() - predictedPose.y(),
-                        result.at<gtsam::Point2>(landmarkSymbol).x() - predictedPose.x()
-                    )),
-                    predictedPose.range(result.at<gtsam::Point2>(landmarkSymbol)), brNoise));
+                    gtsam::Rot2::fromAngle(bearing),
+                    range, brNoise));
 
-                // ROS_INFO("Added bearing-range factor between keyframe %s and landmark %s to keyframe graph.",
-                //          gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str(),
-                //          gtsam::DefaultKeyFormatter(landmarkSymbol).c_str());
-            }
-
-            if (!keyframeEstimates_.exists(landmarkSymbol)) {
-                keyframeEstimates_.insert(landmarkSymbol, result.at<gtsam::Point2>(landmarkSymbol));
-                // ROS_INFO("Inserted landmark %s into keyframe estimates.", gtsam::DefaultKeyFormatter(landmarkSymbol).c_str());
+                // Insert the landmark into keyframe estimates if it doesn't already exist
+                if (!keyframeEstimates_.exists(landmarkSymbol)) {
+                    keyframeEstimates_.insert(landmarkSymbol, result.at<gtsam::Point2>(landmarkSymbol));
+                }
             }
         }
-    } else {
-        // ROS_WARN("No landmarks found for keyframe %s.", gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
     }
 
-    graphvisulisation(keyframeGraph_);
+    // graphvisulisation(keyframeGraph_);
 
     // Clear the window graph and reset it with the new keyframe graph as its base
     // ROS_INFO("Clearing window graph and estimates, and resetting with keyframe graph as base.");
@@ -459,7 +452,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     
             // Construct the landmark key
             gtsam::Symbol landmarkKey('L', tag_number);  
-            
+            ROS_INFO("Added BR factor between %s and %s.", gtsam::DefaultKeyFormatter(gtsam::Symbol('X', index_of_pose)).c_str(), gtsam::DefaultKeyFormatter(landmarkKey).c_str());
+
             // Store the bearing and range measurements in the map
             poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
 
@@ -498,6 +492,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                 factorTimestamps_[windowGraph_.size() - 1] = current_time;
                 detectedLandmarks.insert(landmarkKey);
             }
+            // Store the bearing and range measurements in the map
+            poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
         }
         catch (tf2::TransformException &ex) {
                 continue;
