@@ -86,6 +86,22 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("savetaglocation", savetaglocation);
     nh_.getParam("usepriortagtable", usepriortagtable);
 
+    // Camera transformation parameters
+    std::vector<double> xyTrans_lcam_baselink, xyTrans_rcam_baselink, xyTrans_mcam_baselink;
+    nh_.getParam("camera_parameters/xyTrans_lcam_baselink", xyTrans_lcam_baselink);
+    nh_.getParam("camera_parameters/xyTrans_rcam_baselink", xyTrans_rcam_baselink);
+    nh_.getParam("camera_parameters/xyTrans_mcam_baselink", xyTrans_mcam_baselink);
+
+    // Convert the std::vector<double> to Eigen::Vector3d for use in your application
+    Eigen::Vector3d lcam_baselink_transform(xyTrans_lcam_baselink[0], xyTrans_lcam_baselink[1], xyTrans_lcam_baselink[2]);
+    Eigen::Vector3d rcam_baselink_transform(xyTrans_rcam_baselink[0], xyTrans_rcam_baselink[1], xyTrans_rcam_baselink[2]);
+    Eigen::Vector3d mcam_baselink_transform(xyTrans_mcam_baselink[0], xyTrans_mcam_baselink[1], xyTrans_mcam_baselink[2]);
+
+    // Load camera topics
+    nh_.getParam("camera_subscribers/lCam_subscriber/topic", lCam_topic);
+    nh_.getParam("camera_subscribers/rCam_subscriber/topic", rCam_topic);
+    nh_.getParam("camera_subscribers/mCam_subscriber/topic", mCam_topic);
+
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << odometry_noise[0], odometry_noise[1], odometry_noise[2]).finished());
     priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << prior_noise[0], prior_noise[1], prior_noise[2]).finished());
@@ -99,7 +115,9 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     for (int j = 0; j < total_tags; ++j) {
         possibleIds_.push_back("tag_" + std::to_string(j));
     }
-
+    
+    ROS_INFO("Loaded parameters successfully.");
+    
     // Initialize GTSAM components
     initializeGTSAM();
     // Index to keep track of the sequential pose.

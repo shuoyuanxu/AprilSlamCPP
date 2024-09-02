@@ -15,6 +15,10 @@
 #include <vector>
 #include <Eigen/Dense>
 #include <apriltag_ros/AprilTagDetectionArray.h>
+#include <cmath>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
+#include <std_msgs/Header.h>
 
 namespace aprilslam {
     void publishLandmarks(ros::Publisher& landmark_pub, const std::map<int, gtsam::Point2>& landmarks, const std::string& frame_id);
@@ -32,6 +36,15 @@ namespace aprilslam {
         const Eigen::Vector3d& xyTrans_lcam_baselink,
         const Eigen::Vector3d& xyTrans_rcam_baselink,
         const Eigen::Vector3d& xyTrans_mcam_baselink);
+    // Assuming detection messages include id and pose information
+    struct Detection {
+    int Id;
+    geometry_msgs::Pose Pose;
+    };
+
+    struct CameraMessage {
+        std::vector<Detection> Detections;
+    };
 }
 
 #endif

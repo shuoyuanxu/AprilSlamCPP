@@ -102,6 +102,12 @@ private:
     std::map<gtsam::Symbol, std::set<gtsam::Symbol>> poseToLandmarks; // Maps pose index to a set of detected landmark IDs, e.g. X1: L1,L2,L3.
     double distanceThreshold;
     double rotationThreshold;
+    std::vector<double> xyTrans_lcam_baselink;
+    std::vector<double> xyTrans_rcam_baselink;
+    std::vector<double> xyTrans_mcam_baselink;
+    std::string lCam_topic;
+    std::string rCam_topic;
+    std::string mCam_topic;
 };
 
 } 

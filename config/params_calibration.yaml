@@ -44,3 +44,24 @@ noise_models:
   loopClosureNoise:
     - 0.1
     - 0.1
+
+# Camera parameters
+camera_parameters:
+  xyTrans_lcam_baselink: [0, 0, 1.5708]  # pi/2 in radians
+  xyTrans_mcam_baselink: [0, 0, 0]
+  xyTrans_rcam_baselink: [0, 0, -1.5708]  # -pi/2 in radians
+
+# Camera subscribers
+camera_subscribers:
+  lCam_subscriber:
+    topic: "/l/tag_detections"
+    type: "apriltag_ros/AprilTagDetectionArray"
+    data_format: "struct"
+  rCam_subscriber:
+    topic: "/r/tag_detections"
+    type: "apriltag_ros/AprilTagDetectionArray"
+    data_format: "struct"
+  mCam_subscriber:
+    topic: "/m/tag_detections"
+    type: "apriltag_ros/AprilTagDetectionArray"
+    data_format: "struct"
