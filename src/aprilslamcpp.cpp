@@ -117,7 +117,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     }
     
     ROS_INFO("Loaded parameters successfully.");
-    
+
     // Initialize GTSAM components
     initializeGTSAM();
     // Index to keep track of the sequential pose.
@@ -444,6 +444,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // Iterate through all landmark IDs to if detected
     start_loop = ros::WallTime::now();
+    auto detections = getCamDetections(mCam_topic, rCam_topic, lCam_topic, xyTrans_lcam_baselink, xyTrans_rcam_baselink, xyTrans_mcam_baselink);
     for (const auto& tag_id : possibleIds_) {    
         try {
             // Find transformation between vehicle and landmarks (see if landmarks are detected)
