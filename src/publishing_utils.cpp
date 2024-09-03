@@ -147,9 +147,9 @@ std::pair<std::vector<int>, std::vector<Eigen::Vector2d>> getCamDetections(
     const apriltag_ros::AprilTagDetectionArray::ConstPtr& mCam_msg,
     const apriltag_ros::AprilTagDetectionArray::ConstPtr& rCam_msg,
     const apriltag_ros::AprilTagDetectionArray::ConstPtr& lCam_msg,
-    const Eigen::Vector3d& xyTrans_lcam_baselink,
+    const Eigen::Vector3d& xyTrans_mcam_baselink,
     const Eigen::Vector3d& xyTrans_rcam_baselink,
-    const Eigen::Vector3d& xyTrans_mcam_baselink) {
+    const Eigen::Vector3d& xyTrans_lcam_baselink) {
 
     std::vector<int> Ids;
     std::vector<Eigen::Vector2d> tagPoss;
@@ -160,69 +160,6 @@ std::pair<std::vector<int>, std::vector<Eigen::Vector2d>> getCamDetections(
     processDetections(lCam_msg, xyTrans_lcam_baselink, Ids, tagPoss);
 
     return std::make_pair(Ids, tagPoss);
-}
-
-// funtion to obtain tag locations from rostopic
-std::pair<std::vector<int>, std::vector<Eigen::Vector2d>> getCamDetections(
-    const CameraMessage& mCam,
-    const CameraMessage& rCam,
-    const CameraMessage& lCam,
-    const Eigen::Vector3d& xyTrans_lcam_baselink,
-    const Eigen::Vector3d& xyTrans_rcam_baselink,
-    const Eigen::Vector3d& xyTrans_mcam_baselink) 
-{
-    std::vector<int> Id;
-    std::vector<Eigen::Vector2d> tagPos;
-
-    // Process middle camera detections
-    if (!mCam.Detections.empty()) {
-        for (const auto& detection : mCam.Detections) {
-            Id.push_back(detection.Id);
-            double rotTheta = xyTrans_mcam_baselink(2);
-            Eigen::Matrix2d R;
-            R << std::cos(rotTheta), -std::sin(rotTheta),
-                 std::sin(rotTheta),  std::cos(rotTheta);
-
-            Eigen::Vector2d pos(detection.Pose.position.z, -detection.Pose.position.x);
-            Eigen::Vector2d rotP = R * pos;
-            Eigen::Vector2d tagPosVec = rotP + xyTrans_mcam_baselink.head<2>();
-            tagPos.push_back(tagPosVec);
-        }
-    }
-
-    // Process right camera detections
-    if (!rCam.Detections.empty()) {
-        for (const auto& detection : rCam.Detections) {
-            Id.push_back(detection.Id);
-            double rotTheta = xyTrans_rcam_baselink(2);
-            Eigen::Matrix2d R;
-            R << std::cos(rotTheta), -std::sin(rotTheta),
-                 std::sin(rotTheta),  std::cos(rotTheta);
-
-            Eigen::Vector2d pos(detection.Pose.position.z, -detection.Pose.position.x);
-            Eigen::Vector2d rotP = R * pos;
-            Eigen::Vector2d tagPosVec = rotP + xyTrans_rcam_baselink.head<2>();
-            tagPos.push_back(tagPosVec);
-        }
-    }
-
-    // Process left camera detections
-    if (!lCam.Detections.empty()) {
-        for (const auto& detection : lCam.Detections) {
-            Id.push_back(detection.Id);
-            double rotTheta = xyTrans_lcam_baselink(2);
-            Eigen::Matrix2d R;
-            R << std::cos(rotTheta), -std::sin(rotTheta),
-                 std::sin(rotTheta),  std::cos(rotTheta);
-
-            Eigen::Vector2d pos(detection.Pose.position.z, -detection.Pose.position.x);
-            Eigen::Vector2d rotP = R * pos;
-            Eigen::Vector2d tagPosVec = rotP + xyTrans_lcam_baselink.head<2>();
-            tagPos.push_back(tagPosVec);
-        }
-    }
-
-    return std::make_pair(Id, tagPos);
 }
 } // namespace aprilslamcpp
 

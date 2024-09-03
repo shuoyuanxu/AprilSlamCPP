@@ -126,6 +126,11 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     keyframeGraph_ = gtsam::NonlinearFactorGraph();
     windowGraph_ = gtsam::NonlinearFactorGraph();
 
+    // Initialize camera subscribers
+    mCam_subscriber = nh_.subscribe(mCam_topic, 1000, &aprilslamcpp::mCamCallback, this);
+    rCam_subscriber = nh_.subscribe(rCam_topic, 1000, &aprilslamcpp::rCamCallback, this);
+    lCam_subscriber = nh_.subscribe(lCam_topic, 1000, &aprilslamcpp::lCamCallback, this);
+
     // Subscriptions and Publications
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
@@ -133,7 +138,20 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     path.header.frame_id = frame_id; 
 }
 
-//Intilialisation
+// Camera callback functions
+void aprilslamcpp::mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
+    mCam_msg = msg;
+}
+
+void aprilslamcpp::rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
+    rCam_msg = msg;
+}
+
+void aprilslamcpp::lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
+    lCam_msg = msg;
+}
+
+// Initialization of GTSAM components
 void aprilslamcpp::initializeGTSAM() { 
     // Initialize graph parameters and stores them in isam_.
     gtsam::ISAM2Params parameters;
@@ -349,7 +367,7 @@ void aprilslamcpp::ISAM2Optimise() {
     auto result = isam_.calculateEstimate();
     // ROS_INFO("estimate done");
 
-     // Extract landmark estimates from result
+    // Extract landmark estimates from result
     std::map<int, gtsam::Point2> landmarks;
     for (const auto& key_value : result) {
         gtsam::Key key = key_value.key;  // Get the key
@@ -430,94 +448,163 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // Add this relative motion as an odometry factor to the graph
     windowGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1), gtsam::Symbol('X', index_of_pose), odometry, odometryNoise));
-    ROS_INFO("factor added");
+    // ROS_INFO("factor added");
 
     factorTimestamps_[windowGraph_.size() - 1] = current_time;
     
     // Update the last pose and initial estimates for the next iteration
     lastPose_ = predictedPose;
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), poseSE2);
-    ROS_INFO("estimated added");
+    // ROS_INFO("estimated added");
 
     // Loop closure detection setup
     std::set<gtsam::Symbol> detectedLandmarks;
 
     // Iterate through all landmark IDs to if detected
     start_loop = ros::WallTime::now();
-    auto detections = getCamDetections(mCam_topic, rCam_topic, lCam_topic, xyTrans_lcam_baselink, xyTrans_rcam_baselink, xyTrans_mcam_baselink);
-    for (const auto& tag_id : possibleIds_) {    
-        try {
-            // Find transformation between vehicle and landmarks (see if landmarks are detected)
-            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform(robot_frame, tag_id, ros::Time(0));
+    if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
+        auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
+        // Access the elements of the std::pair
+        const std::vector<int>& Id = detections.first;
+        const std::vector<Eigen::Vector2d>& tagPos = detections.second;
+        if (!Id.empty()) {
+            for (size_t n = 0; n < Id.size(); ++n) {
+                int tag_number = Id[n];        
+                ROS_INFO("landmarks addedlandmarks addedlandmarks addedlandmarks addedlandmarks addedlandmarks added");
 
-            // Extract the transform details
-            double trans_x = transformStamped.transform.translation.x;
-            double trans_y = transformStamped.transform.translation.y;
-            double theta = lastPose_.theta();
-            tf2::Matrix3x3 R;
-            R.setEulerYPR(theta, 0, 0);  // yaw (theta), pitch, roll
-            tf2::Vector3 trans(trans_x, trans_y, 0.0);
-            tf2::Vector3 rotP = R * trans;
-            gtsam::Point2 priorLand(rotP.x() + lastPose_.x(), rotP.y() + lastPose_.y());
+                Eigen::Vector2d landSE2 = tagPos[n];
 
-            // Convert to bearing and range
-            double range = sqrt(pow(trans_x, 2) + pow(trans_y, 2));
-            double bearing = atan2(trans_y, trans_x);
-            
-            // Split the tag_id to get the tag number. Assume tag IDs are in the format "tag_X"
-            auto underscorePos = tag_id.find('_');
-            if (underscorePos == std::string::npos) continue; // Skip if the format is unexpected
-            int tag_number = std::stoi(tag_id.substr(underscorePos + 1)) + 1;
-    
-            // Construct the landmark key
-            gtsam::Symbol landmarkKey('L', tag_number);  
-            ROS_INFO("Added BR factor between %s and %s.", gtsam::DefaultKeyFormatter(gtsam::Symbol('X', index_of_pose)).c_str(), gtsam::DefaultKeyFormatter(landmarkKey).c_str());
+                // Compute prior location of the landmark using the current robot pose
+                double theta = lastPose_.theta();
+                Eigen::Rotation2Dd rotation(theta);  // Create a 2D rotation matrix
+                Eigen::Vector2d rotatedPosition = rotation * landSE2;  // Rotate the position into the robot's frame
+                gtsam::Point2 priorLand(rotatedPosition.x() + lastPose_.x(), rotatedPosition.y() + lastPose_.y());
 
-            // Store the bearing and range measurements in the map
-            poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
+                // Compute bearing and range
+                double bearing = std::atan2(landSE2(1), landSE2(0));
+                double range = std::sqrt(landSE2(0) * landSE2(0) + landSE2(1) * landSE2(1));
 
-            // Check if the landmark has been observed before
-            if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
-                // Existing landmark
-                gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-                    gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-                );
-                gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
+                // Construct the landmark key
+                gtsam::Symbol landmarkKey('L', tag_number);  
+                // ROS_INFO("Added BR factor between %s and %s.", gtsam::DefaultKeyFormatter(gtsam::Symbol('X', index_of_pose)).c_str(), gtsam::DefaultKeyFormatter(landmarkKey).c_str());
 
-                // Threshold for ||projection - measurement||
-                if (fabs(error[0]) < add2graph_threshold) windowGraph_.add(factor);
-                factorTimestamps_[windowGraph_.size() - 1] = current_time;
-                detectedLandmarks.insert(landmarkKey);
-            } 
-            else {
-                // If the current landmark was not detected in the calibration run 
-                // Or it's on calibration mode
-                if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
-                    // New landmark detected
-                    tagToNodeIDMap_[tag_number] = landmarkKey;
-                    windowEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
-                    landmarkEstimates.insert(landmarkKey, priorLand);
-                    // Add a prior for the landmark position to help with initial estimation.
-                    windowGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
-                        landmarkKey, priorLand, pointNoise)
+                // Store the bearing and range measurements in the map
+                poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
+
+                // Check if the landmark has been observed before
+                if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
+                    // Existing landmark
+                    gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                        gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
                     );
+                    gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
+
+                    // Threshold for ||projection - measurement||
+                    if (fabs(error[0]) < add2graph_threshold) windowGraph_.add(factor);
+                    factorTimestamps_[windowGraph_.size() - 1] = current_time;
+                    detectedLandmarks.insert(landmarkKey);
+                } 
+                else {
+                    // If the current landmark was not detected in the calibration run 
+                    // Or it's on calibration mode
+                    if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
+                        // New landmark detected
+                        tagToNodeIDMap_[tag_number] = landmarkKey;
+                        windowEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
+                        landmarkEstimates.insert(landmarkKey, priorLand);
+                        // Add a prior for the landmark position to help with initial estimation.
+                        windowGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                            landmarkKey, priorLand, pointNoise)
+                        );
+                    }
+                    factorTimestamps_[windowGraph_.size() - 1] = current_time;
+                    // Add a bearing-range observation for this landmark to the graph
+                    gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                        gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                    );
+                    windowGraph_.add(factor);
+                    factorTimestamps_[windowGraph_.size() - 1] = current_time;
+                    detectedLandmarks.insert(landmarkKey);
                 }
-                factorTimestamps_[windowGraph_.size() - 1] = current_time;
-                // Add a bearing-range observation for this landmark to the graph
-                gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-                    gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-                );
-                windowGraph_.add(factor);
-                factorTimestamps_[windowGraph_.size() - 1] = current_time;
-                detectedLandmarks.insert(landmarkKey);
+                // Store the bearing and range measurements in the map
+                poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);                
             }
-            // Store the bearing and range measurements in the map
-            poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
         }
-        catch (tf2::TransformException &ex) {
-                continue;
-        }
-    } 
+    }
+
+    // for (const auto& tag_id : possibleIds_) {    
+    //     try {
+    //         // Find transformation between vehicle and landmarks (see if landmarks are detected)
+    //         geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform(robot_frame, tag_id, ros::Time(0));
+
+    //         // Extract the transform details
+    //         double trans_x = transformStamped.transform.translation.x;
+    //         double trans_y = transformStamped.transform.translation.y;
+    //         double theta = lastPose_.theta();
+    //         tf2::Matrix3x3 R;
+    //         R.setEulerYPR(theta, 0, 0);  // yaw (theta), pitch, roll
+    //         tf2::Vector3 trans(trans_x, trans_y, 0.0);
+    //         tf2::Vector3 rotP = R * trans;
+    //         gtsam::Point2 priorLand(rotP.x() + lastPose_.x(), rotP.y() + lastPose_.y());
+
+    //         // Convert to bearing and range
+    //         double range = sqrt(pow(trans_x, 2) + pow(trans_y, 2));
+    //         double bearing = atan2(trans_y, trans_x);
+            
+    //         // Split the tag_id to get the tag number. Assume tag IDs are in the format "tag_X"
+    //         auto underscorePos = tag_id.find('_');
+    //         if (underscorePos == std::string::npos) continue; // Skip if the format is unexpected
+    //         int tag_number = std::stoi(tag_id.substr(underscorePos + 1)) + 1;
+    
+    //         // Construct the landmark key
+    //         gtsam::Symbol landmarkKey('L', tag_number);  
+    //         // ROS_INFO("Added BR factor between %s and %s.", gtsam::DefaultKeyFormatter(gtsam::Symbol('X', index_of_pose)).c_str(), gtsam::DefaultKeyFormatter(landmarkKey).c_str());
+
+    //         // Store the bearing and range measurements in the map
+    //         poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
+
+    //         // Check if the landmark has been observed before
+    //         if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
+    //             // Existing landmark
+    //             gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+    //                 gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+    //             );
+    //             gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
+
+    //             // Threshold for ||projection - measurement||
+    //             if (fabs(error[0]) < add2graph_threshold) windowGraph_.add(factor);
+    //             factorTimestamps_[windowGraph_.size() - 1] = current_time;
+    //             detectedLandmarks.insert(landmarkKey);
+    //         } 
+    //         else {
+    //             // If the current landmark was not detected in the calibration run 
+    //             // Or it's on calibration mode
+    //             if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
+    //                 // New landmark detected
+    //                 tagToNodeIDMap_[tag_number] = landmarkKey;
+    //                 windowEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
+    //                 landmarkEstimates.insert(landmarkKey, priorLand);
+    //                 // Add a prior for the landmark position to help with initial estimation.
+    //                 windowGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
+    //                     landmarkKey, priorLand, pointNoise)
+    //                 );
+    //             }
+    //             factorTimestamps_[windowGraph_.size() - 1] = current_time;
+    //             // Add a bearing-range observation for this landmark to the graph
+    //             gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+    //                 gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+    //             );
+    //             windowGraph_.add(factor);
+    //             factorTimestamps_[windowGraph_.size() - 1] = current_time;
+    //             detectedLandmarks.insert(landmarkKey);
+    //         }
+    //         // Store the bearing and range measurements in the map
+    //         poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
+    //     }
+    //     catch (tf2::TransformException &ex) {
+    //             continue;
+    //     }
+    // } 
     // Update the pose to landmarks mapping (for recording LC condition)
     poseToLandmarks[gtsam::Symbol('X', index_of_pose)] = detectedLandmarks;
      
@@ -538,14 +625,14 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     }
 
     // keygraph build
-    if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
-    createNewKeyframe(predictedPose, previousKeyframeSymbol);
-    ROS_INFO("keyframe added");
-    Key_previous_pos = poseSE2;
-    previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
-    // Re-Initialize the factor graph
-    initializeGTSAM();
-    }
+    // if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
+    // createNewKeyframe(predictedPose, previousKeyframeSymbol);
+    // ROS_INFO("keyframe added");
+    // Key_previous_pos = poseSE2;
+    // previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
+    // // Re-Initialize the factor graph
+    // initializeGTSAM();
+    // }
 }
 }
 

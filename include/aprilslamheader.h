@@ -28,6 +28,7 @@
 #include <gtsam/nonlinear/Values.h>
 #include <cxxabi.h>
 #include <boost/pointer_cast.hpp>
+#include <apriltag_ros/AprilTagDetectionArray.h>
 
 namespace aprilslam {
 
@@ -46,12 +47,21 @@ public:
     void createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::Symbol& previousKeyframeSymbol);
     void graphvisulisation(gtsam::NonlinearFactorGraph& Graph_);
     void printWindowEstimates(const gtsam::Values& windowEstimates);
+    void mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
+    void rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
+    void lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
     nav_msgs::Path path;
     ros::NodeHandle nh_;
     ros::Subscriber odom_sub_;
+    ros::Subscriber mCam_subscriber;
+    ros::Subscriber rCam_subscriber;
+    ros::Subscriber lCam_subscriber;
+    apriltag_ros::AprilTagDetectionArray::ConstPtr mCam_msg;
+    apriltag_ros::AprilTagDetectionArray::ConstPtr rCam_msg;
+    apriltag_ros::AprilTagDetectionArray::ConstPtr lCam_msg;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
     std::map<gtsam::Symbol, std::map<gtsam::Symbol, std::tuple<double, double>>> poseToLandmarkMeasurementsMap;  //storing X-L pair
@@ -108,6 +118,9 @@ private:
     std::string lCam_topic;
     std::string rCam_topic;
     std::string mCam_topic;
+    Eigen::Vector3d lcam_baselink_transform;
+    Eigen::Vector3d rcam_baselink_transform;
+    Eigen::Vector3d mcam_baselink_transform;
 };
 
 } 
