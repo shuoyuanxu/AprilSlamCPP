@@ -351,7 +351,7 @@ void aprilslamcpp::ISAM2Optimise() {
     // ROS_INFO("Factor graph structure before optimization:");
     
     // Graph visulisation
-    // graphvisulisation(windowGraph_);
+    graphvisulisation(windowGraph_);
 
     if (batchOptimisation_) {
         gtsam::LevenbergMarquardtOptimizer batchOptimizer(windowGraph_, windowEstimates_);
@@ -470,8 +470,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         if (!Id.empty()) {
             for (size_t n = 0; n < Id.size(); ++n) {
                 int tag_number = Id[n];        
-                ROS_INFO("landmarks addedlandmarks addedlandmarks addedlandmarks addedlandmarks addedlandmarks added");
-
                 Eigen::Vector2d landSE2 = tagPos[n];
 
                 // Compute prior location of the landmark using the current robot pose
@@ -625,14 +623,14 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     }
 
     // keygraph build
-    // if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
-    // createNewKeyframe(predictedPose, previousKeyframeSymbol);
-    // ROS_INFO("keyframe added");
-    // Key_previous_pos = poseSE2;
-    // previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
-    // // Re-Initialize the factor graph
-    // initializeGTSAM();
-    // }
+    if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
+    createNewKeyframe(predictedPose, previousKeyframeSymbol);
+    ROS_INFO("keyframe added");
+    Key_previous_pos = poseSE2;
+    previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
+    // Re-Initialize the factor graph
+    initializeGTSAM();
+    }
 }
 }
 
