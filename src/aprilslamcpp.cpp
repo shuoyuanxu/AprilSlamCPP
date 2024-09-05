@@ -460,7 +460,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     // Loop closure detection setup
     std::set<gtsam::Symbol> detectedLandmarks;
 
-    // Iterate through all landmark IDs to if detected
+    // Iterate through all landmark IDs if detected
     start_loop = ros::WallTime::now();
     if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
         auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
@@ -623,14 +623,14 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     }
 
     // keygraph build
-    if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
-    createNewKeyframe(predictedPose, previousKeyframeSymbol);
-    ROS_INFO("keyframe added");
-    Key_previous_pos = poseSE2;
-    previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
-    // Re-Initialize the factor graph
-    initializeGTSAM();
-    }
+    // if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
+    // createNewKeyframe(predictedPose, previousKeyframeSymbol);
+    // ROS_INFO("keyframe added");
+    // Key_previous_pos = poseSE2;
+    // previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
+    // // Re-Initialize the factor graph
+    // initializeGTSAM();
+    // }
 }
 }
 
