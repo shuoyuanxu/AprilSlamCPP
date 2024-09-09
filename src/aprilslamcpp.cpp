@@ -97,6 +97,10 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     Eigen::Vector3d rcam_baselink_transform(xyTrans_rcam_baselink[0], xyTrans_rcam_baselink[1], xyTrans_rcam_baselink[2]);
     Eigen::Vector3d mcam_baselink_transform(xyTrans_mcam_baselink[0], xyTrans_mcam_baselink[1], xyTrans_mcam_baselink[2]);
 
+    ROS_INFO("Loaded lcam to baselink transform: [%f, %f, %f]", xyTrans_lcam_baselink[0], xyTrans_lcam_baselink[1], xyTrans_lcam_baselink[2]);
+    ROS_INFO("Loaded rcam to baselink transform: [%f, %f, %f]", xyTrans_rcam_baselink[0], xyTrans_rcam_baselink[1], xyTrans_rcam_baselink[2]);
+    ROS_INFO("Loaded mcam to baselink transform: [%f, %f, %f]", xyTrans_mcam_baselink[0], xyTrans_mcam_baselink[1], xyTrans_mcam_baselink[2]);
+
     // Load camera topics
     nh_.getParam("camera_subscribers/lCam_subscriber/topic", lCam_topic);
     nh_.getParam("camera_subscribers/rCam_subscriber/topic", rCam_topic);
