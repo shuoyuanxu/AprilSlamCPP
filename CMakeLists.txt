@@ -49,7 +49,7 @@ target_link_libraries(
   gtsam 
   tbb
 )
-# PcClustering executabls
+# PcClustering executables
 add_executable(PcClustering_node src/PcClustering.cpp src/DataAssociation.cpp)
 target_link_libraries(
   PcClustering_node
