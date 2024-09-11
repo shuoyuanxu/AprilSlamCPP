@@ -58,7 +58,7 @@ target_link_libraries(
 )
 
 # Debuggging executables
-add_executable(DebugPlotting_node src/DebugPlotting.cpp src/publishing_utils.cpp)
+add_executable(DebugPlotting_node src/DebugPlotting.cpp)
 target_link_libraries(
   DebugPlotting_node
   ${catkin_LIBRARIES}
