@@ -57,12 +57,19 @@ target_link_libraries(
   ${PCL_LIBRARIES}
 )
 
+# Debuggging executables
+add_executable(DebugPlotting_node src/DebugPlotting.cpp src/publishing_utils.cpp)
+target_link_libraries(
+  DebugPlotting_node
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
 #############
 ## Install ##
 #############
 
 install(
-  TARGETS aprilslamcpp PcClustering_node
+  TARGETS aprilslamcpp PcClustering_node DebugPlotting_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

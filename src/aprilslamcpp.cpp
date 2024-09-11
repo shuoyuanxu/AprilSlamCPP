@@ -328,7 +328,7 @@ void aprilslamcpp::graphvisulisation(gtsam::NonlinearFactorGraph& Graph_) {
         int status = 0;
         char* demangledName = abi::__cxa_demangle(factorType.c_str(), nullptr, nullptr, &status);
         
-        // If demangling was successful, use the demangled name
+        // If demangling was successful, use the demangled nameLandmarkPlotter
         std::string readableType = (status == 0) ? demangledName : factorType;
         std::string simplifiedType = readableType.substr(readableType.find_last_of(':') + 1); // Simplify type name
 
