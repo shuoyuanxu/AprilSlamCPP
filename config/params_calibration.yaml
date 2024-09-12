@@ -12,7 +12,7 @@ transformation_search_range: 0.1
 add2graph_threshold: 0.2
 timewindow: 50
 maxfactors: 400
-useprunebytime: true
+useprunebytime: false
 useprunebysize: false
 
 # Loop closure

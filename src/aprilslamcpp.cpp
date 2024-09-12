@@ -180,7 +180,7 @@ bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::
     return false;  // Do not add a keyframe
 }
 
-void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::Symbol& previousKeyframeSymbol) {
+void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gtsam::Pose2& previousPose, gtsam::Symbol& previousKeyframeSymbol) {
     gtsam::Symbol currentKeyframeSymbol('X', index_of_pose);
 
     // Maintain a persistent storage for historic landmarks
@@ -191,9 +191,9 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::S
         gtsam::Pose2 previousPose = keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol);
         gtsam::Pose2 relativePose = previousPose.between(predictedPose);
         keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
-        // ROS_INFO("Between factor between %s and %s added to keyframe graph.",
-        //          gtsam::DefaultKeyFormatter(previousKeyframeSymbol).c_str(),
-        //          gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
+        ROS_INFO("Between factor between %s and %s added to keyframe graph.",
+                 gtsam::DefaultKeyFormatter(previousKeyframeSymbol).c_str(),
+                 gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
     }
 
     // Use ISAM2 to get the latest estimate of poses 'X' and landmarks 'L'
@@ -430,7 +430,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         factorTimestamps_[windowGraph_.size() - 1] = current_time;
         windowEstimates_.insert(gtsam::Symbol('X', 1), pose0);
         lastPose_ = pose0; // Keep track of the last pose for odolandmarkKeymetry calculation
-        
         // Load calibrated landmarks as priors if available
         if (usepriortagtable) {
             std::map<int, gtsam::Point2> savedLandmarks = loadLandmarksFromCSV(pathtoloadlandmarkcsv);
@@ -562,7 +561,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // keygraph build
     if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
-    createNewKeyframe(predictedPose, previousKeyframeSymbol);
+    createNewKeyframe(predictedPose, Key_previous_pos, previousKeyframeSymbol);
     ROS_INFO("keyframe added");
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
