@@ -10,11 +10,8 @@
 #include <nav_msgs/Path.h>
 #include <map>
 #include <tf2_ros/transform_listener.h>
-#include <gtsam/geometry/Pose2.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h> // For TF2 quaternion conversion functions
-#include <gtsam/inference/Symbol.h>
-#include <gtsam/nonlinear/Values.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -132,7 +129,7 @@ private:
             Eigen::Vector2d tagPosInMapFrame = transformToMapFrame(tagPos[i]);
 
             visualization_msgs::Marker marker;
-            marker.header.frame_id = "map";  // Use map frame
+            marker.header.frame_id = "robot/odom";  // Use map frame
             marker.header.stamp = ros::Time::now();
             marker.ns = "tags";
             marker.id = tagId;

@@ -29,6 +29,7 @@
 #include <cxxabi.h>
 #include <boost/pointer_cast.hpp>
 #include <apriltag_ros/AprilTagDetectionArray.h>
+#include <cmath>
 
 namespace aprilslam {
 
