@@ -45,7 +45,7 @@ public:
     void checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks);
     bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
     void updateKeyframeGraphWithOptimizedResults(const gtsam::Values& optimizedResults);
-    void createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::Symbol& previousKeyframeSymbol);
+    void createNewKeyframe(const gtsam::Pose2& predictedPose, const gtsam::Pose2& previousPose, gtsam::Symbol& previousKeyframeSymbol);
     void graphvisulisation(gtsam::NonlinearFactorGraph& Graph_);
     void printWindowEstimates(const gtsam::Values& windowEstimates);
     void mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
