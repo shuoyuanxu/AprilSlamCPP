@@ -187,7 +187,7 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, gtsam::S
     static std::map<gtsam::Key, gtsam::Point2> historicLandmarks;
 
     // Compute and add the between factor between the current keyframe and the previous keyframe
-    if (previousKeyframeSymbol) {  // Ensure there is a previous keyframe
+    if (previousKeyframeSymbol) {  // Ensure there is at least 1 previous keyframe
         gtsam::Pose2 previousPose = keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol);
         gtsam::Pose2 relativePose = previousPose.between(predictedPose);
         keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
