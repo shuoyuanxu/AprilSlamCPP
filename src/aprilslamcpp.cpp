@@ -91,23 +91,13 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("usepriortagtable", usepriortagtable);
 
     // Camera transformation parameters
-    std::vector<double> xyTrans_lcam_baselink, xyTrans_rcam_baselink, xyTrans_mcam_baselink;
     nh_.getParam("camera_parameters/xyTrans_lcam_baselink", xyTrans_lcam_baselink);
     nh_.getParam("camera_parameters/xyTrans_rcam_baselink", xyTrans_rcam_baselink);
     nh_.getParam("camera_parameters/xyTrans_mcam_baselink", xyTrans_mcam_baselink);
-
-    // Convert the std::vector<double> to Eigen::Vector3d for use in your application
-    // Eigen::Vector3d lcam_baselink_transform(xyTrans_lcam_baselink[0], xyTrans_lcam_baselink[1], xyTrans_lcam_baselink[2]);
-    // Eigen::Vector3d rcam_baselink_transform(xyTrans_rcam_baselink[0], xyTrans_rcam_baselink[1], xyTrans_rcam_baselink[2]);
-    // Eigen::Vector3d mcam_baselink_transform(xyTrans_mcam_baselink[0], xyTrans_mcam_baselink[1], xyTrans_mcam_baselink[2]);
-    mcam_baselink_transform = Eigen::Vector3d(0.0, 0.0, 0.0);
-    rcam_baselink_transform = Eigen::Vector3d(0.0, 0.0, -M_PI / 2);
-    lcam_baselink_transform = Eigen::Vector3d(0.0, 0.0, M_PI / 2);
-
-
-    // ROS_INFO("Loaded lcam to baselink transform: [%f, %f, %f]", xyTrans_lcam_baselink[0], xyTrans_lcam_baselink[1], xyTrans_lcam_baselink[2]);
-    // ROS_INFO("Loaded rcam to baselink transform: [%f, %f, %f]", xyTrans_rcam_baselink[0], xyTrans_rcam_baselink[1], xyTrans_rcam_baselink[2]);
-    // ROS_INFO("Loaded mcam to baselink transform: [%f, %f, %f]", xyTrans_mcam_baselink[0], xyTrans_mcam_baselink[1], xyTrans_mcam_baselink[2]);
+    // Convert to Eigen::Vector3d
+    mcam_baselink_transform = Eigen::Vector3d(xyTrans_mcam_baselink[0], xyTrans_mcam_baselink[1], xyTrans_mcam_baselink[2]);
+    rcam_baselink_transform = Eigen::Vector3d(xyTrans_rcam_baselink[0], xyTrans_rcam_baselink[1], xyTrans_rcam_baselink[2]);
+    lcam_baselink_transform = Eigen::Vector3d(xyTrans_lcam_baselink[0], xyTrans_lcam_baselink[1], xyTrans_lcam_baselink[2]);
 
     // Load camera topics
     nh_.getParam("camera_subscribers/lCam_subscriber/topic", lCam_topic);
@@ -128,7 +118,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
         possibleIds_.push_back("tag_" + std::to_string(j));
     }
     
-    ROS_INFO("Loaded parameters successfully.");
+    ROS_INFO("Parameters loaded.");
 
     // Initialize GTSAM components
     initializeGTSAM();
@@ -191,8 +181,7 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
     static std::map<gtsam::Key, gtsam::Point2> historicLandmarks;
 
     // Compute and add the between factor between the current keyframe and the previous keyframe
-    if (previousKeyframeSymbol) {  // Ensure there is at least 1 previous keyframe
-        // gtsam::Pose2 previousPose = keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol);
+    if (previousKeyframeSymbol) {
         gtsam::Pose2 relativePose = previousPose.between(predictedPose);
         keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
     }
@@ -203,12 +192,14 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
     // Update the keyframe estimates with the latest estimates from ISAM2 and preserve landmark history
     for (const auto& key_value : result) {
         gtsam::Key key = key_value.key;
-        if (gtsam::Symbol(key).chr() == 'X') {  // Update pose estimates
+        if (gtsam::Symbol(key).chr() == 'X') {  
+            // Update pose estimates
             if (!keyframeEstimates_.exists(key)) {
                 gtsam::Pose2 pose = result.at<gtsam::Pose2>(key);
                 keyframeEstimates_.insert(key, pose);
             }
-        } else if (gtsam::Symbol(key).chr() == 'L') {  // Update landmark estimates
+        } else if (gtsam::Symbol(key).chr() == 'L') {  
+            // Update landmark estimates
             if (!keyframeEstimates_.exists(key)) {
                 gtsam::Point2 landmark = result.at<gtsam::Point2>(key);
                 keyframeEstimates_.insert(key, landmark);
@@ -216,7 +207,6 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
                 // Add the landmark as a prior in the keyframe graph if it's not already there
                 if (!keyframeGraph_.exists(key)) {
                     keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(key, landmark, pointNoise));
-                    // ROS_INFO("Added landmark %s as a prior to keyframe graph.", gtsam::DefaultKeyFormatter(key).c_str());
                 }
 
                 // Store the landmark in the persistent storage
@@ -233,7 +223,6 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
             keyframeEstimates_.insert(key, landmark);
             if (!keyframeGraph_.exists(key)) {
                 keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(key, landmark, pointNoise));
-                // ROS_INFO("Reinserted historic landmark %s into keyframe graph.", gtsam::DefaultKeyFormatter(key).c_str());
             }
         }
     }
@@ -274,6 +263,8 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
 
     // Insert updated estimates from keyframeEstimates_ into windowEstimates_
     windowEstimates_.insert(keyframeEstimates_);
+
+    // isam_.update(keyframeGraph_, keyframeEstimates_);
 
     ROS_INFO("Window graph and estimates reset with keyframe graph.");
 }
@@ -355,12 +346,6 @@ void aprilslamcpp::graphvisulisation(gtsam::NonlinearFactorGraph& Graph_) {
 }
 
 void aprilslamcpp::ISAM2Optimise() {    
-    // Debug message: print the factor graph structure before optimization
-    // ROS_INFO("Factor graph structure before optimization:");
-    
-    // Graph visulisation
-    // graphvisulisation(windowGraph_);
-
     if (batchOptimisation_) {
         gtsam::LevenbergMarquardtOptimizer batchOptimizer(windowGraph_, windowEstimates_);
         windowEstimates_ = batchOptimizer.optimize();
@@ -369,11 +354,9 @@ void aprilslamcpp::ISAM2Optimise() {
 
     // Update the iSAM2 instance with the new measurements
     isam_.update(windowGraph_, windowEstimates_);
-    // ROS_INFO("Update done");
 
     // Calculate the current best estimate
     auto result = isam_.calculateEstimate();
-    // ROS_INFO("estimate done");
 
     // Extract landmark estimates from result
     std::map<int, gtsam::Point2> landmarks;
@@ -387,7 +370,6 @@ void aprilslamcpp::ISAM2Optimise() {
     // Publish the pose
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
-    // ROS_INFO("optimisation done");
 
     // Update keyframe estimates with the results from the optimized window graph
     // updateKeyframeGraphWithOptimizedResults(result);
@@ -571,7 +553,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
     // Re-Initialize the factor graph
-    initializeGTSAM();
+    // initializeGTSAM();
     }
 }
 }

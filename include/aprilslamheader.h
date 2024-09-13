@@ -68,13 +68,10 @@ private:
     std::map<gtsam::Symbol, std::map<gtsam::Symbol, std::tuple<double, double>>> poseToLandmarkMeasurementsMap;  //storing X-L pair
     std::map<gtsam::Key, gtsam::Point2> historicLandmarks;     // Maintain a persistent storage for historic landmarks
     gtsam::Values landmarkEstimates;  // for unwhitten error computing 
-
     gtsam::NonlinearFactorGraph keyframeGraph_;  // Keyframe graph: All keyframes and associated landmarks
     gtsam::Values keyframeEstimates_;            // Estimates for keyframes
-
     gtsam::NonlinearFactorGraph windowGraph_;    // Window graph: Current time window, built on top of keyframeGraph
     gtsam::Values windowEstimates_;              // Estimates for current time window
-
     gtsam::Pose2 Key_previous_pos;
     gtsam::Symbol previousKeyframeSymbol;
     gtsam::ISAM2 isam_;
