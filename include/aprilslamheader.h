@@ -107,6 +107,8 @@ private:
     double historyKeyframeSearchRadius;
     int historyKeyframeSearchTimeDiff;
     int historyKeyframeSearchNum;
+    double stationary_position_threshold;
+    double stationary_rotation_threshold;
     bool savetaglocation;
     bool usepriortagtable;
     std::map<int, gtsam::Point2> savedLandmarks;

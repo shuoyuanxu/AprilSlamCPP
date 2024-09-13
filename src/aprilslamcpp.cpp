@@ -74,6 +74,10 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("distanceThreshold", distanceThreshold);
     nh_.getParam("rotationThreshold", rotationThreshold);
 
+        // Stationay conditions
+    nh_.getParam("stationary_position_threshold", stationary_position_threshold);
+    nh_.getParam("stationary_rotation_threshold", stationary_rotation_threshold);
+
     // Read calibration and localisation settings
     std::string package_path = ros::package::getPath("aprilslamcpp");
     std::string save_path, load_path;
@@ -188,12 +192,9 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
 
     // Compute and add the between factor between the current keyframe and the previous keyframe
     if (previousKeyframeSymbol) {  // Ensure there is at least 1 previous keyframe
-        gtsam::Pose2 previousPose = keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol);
+        // gtsam::Pose2 previousPose = keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol);
         gtsam::Pose2 relativePose = previousPose.between(predictedPose);
         keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
-        ROS_INFO("Between factor between %s and %s added to keyframe graph.",
-                 gtsam::DefaultKeyFormatter(previousKeyframeSymbol).c_str(),
-                 gtsam::DefaultKeyFormatter(currentKeyframeSymbol).c_str());
     }
 
     // Use ISAM2 to get the latest estimate of poses 'X' and landmarks 'L'
@@ -262,7 +263,6 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
     // graphvisulisation(keyframeGraph_);
 
     // Clear the window graph and reset it with the new keyframe graph as its base
-    // ROS_INFO("Clearing window graph and estimates, and resetting with keyframe graph as base.");
     windowGraph_.resize(0);  // Clear the current window graph
     windowEstimates_.clear();  // Clear current window estimates
 
@@ -417,10 +417,21 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     double current_time = ros::Time::now().toSec();
     ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times
     double elapsed;
-    index_of_pose += 1; // Increment the pose index for each new odometry message
 
     // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
+
+    // Calculate the distance and rotation change from the last pose
+    double position_change = std::hypot(poseSE2.x() - lastPoseSE2_.x(), poseSE2.y() - lastPoseSE2_.y());
+    double rotation_change = std::abs(wrapToPi(poseSE2.theta() - lastPoseSE2_.theta()));
+
+    // Check if the movement exceeds the thresholds
+    if (position_change < stationary_position_threshold && rotation_change < stationary_rotation_threshold) {
+        // Robot is stationary; skip factor graph update
+        return;
+    }
+
+    index_of_pose += 1; // Increment the pose index for each new odometry message
 
     // Store the initial pose for relative calculations
     if (index_of_pose == 2) {
@@ -440,7 +451,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                 landmarkEstimates.insert(landmarkKey, landmark.second);
             }
         }
-
+        Key_previous_pos = pose0;
         keyframeGraph_ = windowGraph_;
         keyframeEstimates_ = windowEstimates_;
         previousKeyframeSymbol = gtsam::Symbol('X', 1);
@@ -450,22 +461,17 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
     gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
 
-    ROS_INFO("lastPose_: x = %f, y = %f, theta = %f", lastPose_.x(), lastPose_.y(), lastPose_.theta());
-    ROS_INFO("lastPoseSE2_: x = %f, y = %f, theta = %f", lastPoseSE2_.x(), lastPoseSE2_.y(), lastPoseSE2_.theta());
-
     // Determine if this pose should be a keyframe
     windowEstimates_.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
 
     // Add this relative motion as an odometry factor to the graph
     windowGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1), gtsam::Symbol('X', index_of_pose), odometry, odometryNoise));
-    // ROS_INFO("factor added");
 
     factorTimestamps_[windowGraph_.size() - 1] = current_time;
     
     // Update the last pose and initial estimates for the next iteration
     lastPose_ = predictedPose;
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
-    // ROS_INFO("estimated added");
 
     // Loop closure detection setup
     std::set<gtsam::Symbol> detectedLandmarks;
@@ -494,7 +500,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
                 // Construct the landmark key
                 gtsam::Symbol landmarkKey('L', tag_number);  
-                // ROS_INFO("Added BR factor between %s and %s.", gtsam::DefaultKeyFormatter(gtsam::Symbol('X', index_of_pose)).c_str(), gtsam::DefaultKeyFormatter(landmarkKey).c_str());
 
                 // Store the bearing and range measurements in the map
                 poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
@@ -548,7 +553,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     end_loop = ros::WallTime::now();
     elapsed = (end_loop - start_loop).toSec();
-    ROS_INFO("transform total: %f seconds", elapsed);
+    // ROS_INFO("transform total: %f seconds", elapsed);
     lastPoseSE2_ = poseSE2;
     start_loop = ros::WallTime::now();
     // ISAM2 optimization to update the map and robot pose estimates

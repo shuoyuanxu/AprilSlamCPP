@@ -1,4 +1,4 @@
-odom_topic: "/robot/dlo/odom_node/odom"
+odom_topic: "/dlo/odom_node/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
 frame_id: "map"
@@ -22,15 +22,19 @@ historyKeyframeSearchTimeDiff: 300.0
 historyKeyframeSearchNum: 25
 historyKeyframeFitnessScore: 0.3
 
+# Stationary threshold
+stationary_position_threshold: 0.05 # 5cm
+stationary_rotation_threshold: 0.1 # 0.1radius
+
 # Keyframe info
-distanceThreshold: 1
-rotationThreshold: 5
+distanceThreshold: 0.5
+rotationThreshold: 20
   
 noise_models:
   odometry:
-    - 0.01
+    - 0.1
     - 1
-    - 0.01
+    - 0.1
   prior:
     - 0.1
     - 0.3
@@ -39,8 +43,8 @@ noise_models:
     - 0.1
     - 0.8
   point:
-    - 0.1
-    - 0.1
+    - 0.2
+    - 0.2
   loopClosureNoise:
     - 0.1
     - 0.1

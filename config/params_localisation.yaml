@@ -1,4 +1,4 @@
-odom_topic: "/odom"
+odom_topic: "/robot/dlo/odom_node/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
 frame_id: "map"
@@ -15,11 +15,22 @@ maxfactors: 400
 useprunebytime: false
 useprunebysize: false
 
+# Loop closure
+surroundingKeyframeSize: 50
+historyKeyframeSearchRadius: 15.0
+historyKeyframeSearchTimeDiff: 300.0
+historyKeyframeSearchNum: 25
+historyKeyframeFitnessScore: 0.3
+
+# Keyframe info
+distanceThreshold: 0.5
+rotationThreshold: 20
+  
 noise_models:
   odometry:
-    - 0.0001
-    - 0.01
-    - 0.0001
+    - 0.1
+    - 1
+    - 0.1
   prior:
     - 0.1
     - 0.3
@@ -28,8 +39,29 @@ noise_models:
     - 0.1
     - 0.8
   point:
-    - 0.1
-    - 0.1
+    - 0.01
+    - 0.01
   loopClosureNoise:
     - 0.1
     - 0.1
+
+# Camera parameters
+camera_parameters:
+  xyTrans_lcam_baselink: [0, 0, 1.5708]  # pi/2 in radians
+  xyTrans_mcam_baselink: [0, 0, 0]
+  xyTrans_rcam_baselink: [0, 0, -1.5708]  # -pi/2 in radians
+
+# Camera subscribers
+camera_subscribers:
+  lCam_subscriber:
+    topic: "/l/tag_detections"
+    type: "apriltag_ros/AprilTagDetectionArray"
+    data_format: "struct"
+  rCam_subscriber:
+    topic: "/r/tag_detections"
+    type: "apriltag_ros/AprilTagDetectionArray"
+    data_format: "struct"
+  mCam_subscriber:
+    topic: "/m/tag_detections"
+    type: "apriltag_ros/AprilTagDetectionArray"
+    data_format: "struct"
