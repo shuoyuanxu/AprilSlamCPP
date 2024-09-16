@@ -263,9 +263,9 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
 
     // Insert updated estimates from keyframeEstimates_ into windowEstimates_
     windowEstimates_.insert(keyframeEstimates_);
-
-    // isam_.update(keyframeGraph_, keyframeEstimates_);
-
+    ROS_INFO("optimising keyframs:");
+    initializeGTSAM();
+    isam_.update(windowGraph_, windowEstimates_);
     ROS_INFO("Window graph and estimates reset with keyframe graph.");
 }
 
@@ -553,7 +553,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
     // Re-Initialize the factor graph
-    // initializeGTSAM();
+        initializeGTSAM();
+
     }
 }
 }

@@ -75,6 +75,7 @@ private:
     gtsam::Pose2 Key_previous_pos;
     gtsam::Symbol previousKeyframeSymbol;
     gtsam::ISAM2 isam_;
+    gtsam::ISAM2 isam_key;
     gtsam::Pose2 lastPoseSE2_;
     gtsam::Pose2 lastPose_;
     std::vector<std::string> possibleIds_; // Predefined tags in the environment
