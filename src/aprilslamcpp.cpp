@@ -250,7 +250,7 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
     }
 
     // graphvisulisation(keyframeGraph_);
-
+    
     // Clear the window graph and reset it with the new keyframe graph as its base
     windowGraph_.resize(0);  // Clear the current window graph
     windowEstimates_.clear();  // Clear current window estimates
