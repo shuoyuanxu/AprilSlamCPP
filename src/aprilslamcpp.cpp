@@ -271,10 +271,8 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
 
     // Insert updated estimates from keyframeEstimates_ into windowEstimates_
     windowEstimates_.insert(keyframeEstimates_);
-    ROS_INFO("optimising keyframs:");
     initializeGTSAM();
     isam_.update(windowGraph_, windowEstimates_);
-    ROS_INFO("Window graph and estimates reset with keyframe graph.");
 }
 
 gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
