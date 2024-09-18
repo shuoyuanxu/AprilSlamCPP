@@ -660,10 +660,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // keygraph build
     if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
-    graphvisulisation(windowGraph_);
     keyframePosIds.insert(gtsam::Symbol('X', index_of_pose));  // Add fist keyframeID to the array
     std::set<gtsam::Symbol> poseArray = generatePosArray(previousKeyframeSymbol, gtsam::Symbol('X', index_of_pose), keyframePosIds);
-    graphvisulisation(windowGraph_);
     auto [windowGraph_, windowEstimates_] = rebuildFactorGraphWithPosindex(isam_, poseArray, poseToLandmarkMeasurementsMap);
     // createNewKeyframe(predictedPose, Key_previous_pos, previousKeyframeSymbol);
     initializeGTSAM();
