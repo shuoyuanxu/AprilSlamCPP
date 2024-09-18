@@ -160,10 +160,20 @@ void aprilslamcpp::initializeGTSAM() {
     isam_ = gtsam::ISAM2(parameters);
 }
 
-bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose) {
+bool aprilslamcpp::shouldAddKeyframe(
+    const gtsam::Pose2& lastPose, 
+    const gtsam::Pose2& currentPose, 
+    std::set<gtsam::Symbol> oldlandmarks, 
+    std::set<gtsam::Symbol> detectedLandmarksCurrentPos) {
     // Calculate the distance between the current pose and the last keyframe pose
     double distance = lastPose.range(currentPose);
-
+    // Iterate over detectedLandmarksCurrentPos, add key if new tag is detected
+    for (const auto& landmark : detectedLandmarksCurrentPos) {
+        // If the landmark is not found in oldLandmarks, return true
+        if (oldlandmarks.find(landmark) == oldlandmarks.end()) {
+            return true;
+        }
+    }
     // Calculate the difference in orientation (theta) between the current pose and the last keyframe pose
     double angleDifference = std::abs(wrapToPi(currentPose.theta() - lastPose.theta()));
 
@@ -172,118 +182,6 @@ bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::
         return true;  // Add a new keyframe
     }
     return false;  // Do not add a keyframe
-}
-
-std::pair<gtsam::NonlinearFactorGraph, gtsam::Values> aprilslamcpp::rebuildFactorGraphWithPosindex(
-    const gtsam::ISAM2& isam, 
-    const std::set<gtsam::Symbol>& poseKeys, 
-    const std::map<gtsam::Symbol, std::map<gtsam::Symbol, std::tuple<double, double>>>& poseToLandmarkMeasurementsMap) {
-
-    // Get the estimates from ISAM
-    const gtsam::Values& originalEstimates = isam.calculateEstimate();
-    ROS_INFO("Original estimates successfully retrieved.");
-
-    // Initialize new factor graph and estimates
-    gtsam::NonlinearFactorGraph newGraph;
-    gtsam::Values newEstimates;
-
-    // Store the required landmarks (L keys)
-    std::set<gtsam::Symbol> landmarkKeys;
-
-    // Add PriorFactor for the first pose key
-    gtsam::Symbol lastPoseKey;
-    bool isFirstPose = true;
-
-    ROS_INFO("Starting loop through poseKeys. Pose keys size: %lu", poseKeys.size());
-
-    for (const auto& currentPoseKey : poseKeys) {
-        // Print the current pose key for debugging
-        std::cout << "Processing pose key: " << currentPoseKey << std::endl;
-
-        if (isFirstPose) {
-            // Add a prior for the first pose
-            ROS_INFO("Adding PriorFactor for the first pose key.");
-            gtsam::Pose2 priorPose = originalEstimates.at<gtsam::Pose2>(currentPoseKey);
-            newGraph.add(gtsam::PriorFactor<gtsam::Pose2>(currentPoseKey, priorPose, priorNoise));
-            isFirstPose = false;
-        } else {
-            // Add BetweenFactor between lastPoseKey and currentPoseKey
-            ROS_INFO("Adding BetweenFactor between last pose and current pose.");
-            gtsam::Pose2 lastPose = originalEstimates.at<gtsam::Pose2>(lastPoseKey);
-            gtsam::Pose2 currentPose = originalEstimates.at<gtsam::Pose2>(currentPoseKey);
-            gtsam::Pose2 relativePose = lastPose.between(currentPose);
-
-            newGraph.add(gtsam::BetweenFactor<gtsam::Pose2>(lastPoseKey, currentPoseKey, relativePose, odometryNoise));
-        }
-
-        // Update the last pose key
-        lastPoseKey = currentPoseKey;
-
-        // Print out the current pose estimate for debugging
-        std::cout << "Adding current pose estimate to new estimates for pose key: " << currentPoseKey << std::endl;
-
-        // Add the current pose estimate to the new estimates
-        newEstimates.insert(currentPoseKey, originalEstimates.at<gtsam::Pose2>(currentPoseKey));
-
-        // Add BearingRangeFactors for landmarks observed by this pose
-        if (poseToLandmarkMeasurementsMap.find(currentPoseKey) != poseToLandmarkMeasurementsMap.end()) {
-            for (const auto& landmarkMeasurement : poseToLandmarkMeasurementsMap.at(currentPoseKey)) {
-                gtsam::Symbol landmarkKey = landmarkMeasurement.first;
-                double bearing = std::get<0>(landmarkMeasurement.second);
-                double range = std::get<1>(landmarkMeasurement.second);
-
-                ROS_INFO("Adding BearingRangeFactor between pose key %s and landmark key %s", currentPoseKey.string().c_str(), landmarkKey.string().c_str());
-
-                // Add the BearingRangeFactor between the pose and the landmark
-                newGraph.add(gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double>(
-                    currentPoseKey, landmarkKey, gtsam::Rot2::fromAngle(bearing), range, pointNoise));
-
-                // Mark this landmark as required and add the estimate to newEstimates
-                landmarkKeys.insert(landmarkKey);
-                if (!newEstimates.exists(landmarkKey)) {
-                    std::cout << "Adding estimate for landmark key: " << landmarkKey << std::endl;
-                    newEstimates.insert(landmarkKey, originalEstimates.at<gtsam::Point2>(landmarkKey));
-                }
-
-                // Add a prior factor for the observed landmark
-                newGraph.add(gtsam::PriorFactor<gtsam::Point2>(landmarkKey, originalEstimates.at<gtsam::Point2>(landmarkKey), pointNoise));
-            }
-        }
-    }
-
-    // Return the new factor graph and estimates
-    ROS_INFO("Finished rebuilding the factor graph.");
-    return std::make_pair(newGraph, newEstimates);
-}
-
-std::set<gtsam::Symbol> aprilslamcpp::generatePosArray(
-    const gtsam::Symbol& previousKeyframe, 
-    const gtsam::Symbol& currentKeyframe,
-    const std::set<gtsam::Symbol>& keyframes) {
-
-    std::set<gtsam::Symbol> poseSet;
-
-    // Extract the indices of the previous and current keyframe
-    int previousKeyIndex = previousKeyframe.index();
-    int currentKeyIndex = currentKeyframe.index();
-
-    // Iterate through all keyframes and non-keyframes between previousKeyframe and currentKeyframe
-    for (int i = 1; i <= currentKeyIndex; ++i) {
-        gtsam::Symbol pose('X', i);
-
-        // Add all the keyframes before the previousKeyframe
-        if (i <= previousKeyIndex && keyframes.find(pose) != keyframes.end()) {
-            poseSet.insert(pose);
-        }
-
-        // Add non-keyframes and keyframes between the previousKeyframe and the currentKeyframe
-        if (i > previousKeyIndex && i <= currentKeyIndex) {
-            poseSet.insert(pose);
-        }
-    }
-
-    // Return the resulting set of poses
-    return poseSet;
 }
 
 void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gtsam::Pose2& previousPose, gtsam::Symbol& previousKeyframeSymbol) {
@@ -360,8 +258,6 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
             }
         }
     }
-
-    // graphvisulisation(keyframeGraph_);
     
     // Clear the window graph and reset it with the new keyframe graph as its base
     windowGraph_.resize(0);  // Clear the current window graph
@@ -381,35 +277,6 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
     ROS_INFO("Window graph and estimates reset with keyframe graph.");
 }
 
-void aprilslamcpp::pruneOldFactorsByTime(double current_time, double timewindow) {
-    // Define a threshold for old factors and variables
-    double time_threshold = current_time - timewindow;
-    // Identify factors to remove
-    gtsam::FastList<size_t> factors_to_remove;
-    for (const auto& factor_time : factorTimestamps_) {
-        if (factor_time.second < time_threshold) {
-            factors_to_remove.push_back(factor_time.first);
-        }
-    }
-
-    // Remove old factors
-    if (!factors_to_remove.empty()) {
-        for (const auto& factor_index : factors_to_remove) {
-            keyframeGraph_.remove(factor_index);
-            factorTimestamps_.erase(factor_index);
-        }
-    }
-}
-
-void aprilslamcpp::pruneOldFactorsBySize(double maxfactors) {
-    // Prune factors if the total number of factors exceeds maxFactors_
-    while (factorTimestamps_.size() > maxfactors) {
-        auto oldest = factorTimestamps_.begin();
-        keyframeGraph_.remove(oldest->first);
-        factorTimestamps_.erase(oldest);
-    }
-}
-
 gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
     double x = msg->pose.pose.position.x;
     double y = msg->pose.pose.position.y;
@@ -423,37 +290,6 @@ gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     double roll, pitch, yaw;
     tf2::Matrix3x3(tfQuat).getRPY(roll, pitch, yaw);
     return gtsam::Pose2(x, y, yaw);
-}
-
-void aprilslamcpp::graphvisulisation(gtsam::NonlinearFactorGraph& Graph_) {
-    for (size_t i = 0; i < Graph_.size(); ++i) {
-        // Use the correct shared pointer type for NonlinearFactorGraph
-        gtsam::NonlinearFactor::shared_ptr factor = Graph_[i];
-        
-        // Demangle the factor type using abi::__cxa_demangle
-        std::string factorType = typeid(*factor).name();
-        int status = 0;
-        char* demangledName = abi::__cxa_demangle(factorType.c_str(), nullptr, nullptr, &status);
-        
-        // If demangling was successful, use the demangled nameLandmarkPlotter
-        std::string readableType = (status == 0) ? demangledName : factorType;
-        std::string simplifiedType = readableType.substr(readableType.find_last_of(':') + 1); // Simplify type name
-
-        // Free the memory allocated by abi::__cxa_demangle
-        if (demangledName) {
-            free(demangledName);
-        }
-
-        // Print the factor type and keys involved in a simplified format
-        std::ostringstream oss;
-        // oss << "  Factor " << i << " (" << simplifiedType << "):";
-        oss << "  Factor " << i;
-
-        for (const gtsam::Key& key : factor->keys()) {
-            oss << " " << gtsam::DefaultKeyFormatter(key);
-        }
-        ROS_INFO("%s", oss.str().c_str());
-    }
 }
 
 void aprilslamcpp::ISAM2Optimise() {    
@@ -482,28 +318,12 @@ void aprilslamcpp::ISAM2Optimise() {
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
 
-    // Update keyframe estimates with the results from the optimized window graph
-    // updateKeyframeGraphWithOptimizedResults(result);
-    // ROS_INFO("keyframe update done");
-
     // Save the landmarks into a csv file 
     if (savetaglocation) {
         saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
     }
-    // Prune the graph to maintain a predefined time window
-    double current_time = ros::Time::now().toSec();
-    if (useprunebytime) {
-        pruneOldFactorsByTime(current_time, timeWindow);
-    }
-    else if (useprunebysize) {
-        pruneOldFactorsBySize(maxfactors);
-    }
-     else {
-        // Do nothing if no pruning is required
-    }
     // Clear estimates for the next iteration (????necessary)
     windowEstimates_.clear();
-    // landmarkEstimates.clear();
 }
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -568,8 +388,9 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
 
     // Loop closure detection setup
-    std::set<gtsam::Symbol> detectedLandmarks;
-
+    std::set<gtsam::Symbol> detectedLandmarksCurrentPos;
+    std::set<gtsam::Symbol> oldlandmarks;
+    oldlandmarks = detectedLandmarksHistoric; 
     // Iterate through all landmark IDs if detected
     start_loop = ros::WallTime::now();
     if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
@@ -599,7 +420,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                 poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
 
                 // Check if the landmark has been observed before
-                if (tagToNodeIDMap_.find(tag_number) != tagToNodeIDMap_.end()) {
+                if (detectedLandmarksHistoric.find(landmarkKey) != detectedLandmarksHistoric.end()) {
                     // Existing landmark
                     gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
                         gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
@@ -609,20 +430,30 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                     // Threshold for ||projection - measurement||
                     if (fabs(error[0]) < add2graph_threshold) windowGraph_.add(factor);
                     factorTimestamps_[windowGraph_.size() - 1] = current_time;
-                    detectedLandmarks.insert(landmarkKey);
+                    detectedLandmarksCurrentPos.insert(landmarkKey);
                 } 
                 else {
                     // If the current landmark was not detected in the calibration run 
                     // Or it's on calibration mode
                     if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
-                        // New landmark detected
-                        tagToNodeIDMap_[tag_number] = landmarkKey;
+                    // New landmark detected
+                    detectedLandmarksHistoric.insert(landmarkKey);
+                    // Check if the key already exists in windowEstimates_ before inserting
+                    if (windowEstimates_.exists(landmarkKey)) {
+                    } else {
                         windowEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
+                    }
+
+                    // Check if the key already exists in landmarkEstimates before inserting
+                    if (landmarkEstimates.exists(landmarkKey)) {
+                    } else {
                         landmarkEstimates.insert(landmarkKey, priorLand);
-                        // Add a prior for the landmark position to help with initial estimation.
-                        windowGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
-                            landmarkKey, priorLand, pointNoise)
-                        );
+                    }
+
+                    // Add a prior for the landmark position to help with initial estimation.
+                    windowGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                        landmarkKey, priorLand, pointNoise)
+                    );
                     }
                     factorTimestamps_[windowGraph_.size() - 1] = current_time;
                     // Add a bearing-range observation for this landmark to the graph
@@ -631,7 +462,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                     );
                     windowGraph_.add(factor);
                     factorTimestamps_[windowGraph_.size() - 1] = current_time;
-                    detectedLandmarks.insert(landmarkKey);
+                    detectedLandmarksCurrentPos.insert(landmarkKey);
                 }
                 // Store the bearing and range measurements in the map
                 poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);                
@@ -640,7 +471,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     }
 
     // Update the pose to landmarks mapping (for recording LC condition)
-    poseToLandmarks[gtsam::Symbol('X', index_of_pose)] = detectedLandmarks;
+    poseToLandmarks[gtsam::Symbol('X', index_of_pose)] = detectedLandmarksCurrentPos;
      
     // Loop closure check
     // checkLoopClosure(current_time, detectedLandmarks);
@@ -659,20 +490,11 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     }
 
     // keygraph build
-    if (shouldAddKeyframe(Key_previous_pos, predictedPose)) {
-    keyframePosIds.insert(gtsam::Symbol('X', index_of_pose));  // Add fist keyframeID to the array
-    std::set<gtsam::Symbol> poseArray = generatePosArray(previousKeyframeSymbol, gtsam::Symbol('X', index_of_pose), keyframePosIds);
-    auto [windowGraph_, windowEstimates_] = rebuildFactorGraphWithPosindex(isam_, poseArray, poseToLandmarkMeasurementsMap);
-    // createNewKeyframe(predictedPose, Key_previous_pos, previousKeyframeSymbol);
+    if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
+    createNewKeyframe(predictedPose, Key_previous_pos, previousKeyframeSymbol);
     initializeGTSAM();
-    isam_.update(windowGraph_, windowEstimates_);
-    // windowEstimates_.clear();  // Clear current window estimates
-    ROS_INFO("keyframe added");
-    graphvisulisation(windowGraph_);
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
-    // Re-Initialize the factor graph
-    // initializeGTSAM();
     }
 }
 }

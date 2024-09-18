@@ -27,8 +27,8 @@ stationary_position_threshold: 0.05 # 5cm
 stationary_rotation_threshold: 0.1 # 0.1radius
 
 # Keyframe info
-distanceThreshold: 1
-rotationThreshold: 30
+distanceThreshold: 0.5
+rotationThreshold: 5
   
 noise_models:
   odometry:
