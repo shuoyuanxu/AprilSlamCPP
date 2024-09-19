@@ -3,7 +3,7 @@
   <rosparam file="$(find aprilslamcpp)/config/params_localisation.yaml" command="load"/>
 
   <!-- TagSLAM Node -->
-  <node name="aprilslamcpp" pkg="aprilslamcpp" type="aprilslamcpp" output="screen">
+  <node name="aprilslamcpp" pkg="aprilslamcpp" type="aprilslamcpp_loc" output="screen">
   </node>
 
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find aprilslamcpp)/launch/Visulisation.rviz">

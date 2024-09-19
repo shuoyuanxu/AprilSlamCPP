@@ -50,6 +50,7 @@ public:
     void mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
+    bool shouldAddKeyframe_loc(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;

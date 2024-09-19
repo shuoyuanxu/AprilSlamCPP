@@ -5,7 +5,7 @@ frame_id: "map"
 pathtosavelandmarkcsv: "config/landmark.csv"
 pathtoloadlandmarkcsv: "config/landmark.csv"
 savetaglocation: false
-usepriortagtable: true
+usepriortagtable: false
 batch_optimisation: true
 total_tags: 626
 transformation_search_range: 0.1
@@ -46,8 +46,8 @@ noise_models:
     - 0.01
     - 0.01
   loopClosureNoise:
-    - 0.1
-    - 0.1
+    - 0.01
+    - 0.01
 
 # Camera parameters
 camera_parameters:
