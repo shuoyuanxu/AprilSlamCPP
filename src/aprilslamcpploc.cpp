@@ -160,10 +160,20 @@ void aprilslamcpp::initializeGTSAM() {
     isam_ = gtsam::ISAM2(parameters);
 }
 
-bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose) {
+bool aprilslamcpp::shouldAddKeyframe(
+    const gtsam::Pose2& lastPose, 
+    const gtsam::Pose2& currentPose, 
+    std::set<gtsam::Symbol> oldlandmarks, 
+    std::set<gtsam::Symbol> detectedLandmarksCurrentPos) {
     // Calculate the distance between the current pose and the last keyframe pose
     double distance = lastPose.range(currentPose);
-
+    // Iterate over detectedLandmarksCurrentPos, add key if new tag is detected
+    for (const auto& landmark : detectedLandmarksCurrentPos) {
+        // If the landmark is not found in oldLandmarks, return true
+        if (oldlandmarks.find(landmark) == oldlandmarks.end()) {
+            return true;
+        }
+    }
     // Calculate the difference in orientation (theta) between the current pose and the last keyframe pose
     double angleDifference = std::abs(wrapToPi(currentPose.theta() - lastPose.theta()));
 
@@ -173,6 +183,7 @@ bool aprilslamcpp::shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::
     }
     return false;  // Do not add a keyframe
 }
+
 
 void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gtsam::Pose2& previousPose, gtsam::Symbol& previousKeyframeSymbol) {
     gtsam::Symbol currentKeyframeSymbol('X', index_of_pose);
@@ -268,35 +279,6 @@ void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gt
     ROS_INFO("Window graph and estimates reset with keyframe graph.");
 }
 
-void aprilslamcpp::pruneOldFactorsByTime(double current_time, double timewindow) {
-    // Define a threshold for old factors and variables
-    double time_threshold = current_time - timewindow;
-    // Identify factors to remove
-    gtsam::FastList<size_t> factors_to_remove;
-    for (const auto& factor_time : factorTimestamps_) {
-        if (factor_time.second < time_threshold) {
-            factors_to_remove.push_back(factor_time.first);
-        }
-    }
-
-    // Remove old factors
-    if (!factors_to_remove.empty()) {
-        for (const auto& factor_index : factors_to_remove) {
-            keyframeGraph_.remove(factor_index);
-            factorTimestamps_.erase(factor_index);
-        }
-    }
-}
-
-void aprilslamcpp::pruneOldFactorsBySize(double maxfactors) {
-    // Prune factors if the total number of factors exceeds maxFactors_
-    while (factorTimestamps_.size() > maxfactors) {
-        auto oldest = factorTimestamps_.begin();
-        keyframeGraph_.remove(oldest->first);
-        factorTimestamps_.erase(oldest);
-    }
-}
-
 gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
     double x = msg->pose.pose.position.x;
     double y = msg->pose.pose.position.y;
@@ -310,38 +292,6 @@ gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     double roll, pitch, yaw;
     tf2::Matrix3x3(tfQuat).getRPY(roll, pitch, yaw);
     return gtsam::Pose2(x, y, yaw);
-}
-
-void aprilslamcpp::graphvisulisation(gtsam::NonlinearFactorGraph& Graph_) {
-    for (size_t i = 0; i < Graph_.size(); ++i) {
-        // Use the correct shared pointer type for NonlinearFactorGraph
-        gtsam::NonlinearFactor::shared_ptr factor = Graph_[i];
-        
-        // Demangle the factor type using abi::__cxa_demangle
-        std::string factorType = typeid(*factor).name();
-        int status = 0;
-        char* demangledName = abi::__cxa_demangle(factorType.c_str(), nullptr, nullptr, &status);
-        
-        // If demangling was successful, use the demangled nameLandmarkPlotter
-        std::string readableType = (status == 0) ? demangledName : factorType;
-        std::string simplifiedType = readableType.substr(readableType.find_last_of(':') + 1); // Simplify type name
-
-        // Free the memory allocated by abi::__cxa_demangle
-        if (demangledName) {
-            free(demangledName);
-        }
-
-        // Print the factor type and keys involved in a simplified format
-        std::ostringstream oss;
-        // oss << "  Factor " << i << " (" << simplifiedType << "):";
-        oss << "  Factor " << i;
-
-        for (const gtsam::Key& key : factor->keys()) {
-            oss << " " << gtsam::DefaultKeyFormatter(key);
-        }
-
-        ROS_INFO("%s", oss.str().c_str());
-    }
 }
 
 void aprilslamcpp::ISAM2Optimise() {
@@ -380,15 +330,6 @@ void aprilslamcpp::ISAM2Optimise() {
     }
     // Prune the graph to maintain a predefined time window
     double current_time = ros::Time::now().toSec();
-    if (useprunebytime) {
-        pruneOldFactorsByTime(current_time, timeWindow);
-    }
-    else if (useprunebysize) {
-        pruneOldFactorsBySize(maxfactors);
-    }
-     else {
-        // Do nothing if no pruning is required
-    }
     // Clear estimates for the next iteration (????necessary)
     windowEstimates_.clear();
     // landmarkEstimates.clear();
