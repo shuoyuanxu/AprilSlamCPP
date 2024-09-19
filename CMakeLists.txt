@@ -40,15 +40,25 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
 )
 
-# Main aprilslamcpp executable
-add_executable(${PROJECT_NAME} src/aprilslamcpp.cpp src/publishing_utils.cpp)
+# aprilslamcpp calibration executable
+add_executable(aprilslamcpp_cal src/aprilslamcppcal.cpp src/publishing_utils.cpp)
 target_link_libraries(
-  aprilslamcpp
+  aprilslamcpp_cal
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   gtsam 
   tbb
 )
+
+add_executable(aprilslamcpp_loc src/aprilslamcpploc.cpp src/publishing_utils.cpp)
+target_link_libraries(
+  aprilslamcpp_loc
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  gtsam 
+  tbb
+)
+
 # PcClustering executables
 add_executable(PcClustering_node src/PcClustering.cpp src/DataAssociation.cpp)
 target_link_libraries(
@@ -69,7 +79,7 @@ target_link_libraries(
 #############
 
 install(
-  TARGETS aprilslamcpp PcClustering_node DebugPlotting_node
+  TARGETS aprilslamcpp_cal aprilslamcpp_loc PcClustering_node DebugPlotting_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

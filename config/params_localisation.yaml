@@ -22,9 +22,13 @@ historyKeyframeSearchTimeDiff: 300.0
 historyKeyframeSearchNum: 25
 historyKeyframeFitnessScore: 0.3
 
+# Stationary threshold
+stationary_position_threshold: 0.05 # 5cm
+stationary_rotation_threshold: 0.1 # 0.1radius
+
 # Keyframe info
 distanceThreshold: 0.5
-rotationThreshold: 20
+rotationThreshold: 5
   
 noise_models:
   odometry:
@@ -47,9 +51,9 @@ noise_models:
 
 # Camera parameters
 camera_parameters:
-  xyTrans_lcam_baselink: [0, 0, 1.5708]  # pi/2 in radians
+  xyTrans_lcam_baselink: [0, 0, 1.57079632679]  # pi/2 in radians
   xyTrans_mcam_baselink: [0, 0, 0]
-  xyTrans_rcam_baselink: [0, 0, -1.5708]  # -pi/2 in radians
+  xyTrans_rcam_baselink: [0, 0, -1.57079632679]  # -pi/2 in radians
 
 # Camera subscribers
 camera_subscribers:
