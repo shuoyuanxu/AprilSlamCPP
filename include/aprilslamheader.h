@@ -30,6 +30,7 @@
 #include <boost/pointer_cast.hpp>
 #include <apriltag_ros/AprilTagDetectionArray.h>
 #include <cmath>
+#include <gtsam/nonlinear/Marginals.h>
 
 namespace aprilslam {
 
@@ -51,6 +52,8 @@ public:
     void rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     bool shouldAddKeyframe_loc(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
+    void marginalizenonKeyframes(gtsam::ISAM2& isam, const std::set<gtsam::Symbol>& keyframesToMarginalize, const gtsam::NonlinearFactorGraph& originalGraph);
+    std::set<gtsam::Symbol> getPoseKeysBetweenKeyframes(const gtsam::Symbol& previousKeyframeSymbol, const gtsam::Symbol& currentKeyframeSymbol);
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;

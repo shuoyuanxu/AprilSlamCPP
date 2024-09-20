@@ -184,95 +184,73 @@ bool aprilslamcpp::shouldAddKeyframe(
     return false;  // Do not add a keyframe
 }
 
-void aprilslamcpp::createNewKeyframe(const gtsam::Pose2& predictedPose, const gtsam::Pose2& previousPose, gtsam::Symbol& previousKeyframeSymbol) {
-    gtsam::Symbol currentKeyframeSymbol('X', index_of_pose);
+void aprilslamcpp::marginalizenonKeyframes(
+    gtsam::ISAM2& isam, 
+    const std::set<gtsam::Symbol>& nonKeyframesToMarginalize, 
+    const gtsam::NonlinearFactorGraph& originalGraph) {
 
-    // Maintain a persistent storage for historic landmarks
-    static std::map<gtsam::Key, gtsam::Point2> historicLandmarks;
+    // Step 1: Get the current factor graph and values from iSAM2
+    const gtsam::Values& originalValues = isam.calculateEstimate();
 
-    // Compute and add the between factor between the current keyframe and the previous keyframe
-    if (previousKeyframeSymbol) {
-        gtsam::Pose2 relativePose = previousPose.between(predictedPose);
-        keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
-    }
-
-    // Use ISAM2 to get the latest estimate of poses 'X' and landmarks 'L'
-    auto result = isam_.calculateEstimate();
-
-    // Update the keyframe estimates with the latest estimates from ISAM2 and preserve landmark history
-    for (const auto& key_value : result) {
-        gtsam::Key key = key_value.key;
-        if (gtsam::Symbol(key).chr() == 'X') {  
-            // Update pose estimates
-            if (!keyframeEstimates_.exists(key)) {
-                gtsam::Pose2 pose = result.at<gtsam::Pose2>(key);
-                keyframeEstimates_.insert(key, pose);
-            }
-        } else if (gtsam::Symbol(key).chr() == 'L') {  
-            // Update landmark estimates
-            if (!keyframeEstimates_.exists(key)) {
-                gtsam::Point2 landmark = result.at<gtsam::Point2>(key);
-                keyframeEstimates_.insert(key, landmark);
-
-                // Add the landmark as a prior in the keyframe graph if it's not already there
-                if (!keyframeGraph_.exists(key)) {
-                    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(key, landmark, pointNoise));
-                }
-
-                // Store the landmark in the persistent storage
-                historicLandmarks[key] = landmark;
-            }
-        }
-    }
-
-    // Reinsert all historic landmarks into the keyframe 
-    for (const auto& key_value : historicLandmarks) {
-        gtsam::Key key = key_value.first;
-        gtsam::Point2 landmark = key_value.second;
-        if (!keyframeEstimates_.exists(key)) {
-            keyframeEstimates_.insert(key, landmark);
-            if (!keyframeGraph_.exists(key)) {
-                keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(key, landmark, pointNoise));
-            }
-        }
-    }
-
-    // Add br factors with X-L detection
-    if (poseToLandmarkMeasurementsMap.find(currentKeyframeSymbol) != poseToLandmarkMeasurementsMap.end()) {
-        for (const auto& landmarkMeasurement : poseToLandmarkMeasurementsMap[currentKeyframeSymbol]) {
-            gtsam::Symbol landmarkSymbol = landmarkMeasurement.first;  // Get the landmark (L) symbol
-            double bearing = std::get<0>(landmarkMeasurement.second);  // Extract bearing
-            double range = std::get<1>(landmarkMeasurement.second);    // Extract range
-
-            // Add the bearing-range factor between the current keyframe pose and the landmark
-            if (!keyframeGraph_.exists(landmarkSymbol)) {  // Only add if not already in the graph
-                keyframeGraph_.add(gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double>(
-                    currentKeyframeSymbol, landmarkSymbol, 
-                    gtsam::Rot2::fromAngle(bearing),
-                    range, brNoise));
-
-                // Insert the landmark into keyframe estimates if it doesn't already exist
-                if (!keyframeEstimates_.exists(landmarkSymbol)) {
-                    keyframeEstimates_.insert(landmarkSymbol, result.at<gtsam::Point2>(landmarkSymbol));
-                }
-            }
-        }
-    }
+    // Step 2: Compute the marginal covariance using the Marginals class
+    gtsam::Marginals marginals(originalGraph, originalValues);
     
-    // Clear the window graph and reset it with the new keyframe graph as its base
-    windowGraph_.resize(0);  // Clear the current window graph
-    windowEstimates_.clear();  // Clear current window estimates
+    gtsam::NonlinearFactorGraph newGraph;
+    gtsam::Values newValues;
 
-    // Add all keyframe graph factors to the window graph to serve as the base, except X147-X148 factor
-    for (size_t i = 0; i < keyframeGraph_.size(); ++i) {
-        auto factor = keyframeGraph_.at(i);
-        windowGraph_.add(factor);
+    for (const auto& keyframe : nonKeyframesToMarginalize) {
+        try {
+            // Compute the marginal information matrix for the variable to be marginalized
+            gtsam::Matrix marginalCov = marginals.marginalCovariance(keyframe);
+            
+            // Convert the marginal covariance into a factor (dense factor)
+            // NOTE: This step depends on how you want to approximate the dense factor.
+            // gtsam does not provide a direct "marginal factor" creation API,
+            // you can add a factor that relates the remaining variables based on the covariance.
+            
+            // Add the new factor to the graph (this is an example; modify to suit your problem)
+            // newGraph.add(...);
+
+        } catch (const std::exception& e) {
+            std::cerr << "Error while computing marginal for keyframe " << keyframe << ": " << e.what() << std::endl;
+            continue;
+        }
     }
 
-    // Insert updated estimates from keyframeEstimates_ into windowEstimates_
-    windowEstimates_.insert(keyframeEstimates_);
-    initializeGTSAM();
-    isam_.update(windowGraph_, windowEstimates_);
+    // Step 3: Remove the factors involving non-keyframes from the original graph
+    for (const auto& factor : originalGraph) {
+        bool shouldKeepFactor = true;
+
+        // Check if the factor involves any of the non-keyframe poses to be marginalized
+        for (const gtsam::Key& key : factor->keys()) {
+            gtsam::Symbol symbol(key);
+            if (nonKeyframesToMarginalize.find(symbol) != nonKeyframesToMarginalize.end()) {
+                shouldKeepFactor = false;  // Mark the factor for removal
+                break;
+            }
+        }
+
+        // Add factors that don't involve marginalized variables
+        if (shouldKeepFactor) {
+            newGraph.add(factor);
+        }
+    }
+
+    // Step 4: Add remaining keyframes and landmarks to the new graph and estimates
+    for (const auto& key_value : originalValues) {
+        gtsam::Symbol symbol(key_value.key);
+        if (nonKeyframesToMarginalize.find(symbol) == nonKeyframesToMarginalize.end()) {
+            newValues.insert(symbol, originalValues.at(symbol));  // Add poses and landmarks not marginalized
+        }
+    }
+
+    // Step 5: Update iSAM2 with the new graph and values
+    isam.update(newGraph, newValues);
+
+    // Optionally, log the marginalized non-keyframes
+    for (const auto& keyframe : nonKeyframesToMarginalize) {
+        std::cout << "Marginalized non-keyframe " << keyframe << std::endl;
+    }
 }
 
 gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -322,6 +300,28 @@ void aprilslamcpp::ISAM2Optimise() {
     }
     // Clear estimates for the next iteration (????necessary)
     windowEstimates_.clear();
+}
+
+std::set<gtsam::Symbol> aprilslamcpp::getPoseKeysBetweenKeyframes(const gtsam::Symbol& previousKeyframeSymbol, const gtsam::Symbol& currentKeyframeSymbol) {
+    std::set<gtsam::Symbol> poseKeys;
+
+    // Extract the indices from the keyframe symbols
+    int previousIndex = previousKeyframeSymbol.index();
+    int currentIndex = currentKeyframeSymbol.index();
+
+    // Ensure the previous index is smaller than the current index
+    if (previousIndex >= currentIndex) {
+        ROS_WARN("Previous keyframe index is greater than or equal to the current keyframe index.");
+        return poseKeys;
+    }
+
+    // Iterate through the indices between previous and current keyframes
+    for (int i = previousIndex + 1; i < currentIndex; ++i) {
+        gtsam::Symbol poseKey('X', i);  // Create a pose key 'X' with index i
+        poseKeys.insert(poseKey);  // Add it to the set
+    }
+
+    return poseKeys;
 }
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -489,8 +489,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // keygraph build
     if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
-    createNewKeyframe(predictedPose, Key_previous_pos, previousKeyframeSymbol);
-    initializeGTSAM();
+    std::set<gtsam::Symbol> keystobemarginalised = getPoseKeysBetweenKeyframes(previousKeyframeSymbol, gtsam::Symbol('X', index_of_pose));
+    marginalizenonKeyframes(isam_, keystobemarginalised, windowGraph_);
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
     }
