@@ -48,12 +48,15 @@ public:
     void updateKeyframeGraphWithOptimizedResults(const gtsam::Values &optimizedResults);
     void createNewKeyframe(const gtsam::Pose2& predictedPose, const gtsam::Pose2& previousPose, gtsam::Symbol& previousKeyframeSymbol);
     void printWindowEstimates(const gtsam::Values& windowEstimates);
+    void pruneOldFactorsByTime(double current_time, double timewindow);
+    void pruneOldFactorsBySize(double maxfactors);
     void mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     bool shouldAddKeyframe_loc(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
     void marginalizenonKeyframes(gtsam::ISAM2& isam, const std::set<gtsam::Symbol>& keyframesToMarginalize, const gtsam::NonlinearFactorGraph& originalGraph);
     std::set<gtsam::Symbol> getPoseKeysBetweenKeyframes(const gtsam::Symbol& previousKeyframeSymbol, const gtsam::Symbol& currentKeyframeSymbol);
+    void pruneGraphByFrameCount();
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
@@ -127,7 +130,22 @@ private:
     Eigen::Vector3d mcam_baselink_transform;
     std::set<gtsam::Symbol> keyframePosIds;
     std::set<gtsam::Symbol> detectedLandmarksHistoric;
-};
+
+    // Keeps track of pose symbols in the order they were added
+    std::deque<gtsam::Symbol> poseSymbols_;
+
+    // Maps variables (poses and landmarks) to the indices of factors that involve them
+    std::map<gtsam::Key, std::vector<size_t>> variableToFactorIndices_;
+
+    // Collects indices of factors to remove
+    std::vector<size_t> factorsToRemove;
+
+    // Collects keys of variables to remove
+    std::set<gtsam::Key> variablesToRemove;
+
+    // Symbol of the pose that currently has a prior
+    gtsam::Symbol priorPoseSymbol;
+    };
 
 } 
 

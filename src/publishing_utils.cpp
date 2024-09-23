@@ -90,7 +90,9 @@ void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std
         std::cerr << "Failed to open the file!" << std::endl;
         return;
     }
-
+    // Write the header line
+    file << "id,x,y\n";
+    
     for (const auto& landmark : landmarks) {
         int id = landmark.first;
         gtsam::Point2 point = landmark.second;
