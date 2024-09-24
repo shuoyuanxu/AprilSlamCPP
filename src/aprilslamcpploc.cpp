@@ -316,26 +316,8 @@ void aprilslamcpp::SAMOptimise() {
     // Update keyframeEstimates_ with the optimized values for the next iteration
     keyframeEstimates_ = result;
 
-    // Extract landmark estimates from the result
-    std::map<int, gtsam::Point2> landmarks;
-    for (const auto& key_value : keyframeEstimates_) {
-        gtsam::Key key = key_value.key;  // Get the key
-        if (gtsam::Symbol(key).chr() == 'L') {
-            gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
-            landmarks[gtsam::Symbol(key).index()] = point;
-        }
-    }
-
-    // Publish the pose and landmarks
-    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
-
-    // Save the landmarks into a CSV file if required
-    if (savetaglocation) {
-        saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
-    }
-        // Prune the graph based on the number of poses
-    int maxPoses = 50; // User-configured number
+    // Prune the graph based on the number of poses
+    int maxPoses = 200; // User-configured number
     pruneGraphByPoseCount(maxPoses);
 }
 
@@ -394,8 +376,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     oldlandmarks = detectedLandmarksHistoric; 
 
     // Add odometry factor if key
-    if (true) {
-    // if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
+    // if (true) {
+    if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
         keyframeEstimates_.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
         if (previousKeyframeSymbol) {
             gtsam::Pose2 relativePose = Key_previous_pos.between(predictedPose);
@@ -510,6 +492,25 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         }
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
+
+     // Extract landmark estimates from the result
+    std::map<int, gtsam::Point2> landmarks;
+    for (const auto& key_value : keyframeEstimates_) {
+        gtsam::Key key = key_value.key;  // Get the key
+        if (gtsam::Symbol(key).chr() == 'L') {
+            gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
+            landmarks[gtsam::Symbol(key).index()] = point;
+        }
+    }
+
+    // Publish the pose and landmarks
+    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
+    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
+
+    // Save the landmarks into a CSV file if required
+    if (savetaglocation) {
+        saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
+    }
     }
 }
 }
