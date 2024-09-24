@@ -40,6 +40,7 @@ public:
     void initializeGTSAM(); // Method to initialize GTSAM components
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise();
+    void SAMOptimise();
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
     void checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks);
     bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose, std::set<gtsam::Symbol> oldlandmarks, std::set<gtsam::Symbol> detectedLandmarksCurrentPos);
@@ -57,6 +58,7 @@ public:
     void marginalizenonKeyframes(gtsam::ISAM2& isam, const std::set<gtsam::Symbol>& keyframesToMarginalize, const gtsam::NonlinearFactorGraph& originalGraph);
     std::set<gtsam::Symbol> getPoseKeysBetweenKeyframes(const gtsam::Symbol& previousKeyframeSymbol, const gtsam::Symbol& currentKeyframeSymbol);
     void pruneGraphByFrameCount();
+    void pruneGraphByPoseCount(int maxPoses);
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
@@ -145,6 +147,7 @@ private:
 
     // Symbol of the pose that currently has a prior
     gtsam::Symbol priorPoseSymbol;
+    gtsam::FastMap<gtsam::Symbol, bool> priorAddedToPose;
     };
 
 } 

@@ -111,14 +111,25 @@ std::map<int, gtsam::Point2> loadLandmarksFromCSV(const std::string& filename) {
     }
 
     std::string line;
+
+    // Skip the header line
+    if (std::getline(file, line)) {
+        // You can print or log the header if needed
+        // std::cout << "Header: " << line << std::endl;
+    }
+
     while (std::getline(file, line)) {
         std::istringstream ss(line);
         std::string id_str, x_str, y_str;
         if (std::getline(ss, id_str, ',') && std::getline(ss, x_str, ',') && std::getline(ss, y_str, ',')) {
-            int id = std::stoi(id_str);
-            double x = std::stod(x_str);
-            double y = std::stod(y_str);
-            landmarks[id] = gtsam::Point2(x, y);
+            try {
+                int id = std::stoi(id_str);
+                double x = std::stod(x_str);
+                double y = std::stod(y_str);
+                landmarks[id] = gtsam::Point2(x, y);
+            } catch (const std::exception& e) {
+                std::cerr << "Error parsing line: " << line << " - " << e.what() << std::endl;
+            }
         }
     }
 

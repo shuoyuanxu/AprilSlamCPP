@@ -322,6 +322,7 @@ void aprilslamcpp::ISAM2Optimise() {
     }
     // Clear estimates for the next iteration (????necessary)
     windowEstimates_.clear();
+    windowGraph_.resize(0);
 }
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {

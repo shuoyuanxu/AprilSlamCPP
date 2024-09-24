@@ -169,12 +169,12 @@ bool aprilslamcpp::shouldAddKeyframe(
     // Calculate the distance between the current pose and the last keyframe pose
     double distance = lastPose.range(currentPose);
     // Iterate over detectedLandmarksCurrentPos, add key if new tag is detected
-    // for (const auto& landmark : detectedLandmarksCurrentPos) {
-    //     // If the landmark is not found in oldLandmarks, return true
-    //     if (oldlandmarks.find(landmark) == oldlandmarks.end()) {
-    //         return true;
-    //     }
-    // }
+    for (const auto& landmark : detectedLandmarksCurrentPos) {
+        // If the landmark is not found in oldLandmarks, return true
+        if (oldlandmarks.find(landmark) == oldlandmarks.end()) {
+            return true;
+        }
+    }
     // Calculate the difference in orientation (theta) between the current pose and the last keyframe pose
     double angleDifference = std::abs(wrapToPi(currentPose.theta() - lastPose.theta()));
 
@@ -185,33 +185,82 @@ bool aprilslamcpp::shouldAddKeyframe(
     return false;  // Do not add a keyframe
 }
 
-void aprilslamcpp::pruneOldFactorsByTime(double current_time, double timewindow) {
-    // Define a threshold for old factors and variables
-    double time_threshold = current_time - timewindow;
-    // Identify factors to remove
-    gtsam::FastList<size_t> factors_to_remove;
-    for (const auto& factor_time : factorTimestamps_) {
-        if (factor_time.second < time_threshold) {
-            factors_to_remove.push_back(factor_time.first);
+void aprilslamcpp::pruneGraphByPoseCount(int maxPoses) {
+    // Step 1: Extract all pose keys from the graph
+    std::set<gtsam::Key> poseKeys;
+    for (const auto& factor : keyframeGraph_) {
+        for (const auto& key : factor->keys()) {
+            gtsam::Symbol symbol(key);
+            if (symbol.chr() == 'X') { // Assuming 'X' represents pose variables
+                poseKeys.insert(key);
+            }
         }
     }
 
-    // Remove old factors
-    if (!factors_to_remove.empty()) {
-        for (const auto& factor_index : factors_to_remove) {
-            keyframeGraph_.remove(factor_index);
-            factorTimestamps_.erase(factor_index);
+    // Step 2: Print the number of poses before pruning
+    ROS_INFO("Number of poses before pruning: %lu", poseKeys.size());
+
+    // Step 3: Check if pruning is needed
+    if (poseKeys.size() <= maxPoses) {
+        // No pruning needed
+        return;
+    }
+
+    // Step 4: Sort pose keys by their indices
+    std::vector<gtsam::Key> sortedPoseKeys(poseKeys.begin(), poseKeys.end());
+    std::sort(sortedPoseKeys.begin(), sortedPoseKeys.end(), [](gtsam::Key a, gtsam::Key b) {
+        return gtsam::Symbol(a).index() < gtsam::Symbol(b).index();
+    });
+
+    // Step 5: Identify poses to remove (the oldest ones)
+    std::set<gtsam::Key> keysToRemove(sortedPoseKeys.begin(), sortedPoseKeys.begin() + (poseKeys.size() - maxPoses));
+
+    // Step 6: Build new graph and estimates without the poses to remove
+    gtsam::NonlinearFactorGraph newGraph;
+    for (const auto& factor : keyframeGraph_) {
+        bool keepFactor = true;
+        for (const auto& key : factor->keys()) {
+            if (keysToRemove.count(key) > 0) {
+                keepFactor = false;
+                break;
+            }
+        }
+        if (keepFactor) {
+            newGraph.add(factor);
         }
     }
-}
 
-void aprilslamcpp::pruneOldFactorsBySize(double maxfactors) {
-    // Prune factors if the total number of factors exceeds maxFactors_
-    while (factorTimestamps_.size() > maxfactors) {
-        auto oldest = factorTimestamps_.begin();
-        keyframeGraph_.remove(oldest->first);
-        factorTimestamps_.erase(oldest);
+    gtsam::Values newEstimates;
+    for (const auto& key_value : keyframeEstimates_) {
+        if (keysToRemove.count(key_value.key) == 0) {
+            newEstimates.insert(key_value.key, key_value.value);
+        }
     }
+
+    // Step 7: Update the internal state
+    keyframeGraph_ = newGraph;
+    keyframeEstimates_ = newEstimates;
+
+    // Step 8: Add a prior to the oldest remaining pose if not already added
+    // Get the oldest remaining pose key
+    gtsam::Key oldestPoseKey = *std::min_element(sortedPoseKeys.begin() + (poseKeys.size() - maxPoses), sortedPoseKeys.end(), [](gtsam::Key a, gtsam::Key b) {
+        return gtsam::Symbol(a).index() < gtsam::Symbol(b).index();
+    });
+
+    gtsam::Symbol oldestPoseSymbol(oldestPoseKey);
+
+    if (!priorAddedToPose[oldestPoseSymbol]) {
+        // Get the current estimate of the pose
+        gtsam::Pose2 oldestPoseEstimate = keyframeEstimates_.at<gtsam::Pose2>(oldestPoseKey);
+        // Add a prior factor
+        keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(
+            oldestPoseKey, oldestPoseEstimate, priorNoise));
+        // Keep track that we added a prior to this pose
+        priorAddedToPose[oldestPoseSymbol] = true;
+    }
+
+    // Step 9: Print the number of poses after pruning
+    ROS_INFO("Number of poses after pruning: %d", maxPoses);
 }
 
 gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -254,25 +303,40 @@ void aprilslamcpp::ISAM2Optimise() {
     // Publish the pose
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
+    // Clear cache for the next iteration
+    keyframeEstimates_.clear();
+    keyframeGraph_.resize(0);
+}
 
-    // Save the landmarks into a csv file 
+void aprilslamcpp::SAMOptimise() {    
+    // Perform batch optimization using Levenberg-Marquardt optimizer
+    gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
+    gtsam::Values result = batchOptimizer.optimize();
+
+    // Update keyframeEstimates_ with the optimized values for the next iteration
+    keyframeEstimates_ = result;
+
+    // Extract landmark estimates from the result
+    std::map<int, gtsam::Point2> landmarks;
+    for (const auto& key_value : keyframeEstimates_) {
+        gtsam::Key key = key_value.key;  // Get the key
+        if (gtsam::Symbol(key).chr() == 'L') {
+            gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
+            landmarks[gtsam::Symbol(key).index()] = point;
+        }
+    }
+
+    // Publish the pose and landmarks
+    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
+    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
+
+    // Save the landmarks into a CSV file if required
     if (savetaglocation) {
         saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
     }
-    // Prune the graph to maintain a predefined time window
-    double current_time = ros::Time::now().toSec();
-    if (useprunebytime) {
-        pruneOldFactorsByTime(current_time, timeWindow);
-        keyframeGraph_.resize(400); // Clear the graph after update
-    }
-    else if (useprunebysize) {
-        pruneOldFactorsBySize(maxfactors);
-    }
-     else {
-        // Do nothing if no pruning is required
-    }
-    // Clear estimates for the next iteration (????necessary)
-    keyframeEstimates_.clear();
+        // Prune the graph based on the number of poses
+    int maxPoses = 50; // User-configured number
+    pruneGraphByPoseCount(maxPoses);
 }
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -330,7 +394,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     oldlandmarks = detectedLandmarksHistoric; 
 
     // Add odometry factor if key
-    if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
+    if (true) {
+    // if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
         keyframeEstimates_.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
         if (previousKeyframeSymbol) {
             gtsam::Pose2 relativePose = Key_previous_pos.between(predictedPose);
@@ -437,7 +502,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         start_loop = ros::WallTime::now();
         // ISAM2 optimization to update the map and robot pose estimates
         if (index_of_pose % 1 == 0) {
-            ISAM2Optimise();
+            // ISAM2Optimise();
+            SAMOptimise();
             end_loop = ros::WallTime::now();
             elapsed = (end_loop - start_loop).toSec();
             ROS_INFO("optimisation: %f seconds", elapsed);
