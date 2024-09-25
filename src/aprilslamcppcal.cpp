@@ -29,8 +29,8 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 }
 
 // Constructor
-aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time)
-    : nh_(node_handle), tf_buffer_(cache_time), tf_listener_(tf_buffer_){ 
+aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
+    : nh_(node_handle), tf_listener_(tf_buffer_){ 
     
     // Read topics and corresponding frame
     std::string odom_topic, trajectory_topic;
@@ -118,8 +118,6 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
         possibleIds_.push_back("tag_" + std::to_string(j));
     }
     
-    ROS_INFO("Parameters loaded.");
-
     // Initialize GTSAM components
     initializeGTSAM();
     // Index to keep track of the sequential pose.
@@ -136,6 +134,16 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
     path.header.frame_id = frame_id; 
+}
+
+// Destructor implementation
+aprilslamcpp::~aprilslamcpp() {
+    if (!optimizationExecuted_) {
+        ROS_INFO("Node is shutting down. Executing SAMOptimise().");
+        SAMOptimise();
+        optimizationExecuted_ = true;
+        ROS_INFO("SAMOptimise() executed successfully.");
+    }
 }
 
 // Camera callback functions
@@ -216,10 +224,6 @@ void aprilslamcpp::SAMOptimise() {
 }
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
-    double current_time = ros::Time::now().toSec();
-    ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times
-    double elapsed;
-
     // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
 
@@ -281,7 +285,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
 
         // Iterate through all landmark detected IDs
-        start_loop = ros::WallTime::now();
         if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
             auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
             // Access the elements of the std::pair
@@ -354,19 +357,13 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                     poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);                
                 }
             }
-        }
-
-        end_loop = ros::WallTime::now();
-        elapsed = (end_loop - start_loop).toSec();
-        // ROS_INFO("transform total: %f seconds", elapsed);
+        }      
         lastPoseSE2_ = poseSE2;
-        start_loop = ros::WallTime::now();
         // ISAM2 optimization to update the map and robot pose estimates
-        if (index_of_pose > 7498) {
+        if (index_of_pose > 7388) {
             SAMOptimise();
-            end_loop = ros::WallTime::now();
-            elapsed = (end_loop - start_loop).toSec();
-            ROS_INFO("optimisation: %f seconds", elapsed);
+            // ISAM2Optimise();
+            ROS_INFO("SAMOptimise executed.");
         }
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
@@ -400,13 +397,8 @@ int main(int argc, char **argv) {
     // Create a handle to this process' node
     ros::NodeHandle nh;
 
-    // Setting buffer cache time
-    double transformation_search_range;
-    nh.getParam("transformation_search_range", transformation_search_range);
-    ros::Duration tsr(transformation_search_range); 
-
     // Create an instance of the aprilslamcpp class, passing in the node handle
-    aprilslam::aprilslamcpp slamNode(nh, tsr);
+    aprilslam::aprilslamcpp slamNode(nh);
 
     // ROS enters a loop, pumping callbacks. Internally, it will call all the callbacks waiting to be called at that point in time.
     ros::spin();

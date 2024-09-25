@@ -36,7 +36,7 @@ namespace aprilslam {
 
 class aprilslamcpp {
 public:
-    explicit aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time); // Constructor declaration
+    explicit aprilslamcpp(ros::NodeHandle node_handle); // Constructor declaration
     void initializeGTSAM(); // Method to initialize GTSAM components
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise();
@@ -60,6 +60,7 @@ public:
     void pruneGraphByFrameCount();
     void pruneGraphByPoseCount(int maxPoses);
     void shutdownTimerCallback(const ros::TimerEvent& event);
+    ~aprilslamcpp();
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
@@ -149,6 +150,9 @@ private:
     // Symbol of the pose that currently has a prior
     gtsam::Symbol priorPoseSymbol;
     gtsam::FastMap<gtsam::Symbol, bool> priorAddedToPose;
+
+    // Flag to ensure SAMOptimise is called only once
+    bool optimizationExecuted_ = false;
     };
 } 
 

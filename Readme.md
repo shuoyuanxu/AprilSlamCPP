@@ -66,7 +66,16 @@ catkin_make --pkg AprilSlamCPP
 
 
 
+Calibration
 
+Calibration is done by SAM where all the graph is optimised, the code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations. 
+
+The flowchart: 
+
+Tunning:
+
+1. a flag value to identify if the bag has finished playing 
+ the calibration function, we want to set the flag for identifying if the bag has finished playing. 
 
 
 
