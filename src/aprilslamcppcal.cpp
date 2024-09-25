@@ -30,7 +30,7 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 
 // Constructor
 aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
-    : nh_(node_handle), tf_listener_(tf_buffer_){ 
+    : nh_(node_handle), tf_listener_(tf_buffer_), mCam_data_received_(false) { 
     
     // Read topics and corresponding frame
     std::string odom_topic, trajectory_topic;
@@ -49,11 +49,10 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("noise_models/bearing_range", bearing_range_noise);
     nh_.getParam("noise_models/point", point_noise);
 
-
-    // Read transformation search range (seconds) 
+    // Read transformation search range (seconds)
     nh_.getParam("transformation_search_range", transformation_search_range);
 
-    // Read error thershold for a landmark to be added to the graph
+    // Read error threshold for a landmark to be added to the graph
     nh_.getParam("add2graph_threshold", add2graph_threshold);
 
     // Read Prune conditions
@@ -74,11 +73,11 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("distanceThreshold", distanceThreshold);
     nh_.getParam("rotationThreshold", rotationThreshold);
 
-        // Stationay conditions
+    // Stationary conditions
     nh_.getParam("stationary_position_threshold", stationary_position_threshold);
     nh_.getParam("stationary_rotation_threshold", stationary_rotation_threshold);
 
-    // Read calibration and localisation settings
+    // Read calibration and localization settings
     std::string package_path = ros::package::getPath("aprilslamcpp");
     std::string save_path, load_path;
     nh_.getParam("pathtosavelandmarkcsv", save_path);
@@ -94,6 +93,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("camera_parameters/xyTrans_lcam_baselink", xyTrans_lcam_baselink);
     nh_.getParam("camera_parameters/xyTrans_rcam_baselink", xyTrans_rcam_baselink);
     nh_.getParam("camera_parameters/xyTrans_mcam_baselink", xyTrans_mcam_baselink);
+    
     // Convert to Eigen::Vector3d
     mcam_baselink_transform = Eigen::Vector3d(xyTrans_mcam_baselink[0], xyTrans_mcam_baselink[1], xyTrans_mcam_baselink[2]);
     rcam_baselink_transform = Eigen::Vector3d(xyTrans_rcam_baselink[0], xyTrans_rcam_baselink[1], xyTrans_rcam_baselink[2]);
@@ -113,11 +113,12 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Total number of IDs
     int total_tags;
     nh_.getParam("total_tags", total_tags);
-    // Predefined tags to search for in the environment.
+    
+    // Predefined tags to search for in the environment
     for (int j = 0; j < total_tags; ++j) {
         possibleIds_.push_back("tag_" + std::to_string(j));
     }
-    
+       
     // Initialize GTSAM components
     initializeGTSAM();
     // Index to keep track of the sequential pose.
@@ -134,6 +135,17 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
     path.header.frame_id = frame_id; 
+
+    // Timer to periodically print the mCam_data_received_ flag status
+    check_data_timer_ = nh_.createTimer(ros::Duration(2.0), [this](const ros::TimerEvent&) {
+        if (mCam_data_received_) {
+            ROS_INFO("New mCam data received.");
+        } else {
+            ROS_WARN("No new mCam data received.");
+        }
+    });
+
+    ROS_INFO("aprilslamcpp initialized and monitoring mCam data.");
 }
 
 // Destructor implementation
@@ -146,10 +158,13 @@ aprilslamcpp::~aprilslamcpp() {
     }
 }
 
-// Camera callback functions
+// Callback function for mCam topic
 void aprilslamcpp::mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
-    mCam_msg = msg;
+    mCam_msg = msg;  // Store the incoming message
+    mCam_data_received_ = true;  // Set flag to indicate new data has been received
 }
+
+
 
 void aprilslamcpp::rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
     rCam_msg = msg;

@@ -62,6 +62,8 @@ public:
     void shutdownTimerCallback(const ros::TimerEvent& event);
     ~aprilslamcpp();
 private:
+    bool mCam_data_received_;  // Flag to track if new data is received
+    ros::Timer check_data_timer_;  // Declare the timer here
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
     nav_msgs::Path path;
