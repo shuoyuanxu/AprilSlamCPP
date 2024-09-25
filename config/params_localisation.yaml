@@ -4,9 +4,9 @@ trajectory_topic: "trajectory"
 frame_id: "map"
 pathtosavelandmarkcsv: "config/landmark.csv"
 pathtoloadlandmarkcsv: "config/landmark.csv"
-savetaglocation: false
-usepriortagtable: true
-batch_optimisation: false
+savetaglocation: true
+usepriortagtable: false
+batch_optimisation: true
 total_tags: 626
 transformation_search_range: 0.1
 add2graph_threshold: 0.2
@@ -32,9 +32,9 @@ rotationThreshold: 5
   
 noise_models:
   odometry:
+    - 0.01
     - 0.1
-    - 1
-    - 0.1
+    - 0.01
   prior:
     - 0.1
     - 0.3
@@ -43,8 +43,8 @@ noise_models:
     - 0.01
     - 0.08
   point:
-    - 0.01
-    - 0.01
+    - 1
+    - 1
   loopClosureNoise:
     - 0.01
     - 0.01

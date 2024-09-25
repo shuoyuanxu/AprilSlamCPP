@@ -59,6 +59,7 @@ public:
     std::set<gtsam::Symbol> getPoseKeysBetweenKeyframes(const gtsam::Symbol& previousKeyframeSymbol, const gtsam::Symbol& currentKeyframeSymbol);
     void pruneGraphByFrameCount();
     void pruneGraphByPoseCount(int maxPoses);
+    void shutdownTimerCallback(const ros::TimerEvent& event);
 private:
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
@@ -149,7 +150,6 @@ private:
     gtsam::Symbol priorPoseSymbol;
     gtsam::FastMap<gtsam::Symbol, bool> priorAddedToPose;
     };
-
 } 
 
 #endif // aprilslamcpp

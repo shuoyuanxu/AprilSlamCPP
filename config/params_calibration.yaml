@@ -12,8 +12,8 @@ transformation_search_range: 0.1
 add2graph_threshold: 0.2
 timewindow: 50
 maxfactors: 400
-useprunebytime: false
-useprunebysize: false
+useprunebytime: true
+useprunebysize: true
 
 # Loop closure
 surroundingKeyframeSize: 50
@@ -40,14 +40,14 @@ noise_models:
     - 0.3
     - 0.1
   bearing_range:
-    - 0.1
-    - 0.8
+    - 0.01
+    - 0.08
   point:
-    - 0.5
-    - 0.5
+    - 1
+    - 1
   loopClosureNoise:
-    - 0.1
-    - 0.1
+    - 0.01
+    - 0.01
 
 # Camera parameters
 camera_parameters:
