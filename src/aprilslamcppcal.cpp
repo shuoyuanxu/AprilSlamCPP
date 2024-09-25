@@ -160,11 +160,17 @@ aprilslamcpp::~aprilslamcpp() {
 
 // Callback function for mCam topic
 void aprilslamcpp::mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
-    mCam_msg = msg;  // Store the incoming message
-    mCam_data_received_ = true;  // Set flag to indicate new data has been received
+    if (msg->detections.empty()) {
+        // No detections in the message, so we consider the data as "empty"
+        mCam_data_received_ = false;
+        ROS_WARN("mCamCallback: Received an empty data stream (no detections).");
+    } else {
+        // Valid data received (detections are present)
+        mCam_msg = msg;
+        mCam_data_received_ = true;
+        ROS_INFO("mCamCallback: New valid mCam data received.");
+    }
 }
-
-
 
 void aprilslamcpp::rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
     rCam_msg = msg;
