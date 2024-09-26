@@ -10,26 +10,11 @@ batch_optimisation: true
 total_tags: 626
 transformation_search_range: 0.1
 add2graph_threshold: 0.2
-timewindow: 50
-maxfactors: 400
-useprunebytime: true
-useprunebysize: true
-inactivity_threshold: 5
-
-# Loop closure
-surroundingKeyframeSize: 50
-historyKeyframeSearchRadius: 15.0
-historyKeyframeSearchTimeDiff: 300.0
-historyKeyframeSearchNum: 25
-historyKeyframeFitnessScore: 0.3
+inactivity_threshold: 15.0
 
 # Stationary threshold
 stationary_position_threshold: 0.05 # 5cm
 stationary_rotation_threshold: 0.1 # 0.1radius
-
-# Keyframe info
-distanceThreshold: 0.5
-rotationThreshold: 5
   
 noise_models:
   odometry:

@@ -97,13 +97,18 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     for (int j = 0; j < total_tags; ++j) {
         possibleIds_.push_back("tag_" + std::to_string(j));
     }
-       
+
+    // Bag stop flag
+    double inactivity_threshold;
+    nh_.getParam("inactivity_threshold", inactivity_threshold);
+
     // Initialize GTSAM components
     initializeGTSAM();
     // Index to keep track of the sequential pose.
     index_of_pose = 1;
     // Initialize the factor graphs
     keyframeGraph_ = gtsam::NonlinearFactorGraph();
+    
     // Initialize camera subscribers
     mCam_subscriber = nh_.subscribe(mCam_topic, 1000, &aprilslamcpp::mCamCallback, this);
     rCam_subscriber = nh_.subscribe(rCam_topic, 1000, &aprilslamcpp::rCamCallback, this);
@@ -116,7 +121,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     path.header.frame_id = frame_id; 
 
     // Timer to periodically check if valid data has been received by any camera
-    check_data_timer_ = nh_.createTimer(ros::Duration(2.0), [this](const ros::TimerEvent&) {
+    check_data_timer_ = nh_.createTimer(ros::Duration(2.0), [this, inactivity_threshold](const ros::TimerEvent&) {
         if (mCam_data_received_ || rCam_data_received_ || lCam_data_received_) {
             accumulated_time_ = 0.0;  // Reset accumulated time on valid data
             mCam_data_received_ = false;  // Reset flags to check for new data next time
@@ -126,8 +131,8 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
             accumulated_time_ += 2.0;  // Accumulate time when no valid data is received
             ROS_WARN("No new valid data received from any camera. Accumulated time: %.1f seconds", accumulated_time_);
 
-            // If no data received for 15 seconds from any camera, shut down
-            if (accumulated_time_ >= 15.0) {
+            // If no data received for inactivity_threshold from any camera, shut down+
+            if (accumulated_time_ >= inactivity_threshold) {
                 ROS_ERROR("No valid data from mCam, rCam, or lCam for 15 seconds. Shutting down.");
                 this->~aprilslamcpp();  // Trigger the destructor
             }
@@ -222,36 +227,6 @@ gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     return gtsam::Pose2(x, y, yaw);
 }
 
-void aprilslamcpp::ISAM2Optimise() {    
-    if (batchOptimisation_) {
-        gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
-        keyframeEstimates_ = batchOptimizer.optimize();
-        batchOptimisation_ = false; // Only do this once
-    }
-
-    // Update the iSAM2 instance with the new measurements
-    isam_.update(keyframeGraph_, keyframeEstimates_);
-
-    // Calculate the current best estimate
-    auto result = isam_.calculateEstimate();
-
-    // Extract landmark estimates from result
-    std::map<int, gtsam::Point2> landmarks;
-    for (const auto& key_value : result) {
-        gtsam::Key key = key_value.key;  // Get the key
-        if (gtsam::Symbol(key).chr() == 'L') {
-            gtsam::Point2 point = result.at<gtsam::Point2>(key); // Directly access the Point2 value
-            landmarks[gtsam::Symbol(key).index()] = point;
-        }
-    }
-    // Publish the pose
-    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-    aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
-    // Clear cache for the next iteration
-    keyframeEstimates_.clear();
-    keyframeGraph_.resize(0);
-}
-
 void aprilslamcpp::SAMOptimise() {    
     // Perform batch optimization using Levenberg-Marquardt optimizer
     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
@@ -259,7 +234,6 @@ void aprilslamcpp::SAMOptimise() {
 
     // Update keyframeEstimates_ with the optimized values for the next iteration
     keyframeEstimates_ = result;
-
 }
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -306,107 +280,94 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     // Determine if this pose should be a keyframe
     gtsam::Symbol currentKeyframeSymbol('X', index_of_pose);
 
-    // Loop closure detection setup
-    std::set<gtsam::Symbol> detectedLandmarksCurrentPos;
-    std::set<gtsam::Symbol> oldlandmarks;
-    oldlandmarks = detectedLandmarksHistoric; 
+    // Add odometry factor
+    keyframeEstimates_.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
+    if (previousKeyframeSymbol) {
+        gtsam::Pose2 relativePose = Key_previous_pos.between(predictedPose);
+        keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
+    }
+        
+    // Update the last pose and initial estimates for the next iteration
+    lastPose_ = predictedPose;
+    landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
 
-    // Add odometry factor if key
-    if (true) {
-        keyframeEstimates_.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
-        if (previousKeyframeSymbol) {
-            gtsam::Pose2 relativePose = Key_previous_pos.between(predictedPose);
-            keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
-        }
-         
-        // Update the last pose and initial estimates for the next iteration
-        lastPose_ = predictedPose;
-        landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
+    // Iterate through all landmark detected IDs
+    if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
+        auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
+        // Access the elements of the std::pair
+        const std::vector<int>& Id = detections.first;
+        const std::vector<Eigen::Vector2d>& tagPos = detections.second;
+        if (!Id.empty()) {
+            for (size_t n = 0; n < Id.size(); ++n) {
+                int tag_number = Id[n];        
+                Eigen::Vector2d landSE2 = tagPos[n];
 
-        // Iterate through all landmark detected IDs
-        if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
-            auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
-            // Access the elements of the std::pair
-            const std::vector<int>& Id = detections.first;
-            const std::vector<Eigen::Vector2d>& tagPos = detections.second;
-            if (!Id.empty()) {
-                for (size_t n = 0; n < Id.size(); ++n) {
-                    int tag_number = Id[n];        
-                    Eigen::Vector2d landSE2 = tagPos[n];
+                // Compute prior location of the landmark using the current robot pose
+                double theta = lastPose_.theta();
+                Eigen::Rotation2Dd rotation(theta);  // Create a 2D rotation matrix
+                Eigen::Vector2d rotatedPosition = rotation * landSE2;  // Rotate the position into the robot's frame
+                gtsam::Point2 priorLand(rotatedPosition.x() + lastPose_.x(), rotatedPosition.y() + lastPose_.y());
 
-                    // Compute prior location of the landmark using the current robot pose
-                    double theta = lastPose_.theta();
-                    Eigen::Rotation2Dd rotation(theta);  // Create a 2D rotation matrix
-                    Eigen::Vector2d rotatedPosition = rotation * landSE2;  // Rotate the position into the robot's frame
-                    gtsam::Point2 priorLand(rotatedPosition.x() + lastPose_.x(), rotatedPosition.y() + lastPose_.y());
+                // Compute bearing and range
+                double bearing = std::atan2(landSE2(1), landSE2(0));
+                double range = std::sqrt(landSE2(0) * landSE2(0) + landSE2(1) * landSE2(1));
 
-                    // Compute bearing and range
-                    double bearing = std::atan2(landSE2(1), landSE2(0));
-                    double range = std::sqrt(landSE2(0) * landSE2(0) + landSE2(1) * landSE2(1));
+                // Construct the landmark key
+                gtsam::Symbol landmarkKey('L', tag_number);  
 
-                    // Construct the landmark key
-                    gtsam::Symbol landmarkKey('L', tag_number);  
+                // Store the bearing and range measurements in the map
+                poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
 
-                    // Store the bearing and range measurements in the map
-                    poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
+                // Check if the landmark has been observed before
+                if (detectedLandmarksHistoric.find(landmarkKey) != detectedLandmarksHistoric.end()) {
+                    // Existing landmark
+                    gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                        gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                    );
+                    gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
 
-                    // Check if the landmark has been observed before
-                    if (detectedLandmarksHistoric.find(landmarkKey) != detectedLandmarksHistoric.end()) {
-                        // Existing landmark
-                        gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-                            gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-                        );
-                        gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
-
-                        // Threshold for ||projection - measurement||
-                        if (fabs(error[0]) < add2graph_threshold) keyframeGraph_.add(factor);
-                        detectedLandmarksCurrentPos.insert(landmarkKey);
-                    } 
-                    else {
-                        // If the current landmark was not detected in the calibration run 
-                        // Or it's on calibration mode
-                        if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
-                        // New landmark detected
-                        detectedLandmarksHistoric.insert(landmarkKey);
-                        // Check if the key already exists in keyframeEstimates_ before inserting
-                        if (keyframeEstimates_.exists(landmarkKey)) {
-                        } else {
-                            keyframeEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
-                        }
-
-                        // Check if the key already exists in landmarkEstimates before inserting
-                        if (landmarkEstimates.exists(landmarkKey)) {
-                        } else {
-                            landmarkEstimates.insert(landmarkKey, priorLand);
-                        }
-
-                        // Add a prior for the landmark position to help with initial estimation.
-                        keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
-                            landmarkKey, priorLand, pointNoise)
-                        );
-                        }
-                        // Add a bearing-range observation for this landmark to the graph
-                        gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-                            gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-                        );
-                        keyframeGraph_.add(factor);
-                        detectedLandmarksCurrentPos.insert(landmarkKey);
+                    // Threshold for ||projection - measurement||
+                    if (fabs(error[0]) < add2graph_threshold) keyframeGraph_.add(factor);
+                } 
+                else {
+                    // If the current landmark was not detected in the calibration run 
+                    // Or it's on calibration mode
+                    if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
+                    // New landmark detected
+                    detectedLandmarksHistoric.insert(landmarkKey);
+                    // Check if the key already exists in keyframeEstimates_ before inserting
+                    if (keyframeEstimates_.exists(landmarkKey)) {
+                    } else {
+                        keyframeEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
                     }
-                    // Store the bearing and range measurements in the map
-                    poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);                
-                }
-            }
-        }      
-        lastPoseSE2_ = poseSE2;
-        // ISAM2 optimization to update the map and robot pose estimates
-        if (index_of_pose > 7388) {
-            // SAMOptimise();
-            // ISAM2Optimise();
-            // ROS_INFO("SAMOptimise executed.");
-        }
-    Key_previous_pos = predictedPose;
-    previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
 
+                    // Check if the key already exists in landmarkEstimates before inserting
+                    if (landmarkEstimates.exists(landmarkKey)) {
+                    } else {
+                        landmarkEstimates.insert(landmarkKey, priorLand);
+                    }
+
+                    // Add a prior for the landmark position to help with initial estimation.
+                    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                        landmarkKey, priorLand, pointNoise)
+                    );
+                    }
+                    // Add a bearing-range observation for this landmark to the graph
+                    gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                        gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                    );
+                    keyframeGraph_.add(factor);
+                }
+                // Store the bearing and range measurements in the map
+                poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);                
+            }
+        }
+    }      
+    lastPoseSE2_ = poseSE2;
+    Key_previous_pos = predictedPose;
+
+    // Visulisation
+    previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
      // Extract landmark estimates from the result
     std::map<int, gtsam::Point2> landmarks;
     for (const auto& key_value : keyframeEstimates_) {
@@ -416,7 +377,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
             landmarks[gtsam::Symbol(key).index()] = point;
         }
     }
-
     // Publish the pose and landmarks
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
@@ -425,9 +385,9 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     if (savetaglocation) {
         saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
     }
-    }
 }
 }
+
 
 int main(int argc, char **argv) {
     // Initialize the ROS system and specify the name of the node
