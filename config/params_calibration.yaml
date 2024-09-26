@@ -33,16 +33,16 @@ rotationThreshold: 5
   
 noise_models:
   odometry:
-    - 0.01
     - 0.1
-    - 0.01
+    - 1
+    - 0.1
   prior:
     - 0.1
     - 0.3
     - 0.1
   bearing_range:
-    - 0.01
-    - 0.08
+    - 0.1
+    - 0.8
   point:
     - 1
     - 1

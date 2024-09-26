@@ -49,29 +49,8 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("noise_models/bearing_range", bearing_range_noise);
     nh_.getParam("noise_models/point", point_noise);
 
-    // Read transformation search range (seconds)
-    nh_.getParam("transformation_search_range", transformation_search_range);
-
     // Read error threshold for a landmark to be added to the graph
-    nh_.getParam("add2graph_threshold", add2graph_threshold);
-
-    // Read Prune conditions
-    nh_.getParam("timewindow", timeWindow);
-    nh_.getParam("maxfactors", maxfactors);
-    nh_.getParam("useprunebytime", useprunebytime);
-    nh_.getParam("useprunebysize", useprunebysize);
-    
-    // Read loop closure parameters
-    nh_.getParam("loopClosureEnableFlag", loopClosureEnableFlag);
-    nh_.getParam("loopClosureFrequency", loopClosureFrequency);
-    nh_.getParam("surroundingKeyframeSize", surroundingKeyframeSize);
-    nh_.getParam("historyKeyframeSearchRadius", historyKeyframeSearchRadius);
-    nh_.getParam("historyKeyframeSearchTimeDiff", historyKeyframeSearchTimeDiff);
-    nh_.getParam("historyKeyframeSearchNum", historyKeyframeSearchNum);
-
-    // Keyframe parameters
-    nh_.getParam("distanceThreshold", distanceThreshold);
-    nh_.getParam("rotationThreshold", rotationThreshold);
+    nh_.getParam("add2graph_threshold", add2graph_threshold);    
 
     // Stationary conditions
     nh_.getParam("stationary_position_threshold", stationary_position_threshold);
