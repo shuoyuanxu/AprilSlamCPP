@@ -30,7 +30,7 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 
 // Constructor
 aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
-    : nh_(node_handle), tf_listener_(tf_buffer_), mCam_data_received_(false) { 
+    : nh_(node_handle), tf_listener_(tf_buffer_), mCam_data_received_(false), rCam_data_received_(false), lCam_data_received_(false) { 
     
     // Read topics and corresponding frame
     std::string odom_topic, trajectory_topic;
@@ -136,26 +136,50 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
     path.header.frame_id = frame_id; 
 
-    // Timer to periodically print the mCam_data_received_ flag status
+    // Timer to periodically check if valid data has been received by any camera
     check_data_timer_ = nh_.createTimer(ros::Duration(2.0), [this](const ros::TimerEvent&) {
-        if (mCam_data_received_) {
-            ROS_INFO("New mCam data received.");
+        if (mCam_data_received_ || rCam_data_received_ || lCam_data_received_) {
+            accumulated_time_ = 0.0;  // Reset accumulated time on valid data
+            mCam_data_received_ = false;  // Reset flags to check for new data next time
+            rCam_data_received_ = false;
+            lCam_data_received_ = false;
         } else {
-            ROS_WARN("No new mCam data received.");
+            accumulated_time_ += 2.0;  // Accumulate time when no valid data is received
+            ROS_WARN("No new valid data received from any camera. Accumulated time: %.1f seconds", accumulated_time_);
+
+            // If no data received for 15 seconds from any camera, shut down
+            if (accumulated_time_ >= 15.0) {
+                ROS_ERROR("No valid data from mCam, rCam, or lCam for 15 seconds. Shutting down.");
+                this->~aprilslamcpp();  // Trigger the destructor
+            }
         }
     });
-
-    ROS_INFO("aprilslamcpp initialized and monitoring mCam data.");
 }
 
 // Destructor implementation
 aprilslamcpp::~aprilslamcpp() {
-    if (!optimizationExecuted_) {
-        ROS_INFO("Node is shutting down. Executing SAMOptimise().");
-        SAMOptimise();
-        optimizationExecuted_ = true;
-        ROS_INFO("SAMOptimise() executed successfully.");
+    ROS_INFO("Node is shutting down. Executing SAMOptimise().");
+    SAMOptimise();
+        // Extract landmark estimates from the result
+    std::map<int, gtsam::Point2> landmarks;
+    for (const auto& key_value : keyframeEstimates_) {
+        gtsam::Key key = key_value.key;  // Get the key
+        if (gtsam::Symbol(key).chr() == 'L') {
+            gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
+            landmarks[gtsam::Symbol(key).index()] = point;
+        }
     }
+
+    // Publish the pose and landmarks
+    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
+    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
+
+    // Save the landmarks into a CSV file if required
+    if (savetaglocation) {
+        saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
+    }
+    optimizationExecuted_ = true;
+    ROS_INFO("SAMOptimise() executed successfully.");
 }
 
 // Callback function for mCam topic
@@ -163,22 +187,37 @@ void aprilslamcpp::mCamCallback(const apriltag_ros::AprilTagDetectionArray::Cons
     if (msg->detections.empty()) {
         // No detections in the message, so we consider the data as "empty"
         mCam_data_received_ = false;
-        ROS_WARN("mCamCallback: Received an empty data stream (no detections).");
     } else {
         // Valid data received (detections are present)
         mCam_msg = msg;
         mCam_data_received_ = true;
-        ROS_INFO("mCamCallback: New valid mCam data received.");
     }
 }
 
+// Callback function for rCam topic
 void aprilslamcpp::rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
-    rCam_msg = msg;
+    if (msg->detections.empty()) {
+        // No detections in the message, so we consider the data as "empty"
+        rCam_data_received_ = false;
+    } else {
+        // Valid data received (detections are present)
+        rCam_msg = msg;
+        rCam_data_received_ = true;
+    }
 }
 
+// Callback function for lCam topic
 void aprilslamcpp::lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
-    lCam_msg = msg;
+    if (msg->detections.empty()) {
+        // No detections in the message, so we consider the data as "empty"
+        lCam_data_received_ = false;
+    } else {
+        // Valid data received (detections are present)
+        lCam_msg = msg;
+        lCam_data_received_ = true;
+    }
 }
+
 
 // Initialization of GTSAM components
 void aprilslamcpp::initializeGTSAM() { 
@@ -382,9 +421,9 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         lastPoseSE2_ = poseSE2;
         // ISAM2 optimization to update the map and robot pose estimates
         if (index_of_pose > 7388) {
-            SAMOptimise();
+            // SAMOptimise();
             // ISAM2Optimise();
-            ROS_INFO("SAMOptimise executed.");
+            // ROS_INFO("SAMOptimise executed.");
         }
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);

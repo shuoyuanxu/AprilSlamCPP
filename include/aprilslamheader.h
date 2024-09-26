@@ -62,7 +62,6 @@ public:
     void shutdownTimerCallback(const ros::TimerEvent& event);
     ~aprilslamcpp();
 private:
-    bool mCam_data_received_;  // Flag to track if new data is received
     ros::Timer check_data_timer_;  // Declare the timer here
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
@@ -154,7 +153,9 @@ private:
     gtsam::FastMap<gtsam::Symbol, bool> priorAddedToPose;
 
     // Flag to ensure SAMOptimise is called only once
-    bool optimizationExecuted_ = false;
+    bool mCam_data_received_, rCam_data_received_, lCam_data_received_;
+    bool optimizationExecuted_;
+    double accumulated_time_;  // Accumulated time since last valid data
     };
 } 
 
