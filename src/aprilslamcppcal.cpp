@@ -388,7 +388,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 }
 }
 
-
 int main(int argc, char **argv) {
     // Initialize the ROS system and specify the name of the node
     ros::init(argc, argv, "april_slam_cpp");

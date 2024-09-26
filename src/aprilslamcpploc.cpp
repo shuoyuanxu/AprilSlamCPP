@@ -29,8 +29,8 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 }
 
 // Constructor
-aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time)
-    : nh_(node_handle), tf_buffer_(cache_time), tf_listener_(tf_buffer_){ 
+aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
+    : nh_(node_handle), tf_listener_(tf_buffer_){ 
     
     // Read topics and corresponding frame
     std::string odom_topic, trajectory_topic;
@@ -49,17 +49,11 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("noise_models/bearing_range", bearing_range_noise);
     nh_.getParam("noise_models/point", point_noise);
 
-
-    // Read transformation search range (seconds) 
-    nh_.getParam("transformation_search_range", transformation_search_range);
-
     // Read error thershold for a landmark to be added to the graph
     nh_.getParam("add2graph_threshold", add2graph_threshold);
 
     // Read Prune conditions
-    nh_.getParam("timewindow", timeWindow);
     nh_.getParam("maxfactors", maxfactors);
-    nh_.getParam("useprunebytime", useprunebytime);
     nh_.getParam("useprunebysize", useprunebysize);
     
     // Read loop closure parameters
@@ -74,7 +68,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle, ros::Duration cache_time
     nh_.getParam("distanceThreshold", distanceThreshold);
     nh_.getParam("rotationThreshold", rotationThreshold);
 
-        // Stationay conditions
+    // Stationay conditions
     nh_.getParam("stationary_position_threshold", stationary_position_threshold);
     nh_.getParam("stationary_rotation_threshold", stationary_rotation_threshold);
 
@@ -161,6 +155,11 @@ void aprilslamcpp::initializeGTSAM() {
     isam_ = gtsam::ISAM2(parameters);
 }
 
+aprilslamcpp::~aprilslamcpp() {
+        // Empty destructor, no resources to clean up.
+        ROS_INFO("Shutting down aprilslamcpp.");
+}
+
 bool aprilslamcpp::shouldAddKeyframe(
     const gtsam::Pose2& lastPose, 
     const gtsam::Pose2& currentPose, 
@@ -186,7 +185,7 @@ bool aprilslamcpp::shouldAddKeyframe(
 }
 
 void aprilslamcpp::pruneGraphByPoseCount(int maxPoses) {
-    // Step 1: Extract all pose keys from the graph
+    // Extract all pose keys from the graph
     std::set<gtsam::Key> poseKeys;
     for (const auto& factor : keyframeGraph_) {
         for (const auto& key : factor->keys()) {
@@ -197,25 +196,22 @@ void aprilslamcpp::pruneGraphByPoseCount(int maxPoses) {
         }
     }
 
-    // Step 2: Print the number of poses before pruning
-    ROS_INFO("Number of poses before pruning: %lu", poseKeys.size());
-
-    // Step 3: Check if pruning is needed
+    // Check if pruning is needed
     if (poseKeys.size() <= maxPoses) {
         // No pruning needed
         return;
     }
 
-    // Step 4: Sort pose keys by their indices
+    // Sort pose keys by their indices
     std::vector<gtsam::Key> sortedPoseKeys(poseKeys.begin(), poseKeys.end());
     std::sort(sortedPoseKeys.begin(), sortedPoseKeys.end(), [](gtsam::Key a, gtsam::Key b) {
         return gtsam::Symbol(a).index() < gtsam::Symbol(b).index();
     });
 
-    // Step 5: Identify poses to remove (the oldest ones)
+    // Identify poses to remove (the oldest ones)
     std::set<gtsam::Key> keysToRemove(sortedPoseKeys.begin(), sortedPoseKeys.begin() + (poseKeys.size() - maxPoses));
 
-    // Step 6: Build new graph and estimates without the poses to remove
+    // Build new graph and estimates without the poses to remove
     gtsam::NonlinearFactorGraph newGraph;
     for (const auto& factor : keyframeGraph_) {
         bool keepFactor = true;
@@ -237,11 +233,11 @@ void aprilslamcpp::pruneGraphByPoseCount(int maxPoses) {
         }
     }
 
-    // Step 7: Update the internal state
+    // Update the internal state
     keyframeGraph_ = newGraph;
     keyframeEstimates_ = newEstimates;
 
-    // Step 8: Add a prior to the oldest remaining pose if not already added
+    // Add a prior to the oldest remaining pose if not already added
     // Get the oldest remaining pose key
     gtsam::Key oldestPoseKey = *std::min_element(sortedPoseKeys.begin() + (poseKeys.size() - maxPoses), sortedPoseKeys.end(), [](gtsam::Key a, gtsam::Key b) {
         return gtsam::Symbol(a).index() < gtsam::Symbol(b).index();
@@ -258,9 +254,6 @@ void aprilslamcpp::pruneGraphByPoseCount(int maxPoses) {
         // Keep track that we added a prior to this pose
         priorAddedToPose[oldestPoseSymbol] = true;
     }
-
-    // Step 9: Print the number of poses after pruning
-    ROS_INFO("Number of poses after pruning: %d", maxPoses);
 }
 
 gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -317,8 +310,9 @@ void aprilslamcpp::SAMOptimise() {
     keyframeEstimates_ = result;
 
     // Prune the graph based on the number of poses
-    int maxPoses = 5000000; // User-configured number
-    pruneGraphByPoseCount(maxPoses);
+    if (useprunebysize) {
+    pruneGraphByPoseCount(maxfactors);
+    }
 }
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -376,8 +370,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     oldlandmarks = detectedLandmarksHistoric; 
 
     // Add odometry factor if key
-    if (true) {
-    // if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
+    // if (true) {
+    if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
         keyframeEstimates_.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
         if (previousKeyframeSymbol) {
             gtsam::Pose2 relativePose = Key_previous_pos.between(predictedPose);
@@ -484,7 +478,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         start_loop = ros::WallTime::now();
         ROS_INFO("number of timesteps: %d", index_of_pose);
         // ISAM2 optimization to update the map and robot pose estimates
-        if (index_of_pose > 7498) {
+        if (index_of_pose % 1 == 0) {
             // ISAM2Optimise();
             SAMOptimise();
             end_loop = ros::WallTime::now();
@@ -523,13 +517,8 @@ int main(int argc, char **argv) {
     // Create a handle to this process' node
     ros::NodeHandle nh;
 
-    // Setting buffer cache time
-    double transformation_search_range;
-    nh.getParam("transformation_search_range", transformation_search_range);
-    ros::Duration tsr(transformation_search_range); 
-
     // Create an instance of the aprilslamcpp class, passing in the node handle
-    aprilslam::aprilslamcpp slamNode(nh, tsr);
+    aprilslam::aprilslamcpp slamNode(nh);
 
     // ROS enters a loop, pumping callbacks. Internally, it will call all the callbacks waiting to be called at that point in time.
     ros::spin();

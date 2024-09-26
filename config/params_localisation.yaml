@@ -4,15 +4,12 @@ trajectory_topic: "trajectory"
 frame_id: "map"
 pathtosavelandmarkcsv: "config/landmark.csv"
 pathtoloadlandmarkcsv: "config/landmark.csv"
-savetaglocation: true
-usepriortagtable: false
+savetaglocation: false
+usepriortagtable: true
 batch_optimisation: true
-total_tags: 626
-transformation_search_range: 0.1
+total_tags: 1000
 add2graph_threshold: 0.2
-timewindow: 50
-maxfactors: 400
-useprunebytime: true
+maxfactors: 400 # maximum number of poses in the factor graph
 useprunebysize: true
 
 # Loop closure
@@ -32,19 +29,19 @@ rotationThreshold: 5
   
 noise_models:
   odometry:
-    - 0.01
     - 0.1
-    - 0.01
+    - 1
+    - 0.1
   prior:
     - 0.1
     - 0.3
     - 0.1
   bearing_range:
-    - 0.01
-    - 0.08
+    - 0.001
+    - 0.008
   point:
-    - 1
-    - 1
+    - 0.001
+    - 0.001
   loopClosureNoise:
     - 0.01
     - 0.01

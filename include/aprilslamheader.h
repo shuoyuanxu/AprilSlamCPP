@@ -37,6 +37,7 @@ namespace aprilslam {
 class aprilslamcpp {
 public:
     explicit aprilslamcpp(ros::NodeHandle node_handle); // Constructor declaration
+    ~aprilslamcpp();
     void initializeGTSAM(); // Method to initialize GTSAM components
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise();
@@ -60,7 +61,6 @@ public:
     void pruneGraphByFrameCount();
     void pruneGraphByPoseCount(int maxPoses);
     void shutdownTimerCallback(const ros::TimerEvent& event);
-    ~aprilslamcpp();
 private:
     ros::Timer check_data_timer_;  // Declare the timer here
     ros::Publisher path_pub_;

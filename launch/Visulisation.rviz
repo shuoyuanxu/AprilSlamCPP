@@ -53,7 +53,7 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Value: false
     - Alpha: 1
-      Buffer Length: 10000
+      Buffer Length: 1
       Class: rviz/Path
       Color: 25; 255; 0
       Enabled: true
