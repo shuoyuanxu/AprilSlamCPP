@@ -36,31 +36,25 @@ namespace aprilslam {
 
 class aprilslamcpp {
 public:
-    explicit aprilslamcpp(ros::NodeHandle node_handle); // Constructor declaration
-    ~aprilslamcpp();
+    explicit aprilslamcpp(ros::NodeHandle node_handle); // Constructor
+    ~aprilslamcpp(); // Deconstructor
     void initializeGTSAM(); // Method to initialize GTSAM components
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
-    void ISAM2Optimise();
-    void SAMOptimise();
+    void ISAM2Optimise(); //ISAM optimiser
+    void SAMOptimise(); //SAM optimiser
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
-    void checkLoopClosure(double current_time, const std::set<gtsam::Symbol>& detectedLandmarks);
+    void checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarks);
     bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose, std::set<gtsam::Symbol> oldlandmarks, std::set<gtsam::Symbol> detectedLandmarksCurrentPos);
     void rebuildFactorGraphWithPosindex(const gtsam::ISAM2 &isam, const std::set<gtsam::Symbol> &poseKeys, const std::map<gtsam::Symbol, std::map<gtsam::Symbol, std::tuple<double, double>>> &poseToLandmarkMeasurementsMap);
     std::set<gtsam::Symbol> generatePosArray(const gtsam::Symbol& previousKeyframe, const gtsam::Symbol& currentKeyframe, const std::set<gtsam::Symbol>& keyframes);    
-    void updateKeyframeGraphWithOptimizedResults(const gtsam::Values &optimizedResults);
     void createNewKeyframe(const gtsam::Pose2& predictedPose, const gtsam::Pose2& previousPose, gtsam::Symbol& previousKeyframeSymbol);
     void printWindowEstimates(const gtsam::Values& windowEstimates);
-    void pruneOldFactorsByTime(double current_time, double timewindow);
-    void pruneOldFactorsBySize(double maxfactors);
     void mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
-    bool shouldAddKeyframe_loc(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose);
     void marginalizenonKeyframes(gtsam::ISAM2& isam, const std::set<gtsam::Symbol>& keyframesToMarginalize, const gtsam::NonlinearFactorGraph& originalGraph);
     std::set<gtsam::Symbol> getPoseKeysBetweenKeyframes(const gtsam::Symbol& previousKeyframeSymbol, const gtsam::Symbol& currentKeyframeSymbol);
-    void pruneGraphByFrameCount();
     void pruneGraphByPoseCount(int maxPoses);
-    void shutdownTimerCallback(const ros::TimerEvent& event);
 private:
     ros::Timer check_data_timer_;  // Declare the timer here
     ros::Publisher path_pub_;

@@ -785,8 +785,6 @@ void aprilslamcpp::checkLoopClosure(double current_time, const std::set<gtsam::S
     }
 }
 
-
-
 void aprilslamcpp::checkLoopClosure(const std::map<int, int>& landmarkCount, double current_time) {
     if (loopClosureEnableFlag) {
         int reobservedLandmarks = 0;

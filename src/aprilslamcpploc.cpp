@@ -315,6 +315,50 @@ void aprilslamcpp::SAMOptimise() {
     }
 }
 
+void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
+    if (loopClosureEnableFlag) {
+        double spatialThreshold = 2.0;  // meters
+        int indexThreshold = 17;  // Minimum index difference between keyframes to trigger loop closure
+        int requiredReobservedLandmarks = 3;  // Minimum number of re-detected landmarks to trigger loop closure
+
+        // Get the current pose index
+        int currentPoseIndex = index_of_pose;
+
+        // Loop through each keyframe stored in poseToLandmarks
+        for (const auto& entry : poseToLandmarks) {
+            gtsam::Symbol keyframeSymbol = entry.first;  // Symbol representing the keyframe
+            const std::set<gtsam::Symbol>& keyframeLandmarks = entry.second;  // Landmarks associated with the keyframe
+
+            // Get the keyframe's pose and its index
+            gtsam::Pose2 keyframePose = keyframeEstimates_.at<gtsam::Pose2>(keyframeSymbol);
+            int keyframeIndex = keyframeSymbol.index();  // Assuming index is accessible from the symbol
+
+            // Compute the spatial distance between the current pose and the keyframe pose
+            double distance = lastPose_.range(keyframePose);
+
+            // Check if the spatial distance and index difference meet the loop closure criteria
+            if (distance < spatialThreshold && (currentPoseIndex - keyframeIndex) > indexThreshold) {
+                // Find the intersection of landmarks re-observed at the current pose and the keyframe's landmarks
+                std::set<gtsam::Symbol> intersection;
+                std::set_intersection(detectedLandmarksCurrentPos.begin(), detectedLandmarksCurrentPos.end(),
+                                      keyframeLandmarks.begin(), keyframeLandmarks.end(),
+                                      std::inserter(intersection, intersection.begin()));
+
+                // Count the number of re-observed landmarks
+                int reobservedLandmarks = intersection.size();
+
+                // If the number of re-observed landmarks meets the required threshold, trigger loop closure
+                if (reobservedLandmarks >= requiredReobservedLandmarks) {
+                    ROS_INFO("found LC");
+                    // Add a loop closure constraint between the current pose and the keyframe
+                    keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(keyframeSymbol, gtsam::Symbol('X', currentPoseIndex), relPoseFG(keyframePose, lastPoseSE2_), odometryNoise));
+                    break;  // Exit after adding one loop closure constraint
+                }
+            }
+        }
+    }
+}
+
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     double current_time = ros::Time::now().toSec();
     ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times
@@ -465,12 +509,13 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
             }
         }
 
-        // Update the pose to landmarks mapping (for recording LC condition)
+        // Update the pose to landmarks mapping (for LC conditions)
         poseToLandmarks[gtsam::Symbol('X', index_of_pose)] = detectedLandmarksCurrentPos;
         
         // Loop closure check
-        // checkLoopClosure(current_time, detectedLandmarks);
-
+        // ROS_INFO("trying LC");
+        checkLoopClosure(detectedLandmarksCurrentPos);
+        // ROS_INFO("checkLoopClosure Done");
         end_loop = ros::WallTime::now();
         elapsed = (end_loop - start_loop).toSec();
         // ROS_INFO("transform total: %f seconds", elapsed);
