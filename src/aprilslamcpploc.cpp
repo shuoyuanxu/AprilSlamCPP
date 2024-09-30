@@ -57,7 +57,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("useprunebysize", useprunebysize);
     
     // Read loop closure parameters
-    nh_.getParam("loopClosureEnableFlag", loopClosureEnableFlag);
+    nh_.getParam("useloopclosure", useloopclosure);
     nh_.getParam("loopClosureFrequency", loopClosureFrequency);
     nh_.getParam("surroundingKeyframeSize", surroundingKeyframeSize);
     nh_.getParam("historyKeyframeSearchRadius", historyKeyframeSearchRadius);
@@ -67,6 +67,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Keyframe parameters
     nh_.getParam("distanceThreshold", distanceThreshold);
     nh_.getParam("rotationThreshold", rotationThreshold);
+    nh_.getParam("usekeyframe", usekeyframe);
 
     // Stationay conditions
     nh_.getParam("stationary_position_threshold", stationary_position_threshold);
@@ -103,6 +104,9 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << prior_noise[0], prior_noise[1], prior_noise[2]).finished());
     brNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << bearing_range_noise[0], bearing_range_noise[1]).finished());
     pointNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << point_noise[0], point_noise[1]).finished());
+
+    // Optimiser selection
+    nh_.getParam("useisam2", useisam2);
 
     // Total number of IDs
     int total_tags;
@@ -316,7 +320,7 @@ void aprilslamcpp::SAMOptimise() {
 }
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
-    if (loopClosureEnableFlag) {
+    if (useloopclosure) {
         double spatialThreshold = 2.0;  // meters
         int indexThreshold = 17;  // Minimum index difference between keyframes to trigger loop closure
         int requiredReobservedLandmarks = 3;  // Minimum number of re-detected landmarks to trigger loop closure
@@ -414,8 +418,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     oldlandmarks = detectedLandmarksHistoric; 
 
     // Add odometry factor if key
-    // if (true) {
-    if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos)) {
+    if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos) || !usekeyframe) {
         keyframeEstimates_.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
         if (previousKeyframeSymbol) {
             gtsam::Pose2 relativePose = Key_previous_pos.between(predictedPose);
@@ -513,19 +516,18 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         poseToLandmarks[gtsam::Symbol('X', index_of_pose)] = detectedLandmarksCurrentPos;
         
         // Loop closure check
-        // ROS_INFO("trying LC");
         checkLoopClosure(detectedLandmarksCurrentPos);
-        // ROS_INFO("checkLoopClosure Done");
+
+        // Loging for optimisation time
         end_loop = ros::WallTime::now();
         elapsed = (end_loop - start_loop).toSec();
         // ROS_INFO("transform total: %f seconds", elapsed);
         lastPoseSE2_ = poseSE2;
         start_loop = ros::WallTime::now();
         ROS_INFO("number of timesteps: %d", index_of_pose);
-        // ISAM2 optimization to update the map and robot pose estimates
         if (index_of_pose % 1 == 0) {
-            // ISAM2Optimise();
-            SAMOptimise();
+            if (useisam2) {ISAM2Optimise();}
+            else {SAMOptimise();}
             end_loop = ros::WallTime::now();
             elapsed = (end_loop - start_loop).toSec();
             ROS_INFO("optimisation: %f seconds", elapsed);
@@ -546,11 +548,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     // Publish the pose and landmarks
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
     aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
-
-    // Save the landmarks into a CSV file if required
-    if (savetaglocation) {
-        saveLandmarksToCSV(landmarks, pathtosavelandmarkcsv);
-    }
     }
 }
 }

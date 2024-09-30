@@ -17,9 +17,9 @@ stationary_rotation_threshold: 0.1 # 0.1radius
   
 noise_models:
   odometry:
+    - 0.01
     - 0.1
-    - 1
-    - 0.1
+    - 0.01
   prior:
     - 0.1
     - 0.3

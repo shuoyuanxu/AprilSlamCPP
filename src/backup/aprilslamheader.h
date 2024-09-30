@@ -75,7 +75,8 @@ private:
     gtsam::Values landmarkEstimates;  // for unwhitten error computing 
     gtsam::NonlinearFactorGraph keyframeGraph_;  // Keyframe graph: All keyframes and associated landmarks
     gtsam::Values keyframeEstimates_;            // Estimates for keyframes
-    gtsam::Values Estimates_visulisation;
+    gtsam::NonlinearFactorGraph windowGraph_;    // Window graph: Current time window, built on top of keyframeGraph
+    gtsam::Values windowEstimates_;              // Estimates for current time window
     gtsam::Pose2 Key_previous_pos;
     gtsam::Symbol previousKeyframeSymbol;
     gtsam::ISAM2 isam_;
@@ -151,8 +152,7 @@ private:
     // Optimisation type: true for ISAM2, false for SAM
     bool useisam2;
 
-    // Use keyframe or not
-    bool usekeyframe;
+    //
     };
 } 
 

@@ -10,9 +10,11 @@ batch_optimisation: true
 total_tags: 1000
 add2graph_threshold: 0.2
 maxfactors: 400 # maximum number of poses in the factor graph
-useprunebysize: true
+useprunebysize: false # no point of using it with ISAM2
+useisam2: false # true for ISAM2, false for SAM
 
 # Loop closure
+useloopclosure: true
 surroundingKeyframeSize: 50
 historyKeyframeSearchRadius: 15.0
 historyKeyframeSearchTimeDiff: 300.0
@@ -24,27 +26,28 @@ stationary_position_threshold: 0.05 # 5cm
 stationary_rotation_threshold: 0.1 # 0.1radius
 
 # Keyframe info
+usekeyframe: true
 distanceThreshold: 0.5
 rotationThreshold: 5
   
 noise_models:
   odometry:
-    - 0.1
-    - 1
-    - 0.1
+    - 0.3
+    - 3
+    - 0.3
   prior:
     - 0.1
     - 0.3
     - 0.1
   bearing_range:
-    - 0.001
-    - 0.008
+    - 0.1
+    - 0.8
   point:
     - 0.001
     - 0.001
   loopClosureNoise:
-    - 0.01
-    - 0.01
+    - 0.1
+    - 0.1
 
 # Camera parameters
 camera_parameters:
