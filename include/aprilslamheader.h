@@ -82,6 +82,7 @@ private:
     gtsam::ISAM2 isam_;
     gtsam::ISAM2 isam_key;
     gtsam::Pose2 lastPoseSE2_;
+    gtsam::Pose2 lastPoseSE2_vis;
     gtsam::Pose2 lastPose_;
     std::vector<std::string> possibleIds_; // Predefined tags in the environment
     std::map<int, gtsam::Symbol> tagToNodeIDMap_; // Map from tag IDs to node IDs

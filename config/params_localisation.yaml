@@ -10,20 +10,20 @@ batch_optimisation: true
 total_tags: 1000
 add2graph_threshold: 0.2
 maxfactors: 400 # maximum number of poses in the factor graph
-useprunebysize: false # no point of using it with ISAM2
+useprunebysize: true # no point of using it with ISAM2
 useisam2: false # true for ISAM2, false for SAM
 
-# Loop closure
-useloopclosure: true
+# Loop closure, dont apply LC when pruning is enabled
+useloopclosure: false
 historyKeyframeSearchRadius: 3 # minimum historyKeyframeSearchRadius meters to be considered loopclosured
 historyKeyframeSearchNum: 40 # loopclosure only checking historyKeyframeSearchNum frames apart poses
-requiredReobservedLandmarks: 2 
+requiredReobservedLandmarks: 3 
 
 # Stationary threshold
 stationary_position_threshold: 0.05 # 5cm
 stationary_rotation_threshold: 0.1 # 0.1radius
 
-# Keyframe info
+# Keyframe info, no need to use it if in isam2 mode
 usekeyframe: true
 distanceThreshold: 0.5
 rotationThreshold: 5

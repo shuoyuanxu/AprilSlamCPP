@@ -386,11 +386,14 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // Store the initial pose for relative calculations
     if (index_of_pose == 2) {
-        lastPoseSE2_ = poseSE2;
         gtsam::Pose2 pose0(0.0, 0.0, 0.0); // Prior at origin
+        lastPoseSE2_ = poseSE2;
+        lastPoseSE2_vis = poseSE2;
+        // lastPoseSE2_ = pose0;
         keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('X', 1), pose0, priorNoise));
         factorTimestamps_[keyframeGraph_.size() - 1] = current_time;
         keyframeEstimates_.insert(gtsam::Symbol('X', 1), pose0);
+        Estimates_visulisation.insert(gtsam::Symbol('X', 1), pose0);
         lastPose_ = pose0; // Keep track of the last pose for odolandmarkKeymetry calculation
         // Load calibrated landmarks as priors if available
         if (usepriortagtable) {
@@ -533,10 +536,10 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
             
     // Loop closure check
     checkLoopClosure(detectedLandmarksCurrentPos);
-    
+
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
-
+    // Key_previous_pos = keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol);
      // Extract landmark estimates from the result
     std::map<int, gtsam::Point2> landmarks;
     for (const auto& key_value : keyframeEstimates_) {
@@ -549,8 +552,15 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // Publish the pose and landmarks
     aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
+    Estimates_visulisation.insert(previousKeyframeSymbol, keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol));
+    // aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
     }
+    else{
+        odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
+        Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose-1)).compose(odometry));
+        lastPoseSE2_vis = poseSE2;    
+    }
+    aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
 }
 }
 
