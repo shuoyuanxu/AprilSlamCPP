@@ -21,6 +21,7 @@
 #include <std_msgs/Header.h>
 
 namespace aprilslam {
+    void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPose, const gtsam::Pose2& keyframePose, int currentPoseIndex, const std::string& frame_id);
     void publishLandmarks(ros::Publisher& landmark_pub, const std::map<int, gtsam::Point2>& landmarks, const std::string& frame_id);
     void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_index, const std::string& frame_id);
     void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename);

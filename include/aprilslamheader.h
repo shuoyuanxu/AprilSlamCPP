@@ -59,6 +59,7 @@ private:
     ros::Timer check_data_timer_;  // Declare the timer here
     ros::Publisher path_pub_;
     ros::Publisher landmark_pub_;
+    ros::Publisher lc_pub_;
     nav_msgs::Path path;
     ros::NodeHandle nh_;
     ros::Subscriber odom_sub_;
@@ -91,6 +92,7 @@ private:
     gtsam::noiseModel::Diagonal::shared_ptr priorNoise;
     gtsam::noiseModel::Diagonal::shared_ptr brNoise;
     gtsam::noiseModel::Diagonal::shared_ptr pointNoise;
+    gtsam::noiseModel::Diagonal::shared_ptr loopClosureNoise;
     double transformation_search_range;
     double add2graph_threshold;
     std::string frame_id;
@@ -101,12 +103,12 @@ private:
     std::map<size_t, double> factorTimestamps_; // Track timestamps of factors
     double maxfactors; // Allowed total number of factors in the graph before pruning
     bool useprunebysize;
+    // For loop closure 
     bool useloopclosure;
-    int loopClosureFrequency;
-    int surroundingKeyframeSize;
     double historyKeyframeSearchRadius;
-    int historyKeyframeSearchTimeDiff;
     int historyKeyframeSearchNum;
+    int requiredReobservedLandmarks;
+
     double stationary_position_threshold;
     double stationary_rotation_threshold;
     bool savetaglocation;
@@ -153,6 +155,7 @@ private:
 
     // Use keyframe or not
     bool usekeyframe;
+
     };
 } 
 

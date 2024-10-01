@@ -174,6 +174,41 @@ std::pair<std::vector<int>, std::vector<Eigen::Vector2d>> getCamDetections(
 
     return std::make_pair(Ids, tagPoss);
 }
+
+void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPose, const gtsam::Pose2& keyframePose, int currentPoseIndex, const std::string& frame_id) {
+    visualization_msgs::Marker line_marker;
+    line_marker.header.frame_id = frame_id;
+    line_marker.header.stamp = ros::Time::now();
+    line_marker.ns = "loop_closure_line";
+    line_marker.id = currentPoseIndex;
+    line_marker.type = visualization_msgs::Marker::LINE_STRIP;
+    line_marker.action = visualization_msgs::Marker::ADD;
+
+    // Set the color to green
+    line_marker.color.r = 0.0;
+    line_marker.color.g = 1.0;
+    line_marker.color.b = 0.0;
+    line_marker.color.a = 1.0;
+
+    // Set line thickness
+    line_marker.scale.x = 0.05;
+
+    // Add points to the marker for the keyframe and current pose
+    geometry_msgs::Point p1, p2;
+    p1.x = keyframePose.x();
+    p1.y = keyframePose.y();
+    p1.z = 0;
+
+    p2.x = currentPose.x();
+    p2.y = currentPose.y();
+    p2.z = 0;
+
+    line_marker.points.push_back(p1);
+    line_marker.points.push_back(p2);
+
+    // Publish the line marker
+    lc_pub.publish(line_marker);
+}
 } // namespace aprilslamcpp
 
 

@@ -43,11 +43,12 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("batch_optimisation", batchOptimisation_);
 
     // Read noise models
-    std::vector<double> odometry_noise, prior_noise, bearing_range_noise, point_noise;
+    std::vector<double> odometry_noise, prior_noise, bearing_range_noise, point_noise, loop_ClosureNoise;
     nh_.getParam("noise_models/odometry", odometry_noise);
     nh_.getParam("noise_models/prior", prior_noise);
     nh_.getParam("noise_models/bearing_range", bearing_range_noise);
     nh_.getParam("noise_models/point", point_noise);
+    nh_.getParam("noise_models/loopClosureNoise", loop_ClosureNoise);
 
     // Read error thershold for a landmark to be added to the graph
     nh_.getParam("add2graph_threshold", add2graph_threshold);
@@ -58,11 +59,9 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     
     // Read loop closure parameters
     nh_.getParam("useloopclosure", useloopclosure);
-    nh_.getParam("loopClosureFrequency", loopClosureFrequency);
-    nh_.getParam("surroundingKeyframeSize", surroundingKeyframeSize);
     nh_.getParam("historyKeyframeSearchRadius", historyKeyframeSearchRadius);
-    nh_.getParam("historyKeyframeSearchTimeDiff", historyKeyframeSearchTimeDiff);
     nh_.getParam("historyKeyframeSearchNum", historyKeyframeSearchNum);
+    nh_.getParam("requiredReobservedLandmarks", requiredReobservedLandmarks);
 
     // Keyframe parameters
     nh_.getParam("distanceThreshold", distanceThreshold);
@@ -104,6 +103,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << prior_noise[0], prior_noise[1], prior_noise[2]).finished());
     brNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << bearing_range_noise[0], bearing_range_noise[1]).finished());
     pointNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(2) << point_noise[0], point_noise[1]).finished());
+    loopClosureNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << loop_ClosureNoise[0], loop_ClosureNoise[1], loop_ClosureNoise[2]).finished());
 
     // Optimiser selection
     nh_.getParam("useisam2", useisam2);
@@ -133,6 +133,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Subscriptions and Publications
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
+    lc_pub_ = nh_.advertise<visualization_msgs::Marker>("loop_closure_markers", 1);
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
     path.header.frame_id = frame_id; 
 }
@@ -321,13 +322,9 @@ void aprilslamcpp::SAMOptimise() {
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
     if (useloopclosure) {
-        double spatialThreshold = 2.0;  // meters
-        int indexThreshold = 17;  // Minimum index difference between keyframes to trigger loop closure
-        int requiredReobservedLandmarks = 3;  // Minimum number of re-detected landmarks to trigger loop closure
-
         // Get the current pose index
-        int currentPoseIndex = index_of_pose;
-
+        gtsam::Symbol currentPoseIndex =  gtsam::Symbol('X', index_of_pose);
+        gtsam::Pose2 currentPose =  keyframeEstimates_.at<gtsam::Pose2>(currentPoseIndex);
         // Loop through each keyframe stored in poseToLandmarks
         for (const auto& entry : poseToLandmarks) {
             gtsam::Symbol keyframeSymbol = entry.first;  // Symbol representing the keyframe
@@ -341,7 +338,7 @@ void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandm
             double distance = lastPose_.range(keyframePose);
 
             // Check if the spatial distance and index difference meet the loop closure criteria
-            if (distance < spatialThreshold && (currentPoseIndex - keyframeIndex) > indexThreshold) {
+            if (distance < historyKeyframeSearchRadius && (currentPoseIndex - keyframeIndex) > historyKeyframeSearchNum) {
                 // Find the intersection of landmarks re-observed at the current pose and the keyframe's landmarks
                 std::set<gtsam::Symbol> intersection;
                 std::set_intersection(detectedLandmarksCurrentPos.begin(), detectedLandmarksCurrentPos.end(),
@@ -355,7 +352,11 @@ void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandm
                 if (reobservedLandmarks >= requiredReobservedLandmarks) {
                     ROS_INFO("found LC");
                     // Add a loop closure constraint between the current pose and the keyframe
-                    keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(keyframeSymbol, gtsam::Symbol('X', currentPoseIndex), relPoseFG(keyframePose, lastPoseSE2_), odometryNoise));
+                    keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(keyframeSymbol, currentPoseIndex, relPoseFG(keyframePose, currentPose), loopClosureNoise));
+
+                    // Visualize the loop closure
+                    visualizeLoopClosure(lc_pub_, currentPose, keyframePose, currentPoseIndex, frame_id);
+
                     break;  // Exit after adding one loop closure constraint
                 }
             }
@@ -514,9 +515,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
         // Update the pose to landmarks mapping (for LC conditions)
         poseToLandmarks[gtsam::Symbol('X', index_of_pose)] = detectedLandmarksCurrentPos;
-        
-        // Loop closure check
-        checkLoopClosure(detectedLandmarksCurrentPos);
 
         // Loging for optimisation time
         end_loop = ros::WallTime::now();
@@ -532,6 +530,10 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
             elapsed = (end_loop - start_loop).toSec();
             ROS_INFO("optimisation: %f seconds", elapsed);
         }
+            
+    // Loop closure check
+    checkLoopClosure(detectedLandmarksCurrentPos);
+    
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
 
