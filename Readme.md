@@ -1,14 +1,23 @@
-# Tag aided localiisation algorithm for polytunnel robots
+# Tag aided localisation algorithm for robots operating in polytunnels
 
 ## Overview
 
-This project implements a ROS-based Simultaneous Localization and Mapping (SLAM) system using AprilTags for feature detection and GTSAM for graph-based optimization. The system estimates the robot’s trajectory and maps landmarks using multiple cameras.
+This project implements a ROS-based Simultaneous Localization and Mapping (SLAM) system using AprilTags for tag detection and GTSAM for graph-based optimisation. The system is capable of estimating the robot’s trajectory and maps landmarks using multiple cameras, yet we choose to use 2 different algorithms to achieve landmark mapping and localisation due to computational efficiency considerations.
 
+### Calibration
 
+Calibration is done by SAM (Smoothing and Mapping) where all the poses, landmarks, observations are used to formulate a factor graph, and optimisation is done once to obtain the global optimal.
 
-Calibration
+The flowchart: 
 
-Calibration is done by SAM where all the graph is optimised, the code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations. 
+Tunning:
+
+1. a flag value to identify if the bag has finished playing 
+ the calibration function, we want to set the flag for identifying if the bag has finished playing. 
+
+### Localisation
+
+Calibration is done by SAM where all the poses, landmarks, observations are used to formulate a factor graph, and optimisation is one once to obtain the global optimal 
 
 The flowchart: 
 
@@ -28,7 +37,7 @@ Tunning:
   - [wrapToPi](#1-wraptopi)
   - [relPoseFG](#2-relposefg)
   - [AprilSlam Node Initialization](#3-aprilslam-node-initialization)
-  - [GTSAM Optimization](#4-gtsam-optimization)
+  - [Optimization](#4-gtsam-optimization)
   - [Visualization](#5-visualization)
   - [Odometry Processing](#6-odometry-processing)
   - [Landmark Processing](#7-landmark-processing)
@@ -200,7 +209,17 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 }
 ```
 
-### 4. GTSAM Optimization
+### 4. Optimization
+
+| Feature                | SAM (Batch Optimization)                     | iSAM2 (Incremental Optimization)        |
+|------------------------|----------------------------------------------|-----------------------------------------|
+| **Optimization Type**   | Batch (whole graph at once)                  | Incremental (updates relevant portions) |
+| **Computation Time**    | High (grows with graph size)                 | Low (optimized for real-time updates)   |
+| **Real-time Suitability**| No                                           | Yes                                     |
+| **Memory Usage**        | High (stores entire graph)                   | Lower (incremental updates)             |
+| **Algorithm**           | Batch least squares (e.g., Levenberg-Marquardt, Gauss-Newton) | Incremental smoothing with selective relinearization |
+| **Use Case**            | Best for offline or small-scale optimization | Ideal for real-time applications like SLAM |
+
 
 The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the updated estimates are stored for the next iteration.
 
@@ -270,7 +289,14 @@ void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vecto
 
 ### **8. Calibration**
 
-The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
+Code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations.
+
+####  SAM (Smoothing and Mapping)
+
+    Batch Optimization: SAM refers to the process of performing batch optimization. In this approach, all the factors and measurements are collected, and optimization is performed on the entire graph at once. This is known as batch least squares optimization (often using methods like Levenberg-Marquardt or Gauss-Newton).
+    Full Graph Optimization: In batch optimization, the entire factor graph is optimized every time new measurements are added. This results in a globally optimal solution at each optimization step but is computationally expensive.
+    Not Real-time: Because SAM performs optimization over the entire graph every time, it can become slow and resource-heavy as the graph grows, making it unsuitable for real-time applications or systems with large datasets.
+    Higher Memory Usage: Since batch optimization works on the full dataset, it requires more memory to store and process the entire factor graph.
 
 #### Pre-mapped Landmark Loading
 
@@ -348,6 +374,14 @@ void aprilslamcpp::ISAM2Optimise() {
 ### **9. Localization**
 
 The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
+
+#### iSAM2 (Incremental Smoothing and Mapping)
+
+    Incremental Optimization: iSAM2 is designed for incremental optimization, meaning it only updates parts of the factor graph as new measurements come in. This makes it more efficient for real-time applications.
+    Efficient Updates: iSAM2 performs partial relinearization and reordering of the factor graph. It doesn’t re-optimize the entire graph every time but incrementally updates the parts affected by new measurements. This allows for faster updates with minimal computational cost.
+    Real-time Capable: iSAM2 is specifically designed for real-time applications like SLAM. By only updating relevant portions of the graph, it can maintain a good approximation of the solution without needing to recompute everything.
+    Lower Memory Usage: Because iSAM2 only processes parts of the graph incrementally, it has lower memory requirements compared to batch SAM.
+    ISAM2 Improvements: iSAM2 includes several improvements over its predecessor iSAM, including better handling of relinearization, improved efficiency in graph reordering, and the ability to work on more complex graphs.
 
 #### Pre-mapped Landmark Loading
 
