@@ -6,26 +6,11 @@ This project implements a ROS-based Simultaneous Localization and Mapping (SLAM)
 
 ### Calibration
 
-Calibration is done by SAM (Smoothing and Mapping) where all the poses, landmarks, observations are used to formulate a factor graph, and optimisation is done once to obtain the global optimal.
-
-The flowchart: 
-
-Tunning:
-
-1. a flag value to identify if the bag has finished playing 
- the calibration function, we want to set the flag for identifying if the bag has finished playing. 
+Calibration is performed using SAM (Smoothing and Mapping), where all poses, landmarks, and observations are incorporated into a factor graph. A single optimization process is then carried out to achieve a globally optimal solution.
 
 ### Localisation
 
-Calibration is done by SAM where all the poses, landmarks, observations are used to formulate a factor graph, and optimisation is one once to obtain the global optimal 
-
-The flowchart: 
-
-Tunning:
-
-1. a flag value to identify if the bag has finished playing 
- the calibration function, we want to set the flag for identifying if the bag has finished playing. 
-
+Localization utilizes prior knowledge of relatively accurate landmark positions. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
 
 ## Table of Contents
 
@@ -44,6 +29,7 @@ Tunning:
   - [Calibration](#8-calibration)
   - [Localisation](#9-localisation)
 - [How to Run](#how-to-run)
+- [Tunning](#tunning)
 - [Future Work](#future-work)
 
 ---
