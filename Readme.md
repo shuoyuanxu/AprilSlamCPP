@@ -142,7 +142,7 @@ The system applies odometry constraints (between consecutive poses) and bearing-
 
 ### 2. relPoseFG
 
-The function computes the relative pose between two `gtsam::Pose2` objects by converting the difference in poses into robot-relative coordinates.
+Our odometry does not give relative pose directly, instead it gives pose estimations. Therefore, a function computes the relative pose between two `gtsam::Pose2` objects is required:
 
 - **Input**: Two `Pose2` objects (`lastPoseSE2` and `PoseSE2`)
 - **Output**: Relative `Pose2` that represents the robot's motion from `lastPoseSE2` to `PoseSE2`
