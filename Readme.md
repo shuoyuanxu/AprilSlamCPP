@@ -124,9 +124,7 @@ The system applies odometry constraints (between consecutive poses) and bearing-
 
 **SAM**: Optimizing the whole graph
 
-	\[
-	\mathbf{x}^* = \arg\min_{\mathbf{x}} \sum_{i} \|\mathbf{z}_i - h(\mathbf{x}_i)\|^2_{\Sigma_i}
-	\]
+`min_{x, l} ∑ || z_i - h(x_i, l_i) ||^2_Σ_i`
 
 **ISAM2**: Incremental Update:
 
