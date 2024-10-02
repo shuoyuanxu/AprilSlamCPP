@@ -187,7 +187,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 
 ### 4. Optimization
 
-The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the updated estimates are stored for the next iteration.
+The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the input estimates are updated and will be used for the next iteration. Due to the fact that SAM is normally computationally heavy, we recommand to use our pruning function 'pruneGraphByPoseCount' to manage the total size of the factor graph.
 
 ```cpp
 void aprilslamcpp::SAMOptimise() {
@@ -195,7 +195,7 @@ void aprilslamcpp::SAMOptimise() {
     keyframeEstimates_ = batchOptimizer.optimize();
 }
 ```
-The `ISAM2Optimise` function performs incremental optimization of the factor graph using GTSAM’s iSAM2 optimizer. The optimization process updates the existing estimates based on new measurements, avoiding the need for full batch optimization. After updating the iSAM2 instance, the current best estimates are extracted and used for subsequent iterations.
+The `ISAM2Optimise` function performs incremental optimization of the factor graph using GTSAM’s iSAM2 optimizer. Estimates on all poses and landmarks plus the entire graph is stored in a 'gtsam::ISAM2 isam_' variable, which can only be updated but not trimed. Therefore, after every ISAM2 iteration, historic estimates and graph needs to be cleaned to avoid repetitive data appeared in isam_ variable. Since ISAM2 is not computationally heavy, no graph management approach is required
 
 ```cpp
 void aprilslamcpp::ISAM2Optimise() {    
