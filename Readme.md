@@ -1,132 +1,46 @@
-# A simple implemenatation of the TagSlam based on GTSAM 
-Build the project: 
-1. Create the work directory:
-```
-cd catkin/src
-catkin_create_pkg aprilslamcpp roscpp std_msgs tf2_ros nav_msgs
-cd aprilslamcpp/src
-code ..
-```
+ AprilSlam - ROS-based SLAM using AprilTags and GTSAM
 
-3. Modify cmake file:
-    
-4. Modify XML
-	
+## Overview
 
+This project implements a ROS-based Simultaneous Localization and Mapping (SLAM) system using AprilTags for feature detection and GTSAM for graph-based optimization. The system estimates the robot’s trajectory and maps landmarks using multiple cameras.
 
-Python instruction:
+## Table of Contents
 
-```	
-sudo apt install python3-pip
-pip install gtsam
-```
+- [Overview](#overview)
+- [Installation](#installation)
+- [Core Components](#core-components)
+- [Mathematical Foundation](#mathematical-foundation)
+- [Key Functions and Code Structure](#key-functions-and-code-structure)
+  - [wrapToPi](#1-wraptopi)
+  - [relPoseFG](#2-relposefg)
+  - [AprilSlam Node Initialization](#3-aprilslam-node-initialization)
+  - [GTSAM Optimization](#4-gtsam-optimization)
+  - [Visualization](#5-visualization)
+  - [Odometry Processing](#6-odometry-processing)
+  - [Landmark Processing](#7-landmark-processing)
+- [How to Run](#how-to-run)
+- [Future Work](#future-work)
 
-make the python script executable
-```chmod +x /home/shuoyuan/catkin_ws/src/april_slam/odomGTSAMTest.py```
+---
 
-If error, add #endif to the header when compiling gtsam (std_optional_serialization.h)
+## Installation
 
+Ensure that the following dependencies are installed:
 
+- **ROS** (Robot Operating System) - Noetic or Melodic
+- **GTSAM** (Georgia Tech Smoothing And Mapping library)
+- **AprilTag ROS** - For AprilTag detection
+- **Eigen** - For matrix computations
 
+### Steps:
 
-Some Remarks: 
+1. Clone the repository into your catkin workspace:
+   ```bash
+   git clone https://github.com/your-repo/april_slam_cpp.git
 
-1. error: ‘optional’ in namespace ‘std’ does not name a template type
-	std::optional is c++17 only, add this line to your cmake file:
-
-```set(CMAKE_CXX_STANDARD 17)```
-
-2. error: static assertion failed: Error: GTSAM was built against a different version of Eigen
-
-	need to rebuild:
-```cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..```
-
-4. error: gtsam_wrapper.mexa64 unable to find libgtsam.so.4
-
-This is due to the fact that the default search directory of gtsam_wrapper.mexa64 is /usr/lib/ yet all related libs are installed to /usr/local/lib. All corresponding files (the ones mentioned in Matlab error message) needs to be copied to /usr/lib/
-
-```
-sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
-sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
-```
-		
-4. Matlab toolbox: cmake -D GTSAM_INSTALL_MATLAB_TOOLBOX=1 ..
-	copy the toolbox from usr/local/ to work directory, then add the folder to path in Matlab
-
-5. To hide "Warning: TF_REPEATED_DATA ignoring data with redundant timestamp" error in terminal
-```
-source devel/setup.bash
-rosrun aprilslamcpp aprilslamcpp 2> >(grep -v TF_REPEATED_DATA buffer_core)
-rosbag play --pause rerecord_3_HDL.bag
-```
-6. Compile:
-```
-catkin_make --pkg AprilSlamCPP
-```
-
-
-
-Calibration
-
-Calibration is done by SAM where all the graph is optimised, the code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations. 
-
-The flowchart: 
-
-Tunning:
-
-1. a flag value to identify if the bag has finished playing 
- the calibration function, we want to set the flag for identifying if the bag has finished playing. 
-
-
-
-
-
-
-
-
-
-
-Project: AprilSlam - ROS-based SLAM using AprilTags and GTSAM
-Overview
-
-This project is a ROS-based Simultaneous Localization and Mapping (SLAM) system that uses AprilTags for feature detection and GTSAM for graph-based optimization. The system is designed to estimate the robot’s trajectory and map landmarks using multiple cameras. This documentation explains the core components, mathematics, and logic behind the implementation.
-Table of Contents
-
-    Overview
-    Installation
-    Core Components
-    Mathematical Foundation
-    Key Functions and Code Structure
-        1. wrapToPi
-        2. relPoseFG
-        3. AprilSlam Node Initialization
-        4. GTSAM Optimization
-        5. Visualization
-        6. Odometry Processing
-        7. Landmark Processing
-    How to Run
-    Future Work
-
-Installation
-
-Ensure that you have the following dependencies installed:
-
-    ROS (Robot Operating System) - Noetic or Melodic
-    GTSAM (Georgia Tech Smoothing And Mapping library)
-    AprilTag ROS - For AprilTag detection
-    Eigen - For matrix computations
-
-Steps:
-
-    Clone the repository into your catkin workspace:
+    Install dependencies:
 
     bash
-
-git clone https://github.com/your-repo/april_slam_cpp.git
-
-Install dependencies:
-
-bash
 
 rosdep install --from-paths src --ignore-src -r -y
 
@@ -188,11 +102,6 @@ The function computes the relative pose between two gtsam::Pose2 objects by conv
     Input: Two Pose2 objects (lastPoseSE2 and PoseSE2).
     Output: Relative Pose2 that represents the robot's motion from lastPoseSE2 to PoseSE2.
 
-Logic:
-
-    It first calculates the displacement in x and y.
-    Then, it adjusts the displacement based on the robot's current orientation, ensuring that the robot’s motion is accounted for along its forward direction.
-
 cpp
 
 gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& PoseSE2) {
@@ -238,7 +147,7 @@ The SAMOptimise function performs batch optimization of the factor graph using G
 cpp
 
 void aprilslamcpp::SAMOptimise() {
-    gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
+    gtsam::Levenberg-MarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     keyframeEstimates_ = batchOptimizer.optimize();
 }
 
@@ -306,9 +215,11 @@ How to Run
     roslaunch aprilslamcpp slam.launch
 
     Start the cameras and odometry data sources.
+
     View the output in RViz by subscribing to the /loop_closure_markers topic.
 
 Future Work
 
     Loop Closure Enhancements: Current loop closure detection is based on re-observing landmarks. We can integrate feature-based methods for more robust detection.
     Dynamic Environments: Adapting the SLAM algorithm for dynamic environments where landmarks move or disappear.
+
