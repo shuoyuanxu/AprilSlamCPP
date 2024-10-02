@@ -8,7 +8,7 @@ This project implements a ROS-based Simultaneous Localization and Mapping (SLAM)
 
 Calibration is performed using SAM (Smoothing and Mapping), where all poses, landmarks, and observations are incorporated into a factor graph. A single optimization process is then carried out to achieve a globally optimal solution.
 
-### Localisation
+### Localization
 
 Localization utilizes prior knowledge of relatively accurate landmark positions. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
 
