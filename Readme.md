@@ -187,8 +187,6 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 
 ### 4. Optimization
 
-
-
 The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the updated estimates are stored for the next iteration.
 
 ```cpp
