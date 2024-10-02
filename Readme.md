@@ -195,6 +195,25 @@ void aprilslamcpp::SAMOptimise() {
     keyframeEstimates_ = batchOptimizer.optimize();
 }
 ```
+The `ISAM2Optimise` function performs incremental optimization of the factor graph using GTSAM’s iSAM2 optimizer. The optimization process updates the existing estimates based on new measurements, avoiding the need for full batch optimization. After updating the iSAM2 instance, the current best estimates are extracted and used for subsequent iterations.
+
+```cpp
+void aprilslamcpp::ISAM2Optimise() {    
+    // Perform batch optimization once if required
+    if (batchOptimisation_) {
+        gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
+        keyframeEstimates_ = batchOptimizer.optimize();
+        batchOptimisation_ = false; // Only do this once
+    }
+
+    // Incrementally update the iSAM2 instance with new measurements
+    isam_.update(keyframeGraph_, keyframeEstimates_);
+
+    // Clear the graph and estimates for the next iteration
+    keyframeEstimates_.clear();
+    keyframeGraph_.resize(0);
+}
+```
 
 ### 5. Visualization
 
