@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project implements a ROS-based Simultaneous Localization and Mapping (SLAM) system using AprilTags for tag detection and GTSAM for graph-based optimisation. The system is capable of estimating the robot’s trajectory and maps landmarks using multiple cameras, yet we choose to use 2 different algorithms to achieve landmark mapping and localisation due to computational efficiency considerations.
+This project implements a ROS-based Simultaneous Localization and Mapping (SLAM) system that uses AprilTags as landmarks and GTSAM for graph-based optimization. The system estimates the robot’s trajectory and maps landmarks using multiple cameras. To balance computational cost and localization and mapping accuracy, we employ two similar yet distinct strategies: one for landmark mapping and another for localization.
 
 ### Calibration
 
@@ -40,30 +40,7 @@ Ensure that the following dependencies are installed:
 
 - **ROS** (Robot Operating System) - Noetic or Melodic
 - **GTSAM** (Georgia Tech Smoothing And Mapping library)
-- **AprilTag ROS** - For AprilTag detection
 - **Eigen** - For matrix computations
-
-### Steps:
-
-1. Clone the repository into your catkin workspace:
-   ```bash
-   git clone https://github.com/your-repo/april_slam_cpp.git
-   ```
-
-2. Install dependencies:
-   ```bash
-   rosdep install --from-paths src --ignore-src -r -y
-   ```
-
-3. Build the workspace:
-   ```bash
-   catkin_make
-   ```
-
-4. Source the workspace:
-   ```bash
-   source devel/setup.bash
-   ```
 
 ### Some Remarks: 
 
@@ -77,7 +54,7 @@ Ensure that the following dependencies are installed:
 	need to rebuild:
 ```cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..```
 
-4. error: gtsam_wrapper.mexa64 unable to find libgtsam.so.4
+3. error: gtsam_wrapper.mexa64 unable to find libgtsam.so.4
 
 The default search directory of gtsam_wrapper.mexa64 is /usr/lib/ yet all related libs are installed to /usr/local/lib. All corresponding files (the ones mentioned in Matlab error message) needs to be copied to /usr/lib/
 
@@ -108,47 +85,64 @@ catkin_make --pkg AprilSlamCPP
 
 The system uses AprilTags for robust feature detection. Three camera topics (`mCam`, `rCam`, `lCam`) are subscribed to detect AprilTags in their respective fields of view.
 
-### 2. GTSAM Optimization
+### 2. Odometry
+
+The system utilizes odometry data from various sensors, including wheel encoders, IMU, GPS, or LiDAR, to compute relative poses for constructing the factor graph. For optimal results, we recommend using accurate odometry sources, such as LiDAR, during the calibration phase. As for localization, other odometry sources can be effectively, as long as the sensor provides reasonably reliable and consistent data. This flexibility allows the system to accommodate different sensor configurations, making it adaptable to various environments and use cases.
+
+### 3. GTSAM Optimization
 
 GTSAM performs factor graph-based optimization using:
 
-- Odometry factors for pose estimation
+- Between factors between poses (from Odometry) 
 - Bearing-Range factors for landmarks
+- Priors of initial pose and landmarks
 
 ---
 
 ## **3. Mathematical Foundation**
 
-### Pose Representation
+### Assumptions
 
-The pose of the robot is represented using `gtsam::Pose2`, which includes:
+The algorithm operates on a 2D plane, assuming that vertical differences do not impact performance. The robot's pose is represented using `gtsam::Pose2`, which includes:
 
-- `(x, y)`: Position of the robot in the 2D plane
-- `θ`: Orientation of the robot
-
-### Relative Pose Calculation
-
-The function `relPoseFG` computes the relative pose between two `Pose2` objects. It returns the relative distance, adjusted for orientation, assuming that the robot cannot move sideways.
+- `(x, y)`: The robot's position in the 2D plan
+- `θ`: The robot's orientation
+- The function `relPoseFG` calculates the relative pose between two `Pose2` objects, returning the relative distance and adjusting for orientation. It assumes that **the robot cannot move sideways**.
 
 ### Graph-Based SLAM
 
-The system uses odometry constraints (between consecutive poses) and bearing-range constraints (between poses and landmarks).
-GTSAM's ISAM2 optimizer is used for real-time, incremental optimization of the factor graph.
+The system applies odometry constraints (between consecutive poses) and bearing-range constraints (between poses and landmarks). Both SAM and ISAM2 optimizers are utilized. Here’s a simple comparison between these two optimizers:
+
+| Feature                | SAM (Batch Optimization)                     | iSAM2 (Incremental Optimization)        |
+|------------------------|----------------------------------------------|-----------------------------------------|
+| **Optimization Type**   | Batch (whole graph at once)                  | Incremental (updates relevant portions) |
+| **Computation Time**    | High (grows with graph size)                 | Low (optimized for real-time updates)   |
+| **Real-time Suitability**| No                                           | Yes                                     |
+| **Memory Usage**        | High (stores entire graph)                   | Lower (incremental updates)             |
+| **Algorithm**           | Batch least squares (e.g., Levenberg-Marquardt, Gauss-Newton) | Incremental smoothing with selective relinearization |
+| **Use Case**            | Best for offline or small-scale optimization | Ideal for real-time applications like SLAM |
+
+**SAM**: Optimizing the whole graph
+
+	\[
+	\mathbf{x}^* = \arg\min_{\mathbf{x}} \sum_{i} \|\mathbf{z}_i - h(\mathbf{x}_i)\|^2_{\Sigma_i}
+	\]
+
+**ISAM2**: Incremental Update:
+
+\[
+\mathbf{x}_{t+1} = \mathbf{x}_{t} + \Delta \mathbf{x}
+\]rea
+
+- Add New Factors: New factors (e.g., new odometry or landmark observations) are added to the factor graph when a new measurement is received.
+
+- Relinearization: Only a subset of variables is relinearized, meaning that only variables affected (determined by ISAM2) by the new measurements are recalculated. This significantly reduces computational complexity compared to recalculating all variables.
+
+- Bayes Tree Update: iSAM2 uses a Bayes Tree to represent the factor graph and efficiently update the system. The Bayes Tree organizes the factor graph into cliques, allowing for fast updates when new measurements are added.
 
 ---
 
 ## **4. Key Functions and Code Structure**
-
-### 1. wrapToPi
-
-This function normalizes any angle to the range `[−π, π]`. This is crucial for ensuring that angular differences are always within a reasonable range for optimization.
-
-```cpp
-double wrapToPi(double angle) {
-    angle = fmod(angle + M_PI, 2 * M_PI);
-    return angle - M_PI;
-}
-```
 
 ### 2. relPoseFG
 
@@ -197,14 +191,6 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 
 ### 4. Optimization
 
-| Feature                | SAM (Batch Optimization)                     | iSAM2 (Incremental Optimization)        |
-|------------------------|----------------------------------------------|-----------------------------------------|
-| **Optimization Type**   | Batch (whole graph at once)                  | Incremental (updates relevant portions) |
-| **Computation Time**    | High (grows with graph size)                 | Low (optimized for real-time updates)   |
-| **Real-time Suitability**| No                                           | Yes                                     |
-| **Memory Usage**        | High (stores entire graph)                   | Lower (incremental updates)             |
-| **Algorithm**           | Batch least squares (e.g., Levenberg-Marquardt, Gauss-Newton) | Incremental smoothing with selective relinearization |
-| **Use Case**            | Best for offline or small-scale optimization | Ideal for real-time applications like SLAM |
 
 
 The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the updated estimates are stored for the next iteration.
