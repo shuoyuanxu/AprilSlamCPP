@@ -298,6 +298,84 @@ void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vecto
 
 ---
 
+## **8. Localization using Pre-mapped Landmark Locations**
+
+The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
+
+### Pre-mapped Landmark Loading
+
+The system can load pre-mapped landmark locations from a CSV file, which can be used as priors for localization.
+
+```cpp
+// Load pre-mapped landmarks from a CSV file
+std::map<int, gtsam::Point2> loadLandmarksFromCSV(const std::string& filepath) {
+    // Implementation for loading the landmarks from CSV
+    std::map<int, gtsam::Point2> landmarks;
+    // ... CSV parsing and loading into landmarks map
+    return landmarks;
+}
+```
+
+### Incorporating Pre-mapped Landmarks into the SLAM System
+
+When initializing the SLAM system, the pre-mapped landmarks are loaded and incorporated as priors into the GTSAM factor graph.
+
+```cpp
+// During the constructor of aprilslamcpp
+if (usepriortagtable) {
+    std::map<int, gtsam::Point2> savedLandmarks = loadLandmarksFromCSV(pathtoloadlandmarkcsv);
+    for (const auto& landmark : savedLandmarks) {
+        gtsam::Symbol landmarkKey('L', landmark.first);
+        keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(landmarkKey, landmark.second, pointNoise));
+        keyframeEstimates_.insert(landmarkKey, landmark.second);
+        landmarkEstimates.insert(landmarkKey, landmark.second);
+    }
+}
+```
+
+### Localization using Landmark Observations
+
+When the robot observes a known landmark, the system uses a bearing-range factor to update the robot’s pose and ensure alignment with the pre-mapped landmarks.
+
+```cpp
+// Processing landmark observations for localization
+void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vector<Eigen::Vector2d>& tagPos) {
+    for (size_t n = 0; n < Id.size(); ++n) {
+        gtsam::Symbol landmarkKey('L', Id[n]);
+
+        // If the landmark exists in the pre-mapped landmarks
+        if (landmarkEstimates.exists(landmarkKey)) {
+            // Compute bearing and range to the observed landmark
+            double bearing = std::atan2(tagPos , tagPos );
+            double range = std::sqrt(tagPos  * tagPos  + tagPos  * tagPos );
+
+            // Add a bearing-range factor for this observation
+            keyframeGraph_.add(gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2>(
+                gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise));
+        }
+    }
+}
+```
+
+### Updating the Pose Estimate
+
+As the system detects known landmarks and processes them, the robot’s pose is continuously refined based on the pre-mapped landmark locations.
+
+```cpp
+// Update the pose using ISAM2 or batch optimization
+void aprilslamcpp::ISAM2Optimise() {
+    isam_.update(keyframeGraph_, keyframeEstimates_);
+    auto result = isam_.calculateEstimate();
+
+    // Update the pose and publish the results
+    aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
+}
+```
+
+---
+
+---
+
 ## **5. How to Run**
 
 Launch the SLAM node:
