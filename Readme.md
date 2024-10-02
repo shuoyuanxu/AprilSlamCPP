@@ -215,30 +215,6 @@ void aprilslamcpp::ISAM2Optimise() {
 }
 ```
 
-### 5. Visualization
-
-This function publishes loop closure visualization markers in RViz. It draws a green line between the current pose and the keyframe pose when a loop closure is detected.
-
-```cpp
-void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPose, const gtsam::Pose2& keyframePose, int currentPoseIndex, const std::string& frame_id) {
-    visualization_msgs::Marker line_marker;
-    line_marker.header.frame_id = frame_id;
-    line_marker.header.stamp = ros::Time::now();
-    line_marker.type = visualization_msgs::Marker::LINE_STRIP;
-    line_marker.color.g = 1.0;
-    line_marker.scale.x = 0.05;
-
-    geometry_msgs::Point p1, p2;
-    p1.x = keyframePose.x(); p1.y = keyframePose.y();
-    p2.x = currentPose.x(); p2.y = currentPose.y();
-
-    line_marker.points.push_back(p1);
-    line_marker.points.push_back(p2);
-
-    lc_pub.publish(line_marker);
-}
-```
-
 ### 6. Odometry Processing
 
 This function processes the incoming odometry messages, updates the pose, and adds a factor to the graph for odometry constraints.
@@ -272,7 +248,7 @@ void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vecto
 
 ---
 
-### **8. Calibration**
+### **8. Calibration Utilities**
 
 Code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations.
 
