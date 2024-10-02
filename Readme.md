@@ -130,7 +130,7 @@ The system applies odometry constraints (between consecutive poses) and bearing-
 
 **ISAM2**: Incremental Update:
 
-	`x_{t+1} = x_t + \Delta x`
+`x_{t+1} = x_t + \Delta x`
 
 - Add New Factors: New factors (e.g., new odometry or landmark observations) are added to the factor graph when a new measurement is received.
 
