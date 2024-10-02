@@ -1,4 +1,85 @@
- AprilSlam - ROS-based SLAM using AprilTags and GTSAM
+# A simple implemenatation of the TagSlam based on GTSAM 
+Build the project: 
+1. Create the work directory:
+```
+cd catkin/src
+catkin_create_pkg aprilslamcpp roscpp std_msgs tf2_ros nav_msgs
+cd aprilslamcpp/src
+code ..
+```
+
+3. Modify cmake file:
+    
+4. Modify XML
+	
+
+
+Python instruction:
+
+```	
+sudo apt install python3-pip
+pip install gtsam
+```
+
+make the python script executable
+```chmod +x /home/shuoyuan/catkin_ws/src/april_slam/odomGTSAMTest.py```
+
+If error, add #endif to the header when compiling gtsam (std_optional_serialization.h)
+
+
+
+
+Some Remarks: 
+
+1. error: ‘optional’ in namespace ‘std’ does not name a template type
+	std::optional is c++17 only, add this line to your cmake file:
+
+```set(CMAKE_CXX_STANDARD 17)```
+
+2. error: static assertion failed: Error: GTSAM was built against a different version of Eigen
+
+	need to rebuild:
+```cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..```
+
+4. error: gtsam_wrapper.mexa64 unable to find libgtsam.so.4
+
+This is due to the fact that the default search directory of gtsam_wrapper.mexa64 is /usr/lib/ yet all related libs are installed to /usr/local/lib. All corresponding files (the ones mentioned in Matlab error message) needs to be copied to /usr/lib/
+
+```
+sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
+sudo cp /usr/local/lib/libgtsam.so.4 /usr/lib/
+```
+		
+4. Matlab toolbox: cmake -D GTSAM_INSTALL_MATLAB_TOOLBOX=1 ..
+	copy the toolbox from usr/local/ to work directory, then add the folder to path in Matlab
+
+5. To hide "Warning: TF_REPEATED_DATA ignoring data with redundant timestamp" error in terminal
+```
+source devel/setup.bash
+rosrun aprilslamcpp aprilslamcpp 2> >(grep -v TF_REPEATED_DATA buffer_core)
+rosbag play --pause rerecord_3_HDL.bag
+```
+6. Compile:
+```
+catkin_make --pkg AprilSlamCPP
+```
+
+
+
+Calibration
+
+Calibration is done by SAM where all the graph is optimised, the code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations. 
+
+The flowchart: 
+
+Tunning:
+
+1. a flag value to identify if the bag has finished playing 
+ the calibration function, we want to set the flag for identifying if the bag has finished playing. 
+
+
+
+# AprilSlam - ROS-based SLAM using AprilTags and GTSAM
 
 ## Overview
 
@@ -23,7 +104,7 @@ This project implements a ROS-based Simultaneous Localization and Mapping (SLAM)
 
 ---
 
-## Installation
+## **1. Installation**
 
 Ensure that the following dependencies are installed:
 
@@ -37,73 +118,81 @@ Ensure that the following dependencies are installed:
 1. Clone the repository into your catkin workspace:
    ```bash
    git clone https://github.com/your-repo/april_slam_cpp.git
+   ```
 
-    Install dependencies:
+2. Install dependencies:
+   ```bash
+   rosdep install --from-paths src --ignore-src -r -y
+   ```
 
-    bash
+3. Build the workspace:
+   ```bash
+   catkin_make
+   ```
 
-rosdep install --from-paths src --ignore-src -r -y
+4. Source the workspace:
+   ```bash
+   source devel/setup.bash
+   ```
 
-Build the workspace:
+---
 
-bash
+## **2. Core Components**
 
-catkin_make
+### 1. AprilTag Detection
 
-Source the workspace:
+The system uses AprilTags for robust feature detection. Three camera topics (`mCam`, `rCam`, `lCam`) are subscribed to detect AprilTags in their respective fields of view.
 
-bash
-
-    source devel/setup.bash
-
-Core Components
-1. AprilTag Detection
-
-The system uses AprilTags for robust feature detection. Three camera topics (mCam, rCam, lCam) are subscribed to detect AprilTags in their respective fields of view.
-2. GTSAM Optimization
+### 2. GTSAM Optimization
 
 GTSAM performs factor graph-based optimization using:
 
-    Odometry factors for pose estimation
-    Bearing-Range factors for landmarks
+- Odometry factors for pose estimation
+- Bearing-Range factors for landmarks
 
-Mathematical Foundation
-Pose Representation
+---
 
-The pose of the robot is represented using gtsam::Pose2, which includes:
+## **3. Mathematical Foundation**
 
-    (x, y): Position of the robot in the 2D plane
-    θ: Orientation of the robot
+### Pose Representation
 
-Relative Pose Calculation
+The pose of the robot is represented using `gtsam::Pose2`, which includes:
 
-The function relPoseFG computes the relative pose between two Pose2 objects. It returns the relative distance, adjusted for orientation, assuming that the robot cannot move sideways.
-Graph-Based SLAM
+- `(x, y)`: Position of the robot in the 2D plane
+- `θ`: Orientation of the robot
 
-    The system uses odometry constraints (between consecutive poses) and bearing-range constraints (between poses and landmarks).
-    GTSAM's ISAM2 optimizer is used for real-time, incremental optimization of the factor graph.
+### Relative Pose Calculation
 
-Key Functions and Code Structure
-1. wrapToPi
+The function `relPoseFG` computes the relative pose between two `Pose2` objects. It returns the relative distance, adjusted for orientation, assuming that the robot cannot move sideways.
 
-This function normalizes any angle to the range [−π,π][−π,π]. This is crucial for ensuring that angular differences are always within a reasonable range for optimization.
+### Graph-Based SLAM
 
-cpp
+The system uses odometry constraints (between consecutive poses) and bearing-range constraints (between poses and landmarks).
+GTSAM's ISAM2 optimizer is used for real-time, incremental optimization of the factor graph.
 
+---
+
+## **4. Key Functions and Code Structure**
+
+### 1. wrapToPi
+
+This function normalizes any angle to the range `[−π, π]`. This is crucial for ensuring that angular differences are always within a reasonable range for optimization.
+
+```cpp
 double wrapToPi(double angle) {
     angle = fmod(angle + M_PI, 2 * M_PI);
     return angle - M_PI;
 }
+```
 
-2. relPoseFG
+### 2. relPoseFG
 
-The function computes the relative pose between two gtsam::Pose2 objects by converting the difference in poses into robot-relative coordinates.
+The function computes the relative pose between two `gtsam::Pose2` objects by converting the difference in poses into robot-relative coordinates.
 
-    Input: Two Pose2 objects (lastPoseSE2 and PoseSE2).
-    Output: Relative Pose2 that represents the robot's motion from lastPoseSE2 to PoseSE2.
+- **Input**: Two `Pose2` objects (`lastPoseSE2` and `PoseSE2`)
+- **Output**: Relative `Pose2` that represents the robot's motion from `lastPoseSE2` to `PoseSE2`
 
-cpp
-
+```cpp
 gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& PoseSE2) {
     double dx = PoseSE2.x() - lastPoseSE2.x();
     double dy = PoseSE2.y() - lastPoseSE2.y();
@@ -113,18 +202,18 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
     double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
     return gtsam::Pose2(dx_body, 0, dtheta);
 }
+```
 
-3. AprilSlam Node Initialization
+### 3. AprilSlam Node Initialization
 
-In the constructor of aprilslamcpp, multiple parameters are read from ROS parameters to configure the system, such as:
+In the constructor of `aprilslamcpp`, multiple parameters are read from ROS parameters to configure the system, such as:
 
-    Noise models
-    Thresholds for stationary detection
-    Paths for saving/loading landmarks
-    Subscriber and publisher topics
+- Noise models
+- Thresholds for stationary detection
+- Paths for saving/loading landmarks
+- Subscriber and publisher topics
 
-cpp
-
+```cpp
 aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     : nh_(node_handle), tf_listener_(tf_buffer_) {
     nh_.getParam("odom_topic", odom_topic);
@@ -139,24 +228,24 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     mCam_subscriber = nh_.subscribe(mCam_topic, 1000, &aprilslamcpp::mCamCallback, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
 }
+```
 
-4. GTSAM Optimization
+### 4. GTSAM Optimization
 
-The SAMOptimise function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the updated estimates are stored for the next iteration.
+The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the updated estimates are stored for the next iteration.
 
-cpp
-
+```cpp
 void aprilslamcpp::SAMOptimise() {
     gtsam::Levenberg-MarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     keyframeEstimates_ = batchOptimizer.optimize();
 }
+```
 
-5. Visualization
+### 5. Visualization
 
 This function publishes loop closure visualization markers in RViz. It draws a green line between the current pose and the keyframe pose when a loop closure is detected.
 
-cpp
-
+```cpp
 void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPose, const gtsam::Pose2& keyframePose, int currentPoseIndex, const std::string& frame_id) {
     visualization_msgs::Marker line_marker;
     line_marker.header.frame_id = frame_id;
@@ -174,13 +263,13 @@ void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPos
 
     lc_pub.publish(line_marker);
 }
+```
 
-6. Odometry Processing
+### 6. Odometry Processing
 
 This function processes the incoming odometry messages, updates the pose, and adds a factor to the graph for odometry constraints.
 
-cpp
-
+```cpp
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
     if (position_change < stationary_position_threshold) return;
@@ -189,13 +278,13 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     gtsam::Pose2 predictedPose = lastPose_.compose(relPoseFG(lastPoseSE2_, poseSE2));
     keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
 }
+```
 
-7. Landmark Processing
+### 7. Landmark Processing
 
 Landmark detection is handled by AprilTag detections. The detected landmarks are added to the factor graph as bearing-range factors.
 
-cpp
-
+```cpp
 void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vector<Eigen::Vector2d>& tagPos) {
     for (size_t n = 0; n < Id.size(); ++n) {
         gtsam::Symbol landmarkKey('L', Id[n]);
@@ -205,21 +294,32 @@ void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vecto
         keyframeGraph_.add(factor);
     }
 }
+```
 
-How to Run
+---
 
-    Launch the SLAM node:
+## **5. How to Run**
 
-    bash
+Launch the SLAM node:
 
-    roslaunch aprilslamcpp slam.launch
+```bash
+roslaunch aprilslamcpp slam.launch
+```
 
-    Start the cameras and odometry data sources.
+Start the cameras and odometry data sources.
 
-    View the output in RViz by subscribing to the /loop_closure_markers topic.
+View the output in RViz by subscribing to the `/loop_closure_markers` topic.
 
-Future Work
+---
 
-    Loop Closure Enhancements: Current loop closure detection is based on re-observing landmarks. We can integrate feature-based methods for more robust detection.
-    Dynamic Environments: Adapting the SLAM algorithm for dynamic environments where landmarks move or disappear.
+## **6. Future Work**
+
+- **Loop Closure Enhancements**: Current loop closure detection is based on re-observing landmarks. We can integrate feature-based methods for more robust detection.
+- **Dynamic Environments**: Adapting the SLAM algorithm for dynamic environments where landmarks move or disappear.
+
+
+
+
+
+
 
