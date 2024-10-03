@@ -12,6 +12,28 @@ Calibration is performed using SAM (Smoothing and Mapping), where all poses, lan
 
 Localization utilizes prior knowledge of relatively accurate landmark positions. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
 
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Installation](#installation)
+   1. [Common Errors and Fixes](#common-errors-and-fixes)
+3. [Core Components](#core-components)
+   1. [AprilTag Detection](#apriltag-detection)
+   2. [Odometry](#odometry)
+   3. [GTSAM Optimization](#gtsam-optimization)
+4. [Mathematical Foundation](#mathematical-foundation)
+   1. [Graph-Based SLAM](#graph-based-slam)
+5. [Key Functions and Code Structure](#key-functions-and-code-structure)
+   1. [relPoseFG](#relposefg)
+   2. [AprilSlam Node Initialization](#aprilslam-node-initialization)
+   3. [Optimization](#optimization)
+   4. [Odometry Processing](#odometry-processing)
+   5. [Calibration](#calibration)
+6. [Localization](#localization)
+   1. [Pre-mapped Landmark Loading](#pre-mapped-landmark-loading-and-incorporating-into-the-system)
+7. [How to Run](#how-to-run)
+8. [Future Work](#future-work)
+
 ## **1. Installation**
 
 Ensure that the following dependencies are installed:
@@ -22,7 +44,7 @@ Ensure that the following dependencies are installed:
 
 Download the code and put it into your catkin workspace, then run catkin_make to run it.
 
-### Some Remarks: 
+### Common Errors and Fixes: 
 
 1. error: ‘optional’ in namespace ‘std’ does not name a template type
 	std::optional is c++17 only, add this line to your cmake file:
