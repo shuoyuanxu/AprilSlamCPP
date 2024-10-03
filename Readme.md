@@ -30,7 +30,7 @@ Localization utilizes prior knowledge of relatively accurate landmark positions.
    4. [Odometry Processing](#odometry-processing)
    5. [Calibration](#calibration)
 6. [Localization](#localization)
-   1. [Pre-mapped Landmark Loading](#pre-mapped-landmark-loading-and-incorporating-into-the-system)
+   1. [Pre-mapped Landmark Loading and Incorporating into the System](#pre-mapped-landmark-loading-and-incorporating-into-the-system)
 7. [How to Run](#how-to-run)
 8. [Future Work](#future-work)
 
