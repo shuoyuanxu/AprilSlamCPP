@@ -15,7 +15,7 @@ Localization utilizes prior knowledge of relatively accurate landmark positions.
 ## Table of Contents
 
 - [Overview](#overview)
-- [Installation](#installation)
+- [Installation](#Installation)
 - [Core Components](#core-components)
 - [Mathematical Foundation](#mathematical-foundation)
 - [Key Functions and Code Structure](#key-functions-and-code-structure)
