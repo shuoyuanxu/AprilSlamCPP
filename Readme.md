@@ -305,7 +305,7 @@ The condition for bag finished is trigger by a preset time interval that no new 
 ### **9. Localization**
 
 The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
-![image](https://github.com/user-attachments/assets/4d746c1a-5932-4712-9f11-a94b6fa2dc4c)
+![image](https://github.com/user-attachments/assets/1e83bbe0-50d9-4fd5-beff-386e27deba49)
 
 #### Pre-mapped Landmark Loading and Incorporating into the System
 
