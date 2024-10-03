@@ -14,25 +14,25 @@ Localization utilizes prior knowledge of relatively accurate landmark positions.
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Installation](#1-installation)
-   1. [Common Errors and Fixes](#common-errors-and-fixes)
-3. [Core Components](#2-core-components)
+1. [Installation](#1-installation)
+   1. [Common Errors and Fixes](#1-common-errors-and-fixes)
+2. [Core Components](#2-core-components)
    1. [AprilTag Detection](#1-apriltag-detection)
    2. [Odometry](#2-odometry)
    3. [GTSAM Optimization](#3-gtsam-optimization)
-4. [Mathematical Foundation](#3-mathematical-foundation)
-   1. [Graph-Based SLAM](#graph-based-slam)
-5. [Key Functions and Code Structure](#4-key-functions-and-code-structure)
+3. [Mathematical Foundation](#3-mathematical-foundation)
+   1. [Assumptions](#1-assumptions)
+   2. [Graph-Based SLAM](#2-graph-based-slam)
+4. [Key Functions and Code Structure](#4-key-functions-and-code-structure)
    1. [relPoseFG](#1-relposefg)
    2. [AprilSlam Node Initialization](#2-aprilslam-node-initialization)
    3. [Optimization](#3-optimization)
    4. [Odometry Processing](#4-odometry-processing)
    5. [Calibration](#5-calibration)
-6. [Localization](#5-localization)
-   1. [Pre-mapped Landmark Loading and Incorporating into the System](#pre-mapped-landmark-loading-and-incorporating-into-the-system)
-7. [How to Run](#6-how-to-run)
-8. [Future Work](#7-future-work)
+   6. [Localization](#6-localization)
+5. [How to Run](#5-how-to-run)
+6. [Tuning](#6-tuning)
+7. [Future Work](#7-future-work)
 
 
 ## **1. Installation**
@@ -45,7 +45,7 @@ Ensure that the following dependencies are installed:
 
 Download the code and put it into your catkin workspace, then run catkin_make to run it.
 
-### 1. Common Errors and Fixes: 
+### **1. Common Errors and Fixes:** 
 
 1. error: ‘optional’ in namespace ‘std’ does not name a template type
 	std::optional is c++17 only, add this line to your cmake file:
@@ -84,15 +84,15 @@ catkin_make --pkg AprilSlamCPP
 
 ## **2. Core Components**
 
-### 1. AprilTag Detection
+### **1. AprilTag Detection**
 
 The system uses AprilTags for robust feature detection. Three camera topics (`mCam`, `rCam`, `lCam`) are subscribed to detect AprilTags in their respective fields of view.
 
-### 2. Odometry
+### **2. Odometry**
 
 The system utilizes odometry data from various sensors, including wheel encoders, IMU, GPS, or LiDAR, to compute relative poses for constructing the factor graph. For optimal results, we recommend using accurate odometry sources, such as LiDAR, during the calibration phase. As for localization, other odometry sources can be effectively, as long as the sensor provides reasonably reliable and consistent data. This flexibility allows the system to accommodate different sensor configurations, making it adaptable to various environments and use cases.
 
-### 3. GTSAM Optimization
+### **3. GTSAM Optimization**
 
 GTSAM performs factor graph-based optimization using:
 
@@ -104,7 +104,7 @@ GTSAM performs factor graph-based optimization using:
 
 ## **3. Mathematical Foundation**
 
-### 1. Assumptions
+### **1. Assumptions**
 
 The algorithm operates on a 2D plane, assuming that vertical differences do not impact performance. The robot's pose is represented using `gtsam::Pose2`, which includes:
 
@@ -112,7 +112,7 @@ The algorithm operates on a 2D plane, assuming that vertical differences do not 
 - `θ`: The robot's orientation
 - The function `relPoseFG` calculates the relative pose between two `Pose2` objects, returning the relative distance and adjusting for orientation. It assumes that **the robot cannot move sideways**.
 
-### 2. Graph-Based SLAM
+### **2. Graph-Based SLAM**
 
 The system applies odometry constraints (between consecutive poses) and bearing-range constraints (between poses and landmarks). Both SAM and ISAM2 optimizers can be utilized. Here’s a simple comparison between these two optimizers:
 
@@ -313,8 +313,6 @@ The condition for bag finished is trigger by a preset time interval that no new 
 The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
 ![image](https://github.com/user-attachments/assets/1e83bbe0-50d9-4fd5-beff-386e27deba49)
 
-#### Pre-mapped Landmark Loading and Incorporating into the System
-
 The system can load pre-mapped landmark locations from a CSV file, which can be used as priors for localization. When initializing the SLAM system, the pre-mapped landmarks are loaded and incorporated as priors into the GTSAM factor graph.
 
 ```cpp
@@ -357,7 +355,9 @@ View the output in RViz.
 
 ---
 
-## **6. Future Work**
+## **6. Tuning**
+
+## **7. Future Work**
 
 - **Loop Closure Enhancements**: Current loop closure detection is based on re-observing landmarks. We can integrate smarter logic for more robust detection.
 
