@@ -300,7 +300,10 @@ It is worth noting that `gtsam::Vector error = factor.unwhitenedError(landmarkEs
 Code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations.
 ![image](https://github.com/user-attachments/assets/33a27ead-4368-49e7-b587-ae3cf211938c)
 
-The condition for bag finished is trigger by a preset time interval that no new detections are received. 
+The condition for bag finished is trigger by a preset time interval that no new detections are received. Result can be compared with GT using the `align.py` script in `~/src/aprilslamcpp/config`, some example: 
+
+![Screenshot from 2024-10-03 16-21-09](https://github.com/user-attachments/assets/76e1654a-3b47-4bf6-8302-f8ae3b699367)
+![Screenshot from 2024-10-03 16-20-48](https://github.com/user-attachments/assets/beef65a7-bc4e-4616-b8a9-77fe90ddefb5)
 
 ### **9. Localization**
 
