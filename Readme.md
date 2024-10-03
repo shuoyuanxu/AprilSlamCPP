@@ -325,46 +325,7 @@ if (usepriortagtable) {
 }
 ```
 
-#### Localization using Landmark Observations
-
-When the robot observes a known landmark, the system uses a bearing-range factor to update the robot’s pose and ensure alignment with the pre-mapped landmarks.
-
-```cpp
-// Processing landmark observations for localization
-void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vector<Eigen::Vector2d>& tagPos) {
-    for (size_t n = 0; n < Id.size(); ++n) {
-        gtsam::Symbol landmarkKey('L', Id[n]);
-
-        // If the landmark exists in the pre-mapped landmarks
-        if (landmarkEstimates.exists(landmarkKey)) {
-            // Compute bearing and range to the observed landmark
-            double bearing = std::atan2(tagPos , tagPos );
-            double range = std::sqrt(tagPos  * tagPos  + tagPos  * tagPos );
-
-            // Add a bearing-range factor for this observation
-            keyframeGraph_.add(gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2>(
-                gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise));
-        }
-    }
-}
-```
-
-#### Updating the Pose Estimate
-
-As the system detects known landmarks and processes them, the robot’s pose is continuously refined based on the pre-mapped landmark locations.
-
-```cpp
-// Update the pose using ISAM2 or batch optimization
-void aprilslamcpp::ISAM2Optimise() {
-    isam_.update(keyframeGraph_, keyframeEstimates_);
-    auto result = isam_.calculateEstimate();
-
-    // Update the pose and publish the results
-    aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
-}
-```
-
----
+There are various confugurations can be applied in Localization algorithm to balance the efficiency and accuracy, so far the SAM with pruning works the best, heres the architecture: 
 
 ---
 
@@ -373,12 +334,14 @@ void aprilslamcpp::ISAM2Optimise() {
 Launch the SLAM node:
 
 ```bash
-roslaunch aprilslamcpp slam.launch
+roslaunch aprilslamcpp run_localisation.launch 
+
+roslaunch aprilslamcpp run_calibration.launch 
 ```
 
-Start the cameras and odometry data sources.
+Start the cameras and odometry data sources or start replaying the bag file (e.g. rosbag play matt_DLO.bag).
 
-View the output in RViz by subscribing to the `/loop_closure_markers` topic.
+View the output in RViz.
 
 ---
 
