@@ -30,9 +30,10 @@ Localization utilizes prior knowledge of relatively accurate landmark positions.
    4. [Odometry Processing](#4-odometry-processing)
    5. [Calibration](#5-calibration)
    6. [Localization](#6-localization)
+   7. [Keyframe](#7-Keyframe)
+   8. [Stationary Condition](#8-stationary-condition)
 5. [How to Run](#5-how-to-run)
-6. [Tuning](#6-tuning)
-7. [Future Work](#7-future-work)
+6. [Future Work](#6-future-work)
 
 
 ## **1. Installation**
@@ -337,6 +338,56 @@ useloopclosure: false
 usekeyframe: true
 ```
 
+### **7. Keyframe**
+
+This function `shouldAddKeyframe` determines whether a new keyframe should be added based on:
+
+1. The robot moves a certain distance.
+2. The robot rotates beyond a certain angle.
+3. New landmarks are detected.
+
+```cpp
+bool aprilslamcpp::shouldAddKeyframe(
+    const gtsam::Pose2& lastPose, 
+    const gtsam::Pose2& currentPose, 
+    std::set<gtsam::Symbol> oldlandmarks, 
+    std::set<gtsam::Symbol> detectedLandmarksCurrentPos) {
+    // Calculate the distance between the current pose and the last keyframe pose
+    double distance = lastPose.range(currentPose);
+    // Iterate over detectedLandmarksCurrentPos, add key if new tag is detected
+    for (const auto& landmark : detectedLandmarksCurrentPos) {
+        // If the landmark is not found in oldLandmarks, return true
+        if (oldlandmarks.find(landmark) == oldlandmarks.end()) {
+            return true;
+        }
+    }
+    // Calculate the difference in orientation (theta) between the current pose and the last keyframe pose
+    double angleDifference = std::abs(wrapToPi(currentPose.theta() - lastPose.theta()));
+
+    // Check if either the distance moved or the rotation exceeds the threshold
+    if (distance > distanceThreshold || angleDifference > rotationThreshold) {
+        return true;  // Add a new keyframe
+    }
+    return false;  // Do not add a keyframe
+}
+```
+
+### **8. Stationary Condition**
+
+This section of code determines not to build a graph when robot is stationay to save computational cost:
+
+```cpp
+// Calculate the distance and rotation change from the last pose
+double position_change = std::hypot(poseSE2.x() - lastPoseSE2_.x(), poseSE2.y() - lastPoseSE2_.y());
+double rotation_change = std::abs(wrapToPi(poseSE2.theta() - lastPoseSE2_.theta()));
+
+// Check if the movement exceeds the thresholds
+if (position_change < stationary_position_threshold && rotation_change < stationary_rotation_threshold) {
+    // Robot is stationary; skip factor graph update
+    return;
+}
+```
+
 ---
 
 ## **5. How to Run**
@@ -355,9 +406,7 @@ View the output in RViz.
 
 ---
 
-## **6. Tuning**
-
-## **7. Future Work**
+## **6. Future Work**
 
 - **Loop Closure Enhancements**: Current loop closure detection is based on re-observing landmarks. We can integrate smarter logic for more robust detection.
 
