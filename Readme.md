@@ -42,6 +42,8 @@ Ensure that the following dependencies are installed:
 - **GTSAM** (Georgia Tech Smoothing And Mapping library)
 - **Eigen** - For matrix computations
 
+Download the code and put it into your catkin workspace, then run catkin_make to run it.
+
 ### Some Remarks: 
 
 1. error: ‘optional’ in namespace ‘std’ does not name a template type
@@ -111,7 +113,7 @@ The algorithm operates on a 2D plane, assuming that vertical differences do not 
 
 ### Graph-Based SLAM
 
-The system applies odometry constraints (between consecutive poses) and bearing-range constraints (between poses and landmarks). Both SAM and ISAM2 optimizers are utilized. Here’s a simple comparison between these two optimizers:
+The system applies odometry constraints (between consecutive poses) and bearing-range constraints (between poses and landmarks). Both SAM and ISAM2 optimizers can be utilized. Here’s a simple comparison between these two optimizers:
 
 | Feature                | SAM (Batch Optimization)                     | iSAM2 (Incremental Optimization)        |
 |------------------------|----------------------------------------------|-----------------------------------------|
@@ -140,7 +142,7 @@ The system applies odometry constraints (between consecutive poses) and bearing-
 
 ## **4. Key Functions and Code Structure**
 
-### 2. relPoseFG
+### 1. relPoseFG
 
 Our odometry does not give relative pose directly, instead it gives pose estimations. Therefore, a function computes the relative pose between two `gtsam::Pose2` objects is required:
 
@@ -159,7 +161,7 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 }
 ```
 
-### 3. AprilSlam Node Initialization
+### 2. AprilSlam Node Initialization
 
 In the constructor of `aprilslamcpp`, multiple parameters are read from ROS parameters to configure the system, such as:
 
@@ -185,14 +187,19 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 }
 ```
 
-### 4. Optimization
+### 3. Optimization
 
-The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the input estimates are updated and will be used for the next iteration. Due to the fact that SAM is normally computationally heavy, we recommand to use our pruning function 'pruneGraphByPoseCount' to manage the total size of the factor graph.
+The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the input estimates are updated and will be used for the next iteration. Due to the fact that SAM is normally computationally heavy, we recommand to use our pruning function 'pruneGraphByPoseCount' to manage the total size of the factor graph when trying to run it in real time.
 
 ```cpp
 void aprilslamcpp::SAMOptimise() {
     gtsam::Levenberg-MarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     keyframeEstimates_ = batchOptimizer.optimize();
+
+    // Prune the graph based on the number of poses
+    if (useprunebysize) {
+    pruneGraphByPoseCount(maxfactors);
+    }
 }
 ```
 The `ISAM2Optimise` function performs incremental optimization of the factor graph using GTSAM’s iSAM2 optimizer. Estimates on all poses and landmarks plus the entire graph is stored in a 'gtsam::ISAM2 isam_' variable, which can only be updated but not trimed. Therefore, after every ISAM2 iteration, historic estimates and graph needs to be cleaned to avoid repetitive data appeared in isam_ variable. Since ISAM2 is not computationally heavy, no graph management approach is required
@@ -285,126 +292,25 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     }      
 }
 ```
-It is worth noting that `gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);` this line is used for identifying if a landmark too much of an outliner to be added to the factor graph
+It is worth noting that `gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);` this line is used for identifying whjether a landmark is too much of an outliner to be added to the factor graph.
 
 
 ### **8. Calibration**
 
-#### Code Architecture
-
 Code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations.
 ![image](https://github.com/user-attachments/assets/33a27ead-4368-49e7-b587-ae3cf211938c)
 
+The condition for bag finished is trigger by a preset time interval that no new detections are received. 
 
-####  SAM (Smoothing and Mapping)
 
-    Batch Optimization: SAM refers to the process of performing batch optimization. In this approach, all the factors and measurements are collected, and optimization is performed on the entire graph at once. This is known as batch least squares optimization (often using methods like Levenberg-Marquardt or Gauss-Newton).
-    Full Graph Optimization: In batch optimization, the entire factor graph is optimized every time new measurements are added. This results in a globally optimal solution at each optimization step but is computationally expensive.
-    Not Real-time: Because SAM performs optimization over the entire graph every time, it can become slow and resource-heavy as the graph grows, making it unsuitable for real-time applications or systems with large datasets.
-    Higher Memory Usage: Since batch optimization works on the full dataset, it requires more memory to store and process the entire factor graph.
-
-#### Pre-mapped Landmark Loading
-
-The system can load pre-mapped landmark locations from a CSV file, which can be used as priors for localization.
-
-```cpp
-// Load pre-mapped landmarks from a CSV file
-std::map<int, gtsam::Point2> loadLandmarksFromCSV(const std::string& filepath) {
-    // Implementation for loading the landmarks from CSV
-    std::map<int, gtsam::Point2> landmarks;
-    // ... CSV parsing and loading into landmarks map
-    return landmarks;
-}
-```
-
-#### Incorporating Pre-mapped Landmarks into the SLAM System
-
-When initializing the SLAM system, the pre-mapped landmarks are loaded and incorporated as priors into the GTSAM factor graph.
-
-```cpp
-// During the constructor of aprilslamcpp
-if (usepriortagtable) {
-    std::map<int, gtsam::Point2> savedLandmarks = loadLandmarksFromCSV(pathtoloadlandmarkcsv);
-    for (const auto& landmark : savedLandmarks) {
-        gtsam::Symbol landmarkKey('L', landmark.first);
-        keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(landmarkKey, landmark.second, pointNoise));
-        keyframeEstimates_.insert(landmarkKey, landmark.second);
-        landmarkEstimates.insert(landmarkKey, landmark.second);
-    }
-}
-```
-
-#### Localization using Landmark Observations
-
-When the robot observes a known landmark, the system uses a bearing-range factor to update the robot’s pose and ensure alignment with the pre-mapped landmarks.
-
-```cpp
-// Processing landmark observations for localization
-void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vector<Eigen::Vector2d>& tagPos) {
-    for (size_t n = 0; n < Id.size(); ++n) {
-        gtsam::Symbol landmarkKey('L', Id[n]);
-
-        // If the landmark exists in the pre-mapped landmarks
-        if (landmarkEstimates.exists(landmarkKey)) {
-            // Compute bearing and range to the observed landmark
-            double bearing = std::atan2(tagPos , tagPos );
-            double range = std::sqrt(tagPos  * tagPos  + tagPos  * tagPos );
-
-            // Add a bearing-range factor for this observation
-            keyframeGraph_.add(gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2>(
-                gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise));
-        }
-    }
-}
-```
-
-#### Updating the Pose Estimate
-
-As the system detects known landmarks and processes them, the robot’s pose is continuously refined based on the pre-mapped landmark locations.
-
-```cpp
-// Update the pose using ISAM2 or batch optimization
-void aprilslamcpp::ISAM2Optimise() {
-    isam_.update(keyframeGraph_, keyframeEstimates_);
-    auto result = isam_.calculateEstimate();
-
-    // Update the pose and publish the results
-    aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
-}
-```
-
----
----
 
 ### **9. Localization**
 
 The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
 
-#### iSAM2 (Incremental Smoothing and Mapping)
+#### Pre-mapped Landmark Loading and Incorporating into the System
 
-    Incremental Optimization: iSAM2 is designed for incremental optimization, meaning it only updates parts of the factor graph as new measurements come in. This makes it more efficient for real-time applications.
-    Efficient Updates: iSAM2 performs partial relinearization and reordering of the factor graph. It doesn’t re-optimize the entire graph every time but incrementally updates the parts affected by new measurements. This allows for faster updates with minimal computational cost.
-    Real-time Capable: iSAM2 is specifically designed for real-time applications like SLAM. By only updating relevant portions of the graph, it can maintain a good approximation of the solution without needing to recompute everything.
-    Lower Memory Usage: Because iSAM2 only processes parts of the graph incrementally, it has lower memory requirements compared to batch SAM.
-    ISAM2 Improvements: iSAM2 includes several improvements over its predecessor iSAM, including better handling of relinearization, improved efficiency in graph reordering, and the ability to work on more complex graphs.
-
-#### Pre-mapped Landmark Loading
-
-The system can load pre-mapped landmark locations from a CSV file, which can be used as priors for localization.
-
-```cpp
-// Load pre-mapped landmarks from a CSV file
-std::map<int, gtsam::Point2> loadLandmarksFromCSV(const std::string& filepath) {
-    // Implementation for loading the landmarks from CSV
-    std::map<int, gtsam::Point2> landmarks;
-    // ... CSV parsing and loading into landmarks map
-    return landmarks;
-}
-```
-
-#### Incorporating Pre-mapped Landmarks into the SLAM System
-
-When initializing the SLAM system, the pre-mapped landmarks are loaded and incorporated as priors into the GTSAM factor graph.
+The system can load pre-mapped landmark locations from a CSV file, which can be used as priors for localization. When initializing the SLAM system, the pre-mapped landmarks are loaded and incorporated as priors into the GTSAM factor graph.
 
 ```cpp
 // During the constructor of aprilslamcpp
