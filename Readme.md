@@ -217,38 +217,80 @@ void aprilslamcpp::ISAM2Optimise() {
 
 ### 6. Odometry Processing
 
-This function processes the incoming odometry messages, updates the pose, and adds a factor to the graph for odometry constraints.
+This function is where the factor graph is built and corresponding estimates are inserted whenever a new steam of odometry data comes in:
+
+```cpp
+    odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
+```
+
+Once the odom are received, the soonest tag detections will be used to formulate the factor graph, once this function is finished running with the current odometry, a estimates (`keyframeEstimates_`) containing all the pos and landmarks, as well as a factor graph (`keyframeGraph_`) containing pose prior, landmark prior (`PriorFactor`), lanmark observation (`BearingRangeFactor`), and pos to pos factor (`BetweenFactor`) are formulated
 
 ```cpp
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
-    gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
-    if (position_change < stationary_position_threshold) return;
+	// Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
+	gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
+	...
+	keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
+	...
+	if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
+        auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
+		// Access the elements of the std::pair
+		...
+        if (!Id.empty()) {
+            for (size_t n = 0; n < Id.size(); ++n) {
+                int tag_number = Id[n];        
+                ...
+                gtsam::Point2 priorLand(rotatedPosition.x() + lastPose_.x(), rotatedPosition.y() + lastPose_.y());
+				...
+                // Construct the landmark key
+                gtsam::Symbol landmarkKey('L', tag_number);  
+				...
+                // Check if the landmark has been observed before
+                if (detectedLandmarksHistoric.find(landmarkKey) != detectedLandmarksHistoric.end()) {
+                    // Existing landmark
+                    gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                        gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                    );
+                    gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
 
-    index_of_pose++;
-    gtsam::Pose2 predictedPose = lastPose_.compose(relPoseFG(lastPoseSE2_, poseSE2));
-    keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
+                    // Threshold for ||projection - measurement||
+                    if (fabs(error[0]) < add2graph_threshold) keyframeGraph_.add(factor);
+                } 
+                else {
+                    // If the current landmark was not detected in the calibration run 
+                    // Or it's on calibration mode
+                    if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
+                    // New landmark detected
+                    detectedLandmarksHistoric.insert(landmarkKey);
+                    // Check if the key already exists in keyframeEstimates_ before inserting
+                    if (keyframeEstimates_.exists(landmarkKey)) {
+                    } else {
+                        keyframeEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
+                    }
+					...
+                    // Add a prior for the landmark position to help with initial estimation.
+                    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                        landmarkKey, priorLand, pointNoise)
+                    );
+                    }
+                    // Add a bearing-range observation for this landmark to the graph
+                    gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
+                        gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
+                    );
+                    keyframeGraph_.add(factor);
+                }
+				...
+			}
+        }
+    }      
 }
 ```
+It is worth noting that `gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);` this line is used for identifying if a landmark too much of an outliner to be added to the factor graph
 
-### 7. Landmark Processing
 
-Landmark detection is handled by AprilTag detections. The detected landmarks are added to the factor graph as bearing-range factors.
+### **8. Calibration**
 
-```cpp
-void aprilslamcpp::processLandmarks(const std::vector<int>& Id, const std::vector<Eigen::Vector2d>& tagPos) {
-    for (size_t n = 0; n < Id.size(); ++n) {
-        gtsam::Symbol landmarkKey('L', Id[n]);
-        gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-            gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-        );
-        keyframeGraph_.add(factor);
-    }
-}
-```
-
----
-
-### **8. Calibration Utilities**
+#### Code Architecture
 
 Code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations.
 
