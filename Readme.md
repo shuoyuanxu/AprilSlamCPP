@@ -27,9 +27,9 @@ Localization utilizes prior knowledge of relatively accurate landmark positions.
   - [Odometry Processing](#6-odometry-processing)
   - [Landmark Processing](#7-landmark-processing)
   - [Calibration](#8-calibration)
-  - [Localisation](#9-localisation)
+  - [Localization](#9-localization)
 - [How to Run](#how-to-run)
-- [Tunning](#tunning)
+- [Tuning](#tuning)
 - [Future Work](#future-work)
 
 ---
