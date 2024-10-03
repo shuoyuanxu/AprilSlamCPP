@@ -19,15 +19,6 @@ Localization utilizes prior knowledge of relatively accurate landmark positions.
 - [Core Components](#core-components)
 - [Mathematical Foundation](#mathematical-foundation)
 - [Key Functions and Code Structure](#key-functions-and-code-structure)
-  - [wrapToPi](#1-wraptopi)
-  - [relPoseFG](#2-relposefg)
-  - [AprilSlam Node Initialization](#3-aprilslam-node-initialization)
-  - [Optimization](#4-gtsam-optimization)
-  - [Visualization](#5-visualization)
-  - [Odometry Processing](#6-odometry-processing)
-  - [Landmark Processing](#7-landmark-processing)
-  - [Calibration](#8-calibration)
-  - [Localization](#9-localization)
 - [How to Run](#how-to-run)
 - [Tuning](#tuning)
 - [Future Work](#future-work)
@@ -142,7 +133,7 @@ The system applies odometry constraints (between consecutive poses) and bearing-
 
 ## **4. Key Functions and Code Structure**
 
-### 1. relPoseFG
+### **1. relPoseFG**
 
 Our odometry does not give relative pose directly, instead it gives pose estimations. Therefore, a function computes the relative pose between two `gtsam::Pose2` objects is required:
 
@@ -161,7 +152,7 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 }
 ```
 
-### 2. AprilSlam Node Initialization
+### **2. AprilSlam Node Initialization**
 
 In the constructor of `aprilslamcpp`, multiple parameters are read from ROS parameters to configure the system, such as:
 
@@ -187,7 +178,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 }
 ```
 
-### 3. Optimization
+### **3. Optimization**
 
 The `SAMOptimise` function performs batch optimization of the factor graph using GTSAM’s Levenberg-Marquardt optimizer. After the optimization, the input estimates are updated and will be used for the next iteration. Due to the fact that SAM is normally computationally heavy, we recommand to use our pruning function 'pruneGraphByPoseCount' to manage the total size of the factor graph when trying to run it in real time.
 
@@ -222,7 +213,7 @@ void aprilslamcpp::ISAM2Optimise() {
 }
 ```
 
-### 6. Odometry Processing
+### **4. Odometry Processing**
 
 This function is where the factor graph is built and corresponding estimates are inserted whenever a new steam of odometry data comes in:
 
@@ -295,7 +286,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 It is worth noting that `gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);` this line is used for identifying whjether a landmark is too much of an outliner to be added to the factor graph.
 
 
-### **8. Calibration**
+### **5. Calibration**
 
 Code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations.
 ![image](https://github.com/user-attachments/assets/33a27ead-4368-49e7-b587-ae3cf211938c)
@@ -307,7 +298,7 @@ The condition for bag finished is trigger by a preset time interval that no new 
 ![image](https://github.com/user-attachments/assets/54f23e6e-a070-47b9-81f6-06dca0350bf4)
 
 
-### **9. Localization**
+### **6. Localization**
 
 The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
 ![image](https://github.com/user-attachments/assets/1e83bbe0-50d9-4fd5-beff-386e27deba49)
