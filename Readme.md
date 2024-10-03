@@ -304,6 +304,8 @@ The condition for bag finished is trigger by a preset time interval that no new 
 
 ![Screenshot from 2024-10-03 16-21-09](https://github.com/user-attachments/assets/76e1654a-3b47-4bf6-8302-f8ae3b699367)
 ![Screenshot from 2024-10-03 16-20-48](https://github.com/user-attachments/assets/beef65a7-bc4e-4616-b8a9-77fe90ddefb5)
+![image](https://github.com/user-attachments/assets/54f23e6e-a070-47b9-81f6-06dca0350bf4)
+
 
 ### **9. Localization**
 
@@ -327,7 +329,14 @@ if (usepriortagtable) {
 }
 ```
 
-There are various confugurations can be applied in Localization algorithm to balance the efficiency and accuracy, so far the SAM with pruning works the best, heres the architecture: 
+There are various confugurations can be applied in Localization algorithm to balance the efficiency and accuracy, so far the SAM with pruning works the best, the optimal settings for localisation alorithm: 
+
+```
+useprunebysize: true # no point of using it with ISAM2
+useisam2: false # true for ISAM2, false for SAM
+useloopclosure: false
+usekeyframe: true
+```
 
 ---
 
