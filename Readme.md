@@ -302,11 +302,10 @@ Code will wait until the bag finished playing and a graph containing all pose, o
 
 The condition for bag finished is trigger by a preset time interval that no new detections are received. 
 
-
-
 ### **9. Localization**
 
 The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
+![image](https://github.com/user-attachments/assets/4d746c1a-5932-4712-9f11-a94b6fa2dc4c)
 
 #### Pre-mapped Landmark Loading and Incorporating into the System
 
