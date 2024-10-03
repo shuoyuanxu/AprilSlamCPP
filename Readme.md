@@ -293,6 +293,8 @@ It is worth noting that `gtsam::Vector error = factor.unwhitenedError(landmarkEs
 #### Code Architecture
 
 Code will wait until the bag finished playing and a graph containing all pose, odometry, landmarks, and landmark detections is built. Then the SAMOptimize function will run once to obtain the landmark locations.
+![image](https://github.com/user-attachments/assets/33a27ead-4368-49e7-b587-ae3cf211938c)
+
 
 ####  SAM (Smoothing and Mapping)
 
