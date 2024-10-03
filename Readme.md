@@ -15,24 +15,25 @@ Localization utilizes prior knowledge of relatively accurate landmark positions.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Installation](#installation)
+2. [Installation](#1-installation)
    1. [Common Errors and Fixes](#common-errors-and-fixes)
-3. [Core Components](#core-components)
-   1. [AprilTag Detection](#apriltag-detection)
-   2. [Odometry](#odometry)
-   3. [GTSAM Optimization](#gtsam-optimization)
-4. [Mathematical Foundation](#mathematical-foundation)
-   1. [Graph-Based SLAM](#graph-based-slam)
-5. [Key Functions and Code Structure](#key-functions-and-code-structure)
-   1. [relPoseFG](#relposefg)
-   2. [AprilSlam Node Initialization](#aprilslam-node-initialization)
-   3. [Optimization](#optimization)
-   4. [Odometry Processing](#odometry-processing)
-   5. [Calibration](#calibration)
-6. [Localization](#localization)
-   1. [Pre-mapped Landmark Loading and Incorporating into the System](#pre-mapped-landmark-loading-and-incorporating-into-the-system)
-7. [How to Run](#how-to-run)
-8. [Future Work](#future-work)
+3. [Core Components](#2-core-components)
+   1. [AprilTag Detection](#21-apriltag-detection)
+   2. [Odometry](#22-odometry)
+   3. [GTSAM Optimization](#23-gtsam-optimization)
+4. [Mathematical Foundation](#3-mathematical-foundation)
+   1. [Graph-Based SLAM](#31-graph-based-slam)
+5. [Key Functions and Code Structure](#4-key-functions-and-code-structure)
+   1. [relPoseFG](#41-relposefg)
+   2. [AprilSlam Node Initialization](#42-aprilslam-node-initialization)
+   3. [Optimization](#43-optimization)
+   4. [Odometry Processing](#44-odometry-processing)
+   5. [Calibration](#45-calibration)
+6. [Localization](#5-localization)
+   1. [Pre-mapped Landmark Loading and Incorporating into the System](#51-pre-mapped-landmark-loading-and-incorporating-into-the-system)
+7. [How to Run](#6-how-to-run)
+8. [Future Work](#7-future-work)
+
 
 ## **1. Installation**
 
@@ -44,7 +45,7 @@ Ensure that the following dependencies are installed:
 
 Download the code and put it into your catkin workspace, then run catkin_make to run it.
 
-### Common Errors and Fixes: 
+### 1. Common Errors and Fixes: 
 
 1. error: ‘optional’ in namespace ‘std’ does not name a template type
 	std::optional is c++17 only, add this line to your cmake file:
@@ -103,7 +104,7 @@ GTSAM performs factor graph-based optimization using:
 
 ## **3. Mathematical Foundation**
 
-### Assumptions
+### 1. Assumptions
 
 The algorithm operates on a 2D plane, assuming that vertical differences do not impact performance. The robot's pose is represented using `gtsam::Pose2`, which includes:
 
@@ -111,7 +112,7 @@ The algorithm operates on a 2D plane, assuming that vertical differences do not 
 - `θ`: The robot's orientation
 - The function `relPoseFG` calculates the relative pose between two `Pose2` objects, returning the relative distance and adjusting for orientation. It assumes that **the robot cannot move sideways**.
 
-### Graph-Based SLAM
+### 2. Graph-Based SLAM
 
 The system applies odometry constraints (between consecutive poses) and bearing-range constraints (between poses and landmarks). Both SAM and ISAM2 optimizers can be utilized. Here’s a simple comparison between these two optimizers:
 
