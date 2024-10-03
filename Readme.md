@@ -12,23 +12,6 @@ Calibration is performed using SAM (Smoothing and Mapping), where all poses, lan
 
 Localization utilizes prior knowledge of relatively accurate landmark positions. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Calibration](#calibration)
-- [Localization](#localization)
-- [Table of Contents](#table-of-contents)
-- [Installation](#installation)
-- [Common Errors and Fixes](#common-errors-and-fixes)
-- [Core Components](#core-components)
-- [Mathematical Foundation](#mathematical-foundation)
-- [Key Functions and Code Structure](#key-functions-and-code-structure)
-- [How to Run](#how-to-run)
-- [Tuning](#tuning)
-- [Future Work](#future-work)
-
----
-
 ## **1. Installation**
 
 Ensure that the following dependencies are installed:
