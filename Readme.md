@@ -358,11 +358,11 @@ View the output in RViz.
 
 ## **6. Future Work**
 
-- **Loop Closure Enhancements**: Current loop closure detection is based on re-observing landmarks. We can integrate feature-based methods for more robust detection.
+- **Loop Closure Enhancements**: Current loop closure detection is based on re-observing landmarks. We can integrate smarter logic for more robust detection.
 
 ![LC_result](https://github.com/user-attachments/assets/cde22ab3-ba0d-4a79-8ee0-9077fb1eb258)
 
-- **Dynamic Environments**: Adapting the SLAM algorithm for dynamic environments where landmarks move or disappear.
+- **Vehicle Dynamic**: Adapting the controller input to accomendate vehicle backward motion.
 
 
 
