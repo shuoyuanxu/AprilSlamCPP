@@ -313,6 +313,7 @@ The condition for bag finished is trigger by a preset time interval that no new 
 
 The localization feature leverages previously mapped landmark locations to estimate the robot’s pose in real-time. Here's a breakdown of how the localization is implemented in the system:
 ![image](https://github.com/user-attachments/assets/1e83bbe0-50d9-4fd5-beff-386e27deba49)
+![image](https://github.com/user-attachments/assets/f80f839f-2006-434a-98a0-f52385e00243)
 
 The system can load pre-mapped landmark locations from a CSV file, which can be used as priors for localization. When initializing the SLAM system, the pre-mapped landmarks are loaded and incorporated as priors into the GTSAM factor graph.
 
