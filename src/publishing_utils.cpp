@@ -82,6 +82,54 @@ void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_
     path_pub.publish(path);
 }
 
+void publishOdometryTrajectory(ros::Publisher& odom_pub, tf2_ros::TransformBroadcaster& tf_broadcaster, 
+                                        const gtsam::Values& result, int latest_index, 
+                                        const std::string& frame_id, const std::string& child_frame_id) {
+    // Define the symbol for the latest pose
+    gtsam::Symbol sym('X', latest_index);
+
+    // Check if the latest pose exists in the result
+    if (result.exists(sym)) {
+        gtsam::Pose2 pose = result.at<gtsam::Pose2>(sym);
+
+        // 1. Publish the Odometry message
+        nav_msgs::Odometry odom_msg;
+        odom_msg.header.frame_id = frame_id;
+        odom_msg.header.stamp = ros::Time::now();
+        odom_msg.child_frame_id = child_frame_id;
+
+        // Set position
+        odom_msg.pose.pose.position.x = pose.x();
+        odom_msg.pose.pose.position.y = pose.y();
+        odom_msg.pose.pose.position.z = 0;  // Assuming 2D
+
+        // Set orientation
+        tf2::Quaternion quat;
+        quat.setRPY(0, 0, pose.theta());
+        odom_msg.pose.pose.orientation = tf2::toMsg(quat);
+
+        // Publish the odometry message
+        odom_pub.publish(odom_msg);
+
+        // 2. Broadcast the transform
+        geometry_msgs::TransformStamped transform_stamped;
+        transform_stamped.header.stamp = ros::Time::now();
+        transform_stamped.header.frame_id = frame_id;      // Typically "map"
+        transform_stamped.child_frame_id = child_frame_id; // Typically "base_link"
+
+        // Set translation
+        transform_stamped.transform.translation.x = pose.x();
+        transform_stamped.transform.translation.y = pose.y();
+        transform_stamped.transform.translation.z = 0;
+
+        // Set rotation
+        transform_stamped.transform.rotation = tf2::toMsg(quat);
+
+        // Broadcast the transform
+        tf_broadcaster.sendTransform(transform_stamped);
+    }
+}
+
 void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename) {
     std::ofstream file;
     file.open(filename, std::ios::out); // Open file in write mode

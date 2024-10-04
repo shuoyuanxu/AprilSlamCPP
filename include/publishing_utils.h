@@ -19,9 +19,15 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseArray.h>
 #include <std_msgs/Header.h>
+#include <nav_msgs/Odometry.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <tf2_ros/transform_broadcaster.h>
 
 namespace aprilslam {
     void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPose, const gtsam::Pose2& keyframePose, int currentPoseIndex, const std::string& frame_id);
+    void publishOdometryTrajectory(ros::Publisher& odom_pub, tf2_ros::TransformBroadcaster& tf_broadcaster, 
+                                        const gtsam::Values& result, int latest_index, 
+                                        const std::string& frame_id, const std::string& child_frame_id);
     void publishLandmarks(ros::Publisher& landmark_pub, const std::map<int, gtsam::Point2>& landmarks, const std::string& frame_id);
     void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_index, const std::string& frame_id);
     void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename);

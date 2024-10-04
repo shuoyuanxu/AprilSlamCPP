@@ -33,11 +33,14 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     : nh_(node_handle), tf_listener_(tf_buffer_){ 
     
     // Read topics and corresponding frame
-    std::string odom_topic, trajectory_topic;
+    std::string odom_topic, trajectory_topic, odometry_trajectory;
     nh_.getParam("odom_topic", odom_topic);
     nh_.getParam("trajectory_topic", trajectory_topic);
     nh_.getParam("frame_id", frame_id);
     nh_.getParam("robot_frame", robot_frame);
+    nh_.getParam("odometry_trajectory", odometry_trajectory);
+    nh_.getParam("ud_frame", ud_frame);
+
 
     // Read batch optimization flag
     nh_.getParam("batch_optimisation", batchOptimisation_);
@@ -133,6 +136,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Subscriptions and Publications
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
+    odom_traj_pub_ = nh_.advertise<nav_msgs::Odometry>(odometry_trajectory, 1, true);
     lc_pub_ = nh_.advertise<visualization_msgs::Marker>("loop_closure_markers", 1);
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
     path.header.frame_id = frame_id; 
@@ -561,6 +565,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         lastPoseSE2_vis = poseSE2;    
     }
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
+    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);
 }
 }
 
