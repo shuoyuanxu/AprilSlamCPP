@@ -35,6 +35,7 @@ Localization utilizes prior knowledge of relatively accurate landmark positions.
 5. [How to Run](#5-how-to-run)
 6. [Future Work](#6-future-work)
 
+---
 
 ## **1. Installation**
 
@@ -76,10 +77,16 @@ source devel/setup.bash
 rosrun aprilslamcpp aprilslamcpp 2> >(grep -v TF_REPEATED_DATA buffer_core)
 rosbag play --pause rerecord_3_HDL.bag
 ```
-6. Compile:
-```
-catkin_make --pkg AprilSlamCPP
-```
+6. Cant link to GTSAM, try to use the following 2 approach, **only one may work**
+    (1) Give your CMakeLists.txt the absolute directory of GTSAM
+    ```
+    set(GTSAM_DIR "/home/.../GTSAM/build")
+    ```
+    
+    (2) Ask it to find it 
+    ```
+    find_package(GTSAM REQUIRED)
+    ```
 
 ---
 
