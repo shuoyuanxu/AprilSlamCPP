@@ -31,6 +31,7 @@
 #include <apriltag_ros/AprilTagDetectionArray.h>
 #include <cmath>
 #include <gtsam/nonlinear/Marginals.h>
+#include <tf2_ros/transform_broadcaster.h>
 
 namespace aprilslam {
 
@@ -58,6 +59,7 @@ public:
 private:
     ros::Timer check_data_timer_;  // Declare the timer here
     ros::Publisher path_pub_;
+    ros::Publisher odom_traj_pub_;
     ros::Publisher landmark_pub_;
     ros::Publisher lc_pub_;
     nav_msgs::Path path;
@@ -71,6 +73,7 @@ private:
     apriltag_ros::AprilTagDetectionArray::ConstPtr lCam_msg;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
+    tf2_ros::TransformBroadcaster tf_broadcaster;
     std::map<gtsam::Symbol, std::map<gtsam::Symbol, std::tuple<double, double>>> poseToLandmarkMeasurementsMap;  //storing X-L pair
     std::map<gtsam::Key, gtsam::Point2> historicLandmarks;     // Maintain a persistent storage for historic landmarks
     gtsam::Values landmarkEstimates;  // for unwhitten error computing 
@@ -97,6 +100,8 @@ private:
     double transformation_search_range;
     double add2graph_threshold;
     std::string frame_id;
+    std::string ud_frame;
+    std::string odom_trajectory_frame;
     std::string robot_frame;
     std::string pathtosavelandmarkcsv;
     std::string pathtoloadlandmarkcsv;
