@@ -559,6 +559,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     Estimates_visulisation.insert(previousKeyframeSymbol, keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol));
     // aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
     }
+
+    // Use Odometry for pose estimation when not a keyframe, landmarks not updated
     else{
         odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
         Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose-1)).compose(odometry));
