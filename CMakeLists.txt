@@ -59,27 +59,12 @@ target_link_libraries(
   tbb
 )
 
-# PcClustering executables
-add_executable(PcClustering_node src/PcClustering.cpp src/DataAssociation.cpp)
-target_link_libraries(
-  PcClustering_node
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-)
-
-# Debuggging executables
-add_executable(DebugPlotting_node src/DebugPlotting.cpp)
-target_link_libraries(
-  DebugPlotting_node
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-)
 #############
 ## Install ##
 #############
 
 install(
-  TARGETS aprilslamcpp_cal aprilslamcpp_loc PcClustering_node DebugPlotting_node
+  TARGETS aprilslamcpp_cal aprilslamcpp_loc
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
