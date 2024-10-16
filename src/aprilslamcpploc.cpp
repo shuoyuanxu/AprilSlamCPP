@@ -289,23 +289,7 @@ void aprilslamcpp::ISAM2Optimise() {
 
     // Update the iSAM2 instance with the new measurements
     isam_.update(keyframeGraph_, keyframeEstimates_);
-
-    // Calculate the current best estimate
-    auto result = isam_.calculateEstimate();
-
-    // Extract landmark estimates from result
-    std::map<int, gtsam::Point2> landmarks;
-    for (const auto& key_value : result) {
-        gtsam::Key key = key_value.key;  // Get the key
-        if (gtsam::Symbol(key).chr() == 'L') {
-            gtsam::Point2 point = result.at<gtsam::Point2>(key); // Directly access the Point2 value
-            landmarks[gtsam::Symbol(key).index()] = point;
-        }
-    }
-    // Publish the pose
-    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-    aprilslam::publishPath(path_pub_, result, index_of_pose, frame_id);
-    // Clear cache for the next iteration
+    
     keyframeEstimates_.clear();
     keyframeGraph_.resize(0);
 }
@@ -537,27 +521,45 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
             elapsed = (end_loop - start_loop).toSec();
             ROS_INFO("optimisation: %f seconds", elapsed);
         }
-            
-    // Loop closure check
-    checkLoopClosure(detectedLandmarksCurrentPos);
+    if (useisam2) {
+        Key_previous_pos = predictedPose;
+        previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);  
 
-    Key_previous_pos = predictedPose;
-    previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
-    // Key_previous_pos = keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol);
-     // Extract landmark estimates from the result
-    std::map<int, gtsam::Point2> landmarks;
-    for (const auto& key_value : keyframeEstimates_) {
-        gtsam::Key key = key_value.key;  // Get the key
-        if (gtsam::Symbol(key).chr() == 'L') {
-            gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
-            landmarks[gtsam::Symbol(key).index()] = point;
+        // Calculate the current estimate
+        auto result = isam_.calculateEstimate();
+
+        // Extract landmark estimates from result
+        std::map<int, gtsam::Point2> landmarks;
+        for (const auto& key_value : result) {
+            gtsam::Key key = key_value.key;  // Get the key
+            if (gtsam::Symbol(key).chr() == 'L') {
+                gtsam::Point2 point = result.at<gtsam::Point2>(key); // Directly access the Point2 value
+                landmarks[gtsam::Symbol(key).index()] = point;
+            }
         }
+        // Publish the pose
+        aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
+        Estimates_visulisation.insert(previousKeyframeSymbol, result.at<gtsam::Pose2>(previousKeyframeSymbol));      
     }
+    else {
+        // Loop closure check
+        checkLoopClosure(detectedLandmarksCurrentPos);
 
-    // Publish the pose and landmarks
-    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-    Estimates_visulisation.insert(previousKeyframeSymbol, keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol));
-    // aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
+        Key_previous_pos = predictedPose;
+        previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
+        std::map<int, gtsam::Point2> landmarks;
+        for (const auto& key_value : keyframeEstimates_) {
+            gtsam::Key key = key_value.key;  // Get the key
+            if (gtsam::Symbol(key).chr() == 'L') {
+                gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
+                landmarks[gtsam::Symbol(key).index()] = point;
+            }
+        }
+
+        // Publish the pose and landmarks
+        aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
+        Estimates_visulisation.insert(previousKeyframeSymbol, keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol));
+    }        
     }
 
     // Use Odometry for pose estimation when not a keyframe, landmarks not updated
