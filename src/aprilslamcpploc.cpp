@@ -379,7 +379,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         lastPoseSE2_vis = poseSE2;
         // lastPoseSE2_ = pose0;
         keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('X', 1), pose0, priorNoise));
-        factorTimestamps_[keyframeGraph_.size() - 1] = current_time;
         keyframeEstimates_.insert(gtsam::Symbol('X', 1), pose0);
         Estimates_visulisation.insert(gtsam::Symbol('X', 1), pose0);
         lastPose_ = pose0; // Keep track of the last pose for odolandmarkKeymetry calculation
@@ -416,11 +415,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
             gtsam::Pose2 relativePose = Key_previous_pos.between(predictedPose);
             keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
         }
- 
-
-        // keep track of time for graph pruning
-        factorTimestamps_[keyframeGraph_.size() - 1] = current_time;
-        
+         
         // Update the last pose and initial estimates for the next iteration
         lastPose_ = predictedPose;
         landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
@@ -450,9 +445,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                     // Construct the landmark key
                     gtsam::Symbol landmarkKey('L', tag_number);  
 
-                    // Store the bearing and range measurements in the map
-                    poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);
-
                     // Check if the landmark has been observed before
                     if (detectedLandmarksHistoric.find(landmarkKey) != detectedLandmarksHistoric.end()) {
                         // Existing landmark
@@ -463,7 +455,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
                         // Threshold for ||projection - measurement||
                         if (fabs(error[0]) < add2graph_threshold) keyframeGraph_.add(factor);
-                        factorTimestamps_[keyframeGraph_.size() - 1] = current_time;
                         detectedLandmarksCurrentPos.insert(landmarkKey);
                     } 
                     else {
@@ -489,17 +480,13 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                             landmarkKey, priorLand, pointNoise)
                         );
                         }
-                        factorTimestamps_[keyframeGraph_.size() - 1] = current_time;
                         // Add a bearing-range observation for this landmark to the graph
                         gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
                             gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
                         );
                         keyframeGraph_.add(factor);
-                        factorTimestamps_[keyframeGraph_.size() - 1] = current_time;
                         detectedLandmarksCurrentPos.insert(landmarkKey);
                     }
-                    // Store the bearing and range measurements in the map
-                    poseToLandmarkMeasurementsMap[gtsam::Symbol('X', index_of_pose)][landmarkKey] = std::make_tuple(bearing, range);                
                 }
             }
         }
