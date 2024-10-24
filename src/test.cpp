@@ -18,6 +18,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // Get camera detections and store them in a variable for future adjustments
     auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
+    
 
     // Check if this pose should be a keyframe and update graph
     if (shouldAddKeyframe(Key_previous_pos, predictedPose, detectedLandmarksHistoric)) {
