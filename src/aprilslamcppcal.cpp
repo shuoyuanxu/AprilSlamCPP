@@ -25,7 +25,7 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
     double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
 
     // Return the relative pose assuming robot cant move sideways: dy = 0
-    return gtsam::Pose2(dx_body, 0, dtheta);
+    return gtsam::Pose2(dx_body, dy_body, dtheta);
 }
 
 // Constructor
