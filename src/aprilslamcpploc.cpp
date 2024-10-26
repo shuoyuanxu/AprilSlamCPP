@@ -382,6 +382,20 @@ void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2) {
     previousKeyframeSymbol = gtsam::Symbol('X', 1);
 }
 
+// Predict the next pose based on odometry
+gtsam::Pose2 aprilslam::aprilslamcpp::predictNextPose(const gtsam::Pose2& poseSE2) {
+    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
+    return lastPose_.compose(odometry);
+}
+
+// Update odometry without adding a keyframe
+void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
+    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
+    gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(odometry);
+    Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), newPose);
+    lastPoseSE2_vis = poseSE2;
+}
+
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     double current_time = ros::Time::now().toSec();
     ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times
@@ -399,8 +413,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     if (index_of_pose == 2) initializeFirstPose(poseSE2);
 
     // Predict the next pose based on odometry and add it as an initial estimate
-    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
-    gtsam::Pose2 predictedPose = lastPose_.compose(odometry);
+    gtsam::Pose2 predictedPose = predictNextPose(poseSE2);
 
     // Determine if this pose should be a keyframe
     gtsam::Symbol currentKeyframeSymbol('X', index_of_pose);
@@ -553,9 +566,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
 
     // Use Odometry for pose estimation when not a keyframe, landmarks not updated
     else{
-        odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
-        Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose-1)).compose(odometry));
-        lastPoseSE2_vis = poseSE2;    
+        updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
     aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);

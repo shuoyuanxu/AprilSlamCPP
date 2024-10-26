@@ -1,32 +1,3 @@
-// Check if movement exceeds the stationary thresholds
-bool aprilslam::aprilslamcpp::movementExceedsThreshold(const gtsam::Pose2& poseSE2) {
-    double position_change = std::hypot(poseSE2.x() - lastPoseSE2_.x(), poseSE2.y() - lastPoseSE2_.y());
-    double rotation_change = std::abs(wrapToPi(poseSE2.theta() - lastPoseSE2_.theta()));
-    return position_change >= stationary_position_threshold || rotation_change >= stationary_rotation_threshold;
-}
-
-// Handle initialization of the first pose
-void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2) {
-    gtsam::Pose2 pose0(0.0, 0.0, 0.0); // Prior at origin
-    lastPoseSE2_ = poseSE2;
-    lastPoseSE2_vis = poseSE2;
-    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('X', 1), pose0, priorNoise));
-    keyframeEstimates_.insert(gtsam::Symbol('X', 1), pose0);
-    Estimates_visulisation.insert(gtsam::Symbol('X', 1), pose0);
-    lastPose_ = pose0; // Keep track of the last pose for odolandmarkKeymetry calculation
-    // Load calibrated landmarks as priors if available
-    if (usepriortagtable) {
-    std::map<int, gtsam::Point2> savedLandmarks = loadLandmarksFromCSV(pathtoloadlandmarkcsv);
-    for (const auto& landmark : savedLandmarks) {
-        gtsam::Symbol landmarkKey('L', landmark.first);
-        keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(landmarkKey, landmark.second, pointNoise));
-        keyframeEstimates_.insert(landmarkKey, landmark.second);
-        landmarkEstimates.insert(landmarkKey, landmark.second);
-    }
-    }
-    Key_previous_pos = pose0;
-    previousKeyframeSymbol = gtsam::Symbol('X', 1);
-}
 
 // Predict the next pose based on odometry
 gtsam::Pose2 aprilslam::aprilslamcpp::predictNextPose(const gtsam::Pose2& poseSE2) {
