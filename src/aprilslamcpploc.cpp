@@ -25,8 +25,8 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
     double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
 
     // Return the relative pose assuming robot cant move sideways: dy = 0
-    // return gtsam::Pose2(dx_body, dy_body, dtheta);
-    return gtsam::Pose2(distance, 0, dtheta);
+    return gtsam::Pose2(dx_body, dy_body, dtheta);
+    // return gtsam::Pose2(distance, 0, dtheta);
 }
 
 gtsam::Pose2 odometryDirection(const gtsam::Pose2& odometry, double cmd_vel_linear_x){
@@ -412,15 +412,15 @@ void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2) {
 // Predict the next pose based on odometry
 gtsam::Pose2 aprilslam::aprilslamcpp::predictNextPose(const gtsam::Pose2& poseSE2) {
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
-    gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
-    return lastPose_.compose(adjustedOdometry);
+    // gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
+    return lastPose_.compose(odometry);
 }
 
 // Update odometry without adding a keyframe
 void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
-    gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
-    gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(adjustedOdometry);
+    // gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
+    gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(odometry);
     Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), newPose);
     lastPoseSE2_vis = poseSE2;
 }
