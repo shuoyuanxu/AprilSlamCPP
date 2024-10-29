@@ -25,7 +25,24 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
     double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
 
     // Return the relative pose assuming robot cant move sideways: dy = 0
-    return gtsam::Pose2(dx_body, 0, dtheta);
+    // return gtsam::Pose2(dx_body, dy_body, dtheta);
+    return gtsam::Pose2(distance, 0, dtheta);
+}
+
+gtsam::Pose2 odometryDirection(const gtsam::Pose2& odometry, double cmd_vel_linear_x){
+    if (cmd_vel_linear_x == 0.0) {
+        return odometry;
+    }
+    // Identify if vehicle is moving forward with cmd_vel direction
+    double dx = odometry.x();
+    if (cmd_vel_linear_x < 0) {
+        dx = -std::abs(dx);  // Moving backward
+    } else {
+        dx = std::abs(dx);   // Moving forward
+    }
+    // Create a new odometry pose with adjusted dx
+    gtsam::Pose2 adjustedOdometry(dx, odometry.y(), odometry.theta());
+    return gtsam::Pose2(dx, odometry.y(), odometry.theta());
 }
 
 // Constructor
@@ -101,6 +118,9 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("camera_subscribers/rCam_subscriber/topic", rCam_topic);
     nh_.getParam("camera_subscribers/mCam_subscriber/topic", mCam_topic);
 
+    // Load command velocity command
+    nh_.getParam("cmd_topic", cmd_topic);
+
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << odometry_noise[0], odometry_noise[1], odometry_noise[2]).finished());
     priorNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << prior_noise[0], prior_noise[1], prior_noise[2]).finished());
@@ -133,6 +153,9 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     rCam_subscriber = nh_.subscribe(rCam_topic, 1000, &aprilslamcpp::rCamCallback, this);
     lCam_subscriber = nh_.subscribe(lCam_topic, 1000, &aprilslamcpp::lCamCallback, this);
 
+    // Initialize controller input subscribers
+    cmd_vel_sub_ = nh_.subscribe(cmd_topic, 10, &aprilslamcpp::cmdVelCallback, this);
+    
     // Subscriptions and Publications
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
@@ -153,6 +176,10 @@ void aprilslamcpp::rCamCallback(const apriltag_ros::AprilTagDetectionArray::Cons
 
 void aprilslamcpp::lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
     lCam_msg = msg;
+}
+
+void aprilslamcpp::cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg) {
+    linear_x_velocity_ = msg->linear.x;
 }
 
 // Initialization of GTSAM components
@@ -385,13 +412,15 @@ void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2) {
 // Predict the next pose based on odometry
 gtsam::Pose2 aprilslam::aprilslamcpp::predictNextPose(const gtsam::Pose2& poseSE2) {
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
-    return lastPose_.compose(odometry);
+    gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
+    return lastPose_.compose(adjustedOdometry);
 }
 
 // Update odometry without adding a keyframe
 void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
-    gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(odometry);
+    gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
+    gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(adjustedOdometry);
     Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), newPose);
     lastPoseSE2_vis = poseSE2;
 }
