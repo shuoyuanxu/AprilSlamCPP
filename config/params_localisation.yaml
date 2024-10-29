@@ -1,11 +1,11 @@
-odom_topic: "/robot/dlo/odom_node/odom"
-robot_frame: "robot/base_link"
+odom_topic: "/dlo/odom_node/odom"
+robot_frame: "base_link"
 trajectory_topic: "trajectory"
 cmd_topic: "/antobot_robot/cmd_vel"
 frame_id: "map"
 pathtosavelandmarkcsv: "config/landmark.csv"
 pathtoloadlandmarkcsv: "config/landmark.csv"
-ud_frame: "robot/base_link"
+ud_frame: "base_link"
 odometry_trajectory: "odom_traj_robot"
 savetaglocation: false
 usepriortagtable: true
