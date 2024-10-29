@@ -523,10 +523,11 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
             elapsed = (end_loop - start_loop).toSec();
             ROS_INFO("optimisation: %f seconds", elapsed);
         }
+    
+    Key_previous_pos = predictedPose;
+    previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);  
+    
     if (useisam2) {
-        Key_previous_pos = predictedPose;
-        previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);  
-
         // Calculate the current estimate
         auto result = isam_.calculateEstimate();
 
@@ -546,9 +547,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     else {
         // Loop closure check
         checkLoopClosure(detectedLandmarksCurrentPos);
-
-        Key_previous_pos = predictedPose;
-        previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);
+    
+        // Extract landmark estimates from Estimates
         std::map<int, gtsam::Point2> landmarks;
         for (const auto& key_value : keyframeEstimates_) {
             gtsam::Key key = key_value.key;  // Get the key
