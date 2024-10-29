@@ -96,5 +96,5 @@ if __name__ == "__main__":
     # Example usage:
     # Replace 'landmarks.csv' and 'ground_truth.csv' with your file paths.
     # Set num_tags to the desired number of landmarks to use (or None to use all).
-    main('landmark.csv', 'ground_truth.csv', num_tags=None)
+    main('landmark_best.csv', 'ground_truth.csv', num_tags=None)
 

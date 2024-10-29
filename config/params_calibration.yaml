@@ -1,4 +1,4 @@
-odom_topic: "/robot/dlo/odom_node/odom"
+odom_topic: "/dlo/odom_node/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
 frame_id: "map"
