@@ -57,6 +57,7 @@ public:
     void mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
+    void cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg);
     void marginalizenonKeyframes(gtsam::ISAM2& isam, const std::set<gtsam::Symbol>& keyframesToMarginalize, const gtsam::NonlinearFactorGraph& originalGraph);
     std::set<gtsam::Symbol> getPoseKeysBetweenKeyframes(const gtsam::Symbol& previousKeyframeSymbol, const gtsam::Symbol& currentKeyframeSymbol);
     void pruneGraphByPoseCount(int maxPoses);
@@ -72,9 +73,11 @@ private:
     ros::Subscriber mCam_subscriber;
     ros::Subscriber rCam_subscriber;
     ros::Subscriber lCam_subscriber;
+    ros::Subscriber cmd_vel_sub_;
     apriltag_ros::AprilTagDetectionArray::ConstPtr mCam_msg;
     apriltag_ros::AprilTagDetectionArray::ConstPtr rCam_msg;
     apriltag_ros::AprilTagDetectionArray::ConstPtr lCam_msg;
+    double linear_x_velocity_;  // Stores the latest controller input linear.x value
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
     tf2_ros::TransformBroadcaster tf_broadcaster;
@@ -133,6 +136,7 @@ private:
     std::string lCam_topic;
     std::string rCam_topic;
     std::string mCam_topic;
+    std::string cmd_topic;
     Eigen::Vector3d lcam_baselink_transform;
     Eigen::Vector3d rcam_baselink_transform;
     Eigen::Vector3d mcam_baselink_transform;
