@@ -425,6 +425,46 @@ void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
     lastPoseSE2_vis = poseSE2;
 }
 
+void aprilslam::aprilslamcpp::generate2bePublished() {
+    if (useisam2) {
+        // Calculate the current estimate using iSAM2
+        auto result = isam_.calculateEstimate();
+
+        // Extract landmark estimates from the result
+        std::map<int, gtsam::Point2> landmarks;
+        for (const auto& key_value : result) {
+            gtsam::Key key = key_value.key;  // Get the key
+            if (gtsam::Symbol(key).chr() == 'L') {
+                gtsam::Point2 point = result.at<gtsam::Point2>(key); // Directly access the Point2 value
+                landmarks[gtsam::Symbol(key).index()] = point;
+            }
+        }
+
+        // Publish the landmarks
+        aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
+
+        // Update the visualized estimates with the current pose
+        Estimates_visulisation.insert(previousKeyframeSymbol, result.at<gtsam::Pose2>(previousKeyframeSymbol));
+    } 
+    else {
+        // Extract landmark estimates from keyframe estimates
+        std::map<int, gtsam::Point2> landmarks;
+        for (const auto& key_value : keyframeEstimates_) {
+            gtsam::Key key = key_value.key;  // Get the key
+            if (gtsam::Symbol(key).chr() == 'L') {
+                gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
+                landmarks[gtsam::Symbol(key).index()] = point;
+            }
+        }
+
+        // Publish the landmarks
+        aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
+
+        // Update the visualized estimates with the current pose
+        Estimates_visulisation.insert(previousKeyframeSymbol, keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol));
+    }
+}
+
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
     double current_time = ros::Time::now().toSec();
     ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times
@@ -555,48 +595,14 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);  
-    
-    if (useisam2) {
-        // Calculate the current estimate
-        auto result = isam_.calculateEstimate();
-
-        // Extract landmark estimates from result
-        std::map<int, gtsam::Point2> landmarks;
-        for (const auto& key_value : result) {
-            gtsam::Key key = key_value.key;  // Get the key
-            if (gtsam::Symbol(key).chr() == 'L') {
-                gtsam::Point2 point = result.at<gtsam::Point2>(key); // Directly access the Point2 value
-                landmarks[gtsam::Symbol(key).index()] = point;
-            }
-        }
-        // Publish the pose
-        aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-        Estimates_visulisation.insert(previousKeyframeSymbol, result.at<gtsam::Pose2>(previousKeyframeSymbol));      
+    checkLoopClosure(detectedLandmarksCurrentPos);
     }
-    else {
-        // Loop closure check
-        checkLoopClosure(detectedLandmarksCurrentPos);
-    
-        // Extract landmark estimates from Estimates
-        std::map<int, gtsam::Point2> landmarks;
-        for (const auto& key_value : keyframeEstimates_) {
-            gtsam::Key key = key_value.key;  // Get the key
-            if (gtsam::Symbol(key).chr() == 'L') {
-                gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
-                landmarks[gtsam::Symbol(key).index()] = point;
-            }
-        }
-
-        // Publish the pose and landmarks
-        aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-        Estimates_visulisation.insert(previousKeyframeSymbol, keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol));
-    }        
-    }
-
     // Use Odometry for pose estimation when not a keyframe, landmarks not updated
     else{
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
+    // Publish path, landmarks, and tf for visulisation
+    generate2bePublished();
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
     aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);
 }
