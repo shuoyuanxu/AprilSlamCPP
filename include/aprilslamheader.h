@@ -47,6 +47,7 @@ public:
     void initializeFirstPose(const gtsam::Pose2& poseSE2);
     gtsam::Pose2 predictNextPose(const gtsam::Pose2& poseSE2);
     void updateOdometryPose(const gtsam::Pose2& poseSE2);
+    void generate2bePublished();
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
     void checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarks);
     bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose, std::set<gtsam::Symbol> oldlandmarks, std::set<gtsam::Symbol> detectedLandmarksCurrentPos);
