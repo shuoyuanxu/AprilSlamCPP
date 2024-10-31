@@ -1,9 +1,5 @@
 
-// Predict the next pose based on odometry
-gtsam::Pose2 aprilslam::aprilslamcpp::predictNextPose(const gtsam::Pose2& poseSE2) {
-    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
-    return lastPose_.compose(odometry);
-}
+
 
 // Update the graph with keyframes and landmarks
 void aprilslam::aprilslamcpp::updateGraphWithLandmarks(const gtsam::Pose2& poseSE2, const gtsam::Pose2& predictedPose, const std::pair<std::vector<int>, std::vector<Eigen::Vector2d>>& detections) {
@@ -87,14 +83,6 @@ void aprilslam::aprilslamcpp::updateGraphWithLandmarks(const gtsam::Pose2& poseS
     }
 }
 
-// Update odometry without adding a keyframe
-void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
-    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
-    gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(odometry);
-    Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), newPose);
-    lastPoseSE2_vis = poseSE2;
-}
-
 // Optimize the factor graph
 void aprilslam::aprilslamcpp::optimizeGraph() {
     if (useisam2) {
@@ -107,51 +95,6 @@ void aprilslam::aprilslamcpp::optimizeGraph() {
     }
 }
 
-void aprilslam::aprilslamcpp::generate2bePublished() {
-    if (useisam2) {
-        // Calculate the current estimate using iSAM2
-        auto result = isam_.calculateEstimate();
-
-        // Extract landmark estimates from the result
-        std::map<int, gtsam::Point2> landmarks;
-        for (const auto& key_value : result) {
-            gtsam::Key key = key_value.key;  // Get the key
-            if (gtsam::Symbol(key).chr() == 'L') {
-                gtsam::Point2 point = result.at<gtsam::Point2>(key); // Directly access the Point2 value
-                landmarks[gtsam::Symbol(key).index()] = point;
-            }
-        }
-
-        // Publish the landmarks
-        aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-
-        // Update the visualized estimates with the current pose
-        Estimates_visulisation.insert(previousKeyframeSymbol, result.at<gtsam::Pose2>(previousKeyframeSymbol));
-    } 
-    else {
-        // Extract landmark estimates from keyframe estimates
-        std::map<int, gtsam::Point2> landmarks;
-        for (const auto& key_value : keyframeEstimates_) {
-            gtsam::Key key = key_value.key;  // Get the key
-            if (gtsam::Symbol(key).chr() == 'L') {
-                gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
-                landmarks[gtsam::Symbol(key).index()] = point;
-            }
-        }
-
-        // Publish the landmarks
-        aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-
-        // Update the visualized estimates with the current pose
-        Estimates_visulisation.insert(previousKeyframeSymbol, keyframeEstimates_.at<gtsam::Pose2>(previousKeyframeSymbol));
-    }
-}
-
-// Publish the results
-void aprilslam::aprilslamcpp::publishResults() {
-    aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
-    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);
-}
 
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
