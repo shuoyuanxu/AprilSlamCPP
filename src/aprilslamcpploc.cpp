@@ -606,13 +606,13 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);  
     checkLoopClosure(detectedLandmarksCurrentPos);
+    generate2bePublished();
     }
     // Use Odometry for pose estimation when not a keyframe, landmarks not updated
     else{
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
     // Publish path, landmarks, and tf for visulisation
-    generate2bePublished();
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
     aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);
 }
