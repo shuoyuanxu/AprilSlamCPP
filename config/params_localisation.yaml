@@ -4,7 +4,7 @@ trajectory_topic: "trajectory"
 cmd_topic: "/antobot_robot/cmd_vel"
 frame_id: "map"
 pathtosavelandmarkcsv: "config/landmark.csv"
-pathtoloadlandmarkcsv: "config/landmark_best.csv"
+pathtoloadlandmarkcsv: "config/landmark.csv"
 ud_frame: "robot/base_link"
 odometry_trajectory: "odom_traj_robot"
 savetaglocation: false
