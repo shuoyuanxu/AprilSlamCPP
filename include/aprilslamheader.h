@@ -52,16 +52,10 @@ public:
     void addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg);
     void checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarks);
     bool shouldAddKeyframe(const gtsam::Pose2& lastPose, const gtsam::Pose2& currentPose, std::set<gtsam::Symbol> oldlandmarks, std::set<gtsam::Symbol> detectedLandmarksCurrentPos);
-    void rebuildFactorGraphWithPosindex(const gtsam::ISAM2 &isam, const std::set<gtsam::Symbol> &poseKeys, const std::map<gtsam::Symbol, std::map<gtsam::Symbol, std::tuple<double, double>>> &poseToLandmarkMeasurementsMap);
-    std::set<gtsam::Symbol> generatePosArray(const gtsam::Symbol& previousKeyframe, const gtsam::Symbol& currentKeyframe, const std::set<gtsam::Symbol>& keyframes);    
-    void createNewKeyframe(const gtsam::Pose2& predictedPose, const gtsam::Pose2& previousPose, gtsam::Symbol& previousKeyframeSymbol);
-    void printWindowEstimates(const gtsam::Values& windowEstimates);
     void mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg);
-    void marginalizenonKeyframes(gtsam::ISAM2& isam, const std::set<gtsam::Symbol>& keyframesToMarginalize, const gtsam::NonlinearFactorGraph& originalGraph);
-    std::set<gtsam::Symbol> getPoseKeysBetweenKeyframes(const gtsam::Symbol& previousKeyframeSymbol, const gtsam::Symbol& currentKeyframeSymbol);
     void pruneGraphByPoseCount(int maxPoses);
 private:
     ros::Timer check_data_timer_;  // Declare the timer here
@@ -92,7 +86,6 @@ private:
     gtsam::Pose2 Key_previous_pos;
     gtsam::Symbol previousKeyframeSymbol;
     gtsam::ISAM2 isam_;
-    gtsam::ISAM2 isam_key;
     gtsam::Pose2 lastPoseSE2_;
     gtsam::Pose2 lastPoseSE2_vis;
     gtsam::Pose2 lastPose_;
@@ -106,7 +99,6 @@ private:
     gtsam::noiseModel::Diagonal::shared_ptr brNoise;
     gtsam::noiseModel::Diagonal::shared_ptr pointNoise;
     gtsam::noiseModel::Diagonal::shared_ptr loopClosureNoise;
-    double transformation_search_range;
     double add2graph_threshold;
     std::string frame_id;
     std::string ud_frame;
@@ -114,8 +106,6 @@ private:
     std::string robot_frame;
     std::string pathtosavelandmarkcsv;
     std::string pathtoloadlandmarkcsv;
-    std::string calibrationrun;
-    std::map<size_t, double> factorTimestamps_; // Track timestamps of factors
     double maxfactors; // Allowed total number of factors in the graph before pruning
     bool useprunebysize;
     // For loop closure 
@@ -130,6 +120,7 @@ private:
     bool usepriortagtable;
     std::map<int, gtsam::Point2> savedLandmarks;
     std::map<gtsam::Symbol, std::set<gtsam::Symbol>> poseToLandmarks; // Maps pose index to a set of detected landmark IDs, e.g. X1: L1,L2,L3.
+    // For keyframe
     double distanceThreshold;
     double rotationThreshold;
     std::vector<double> xyTrans_lcam_baselink;
@@ -142,26 +133,12 @@ private:
     Eigen::Vector3d lcam_baselink_transform;
     Eigen::Vector3d rcam_baselink_transform;
     Eigen::Vector3d mcam_baselink_transform;
-    std::set<gtsam::Symbol> keyframePosIds;
     std::set<gtsam::Symbol> detectedLandmarksHistoric;
 
-    // Keeps track of pose symbols in the order they were added
-    std::deque<gtsam::Symbol> poseSymbols_;
-
-    // Maps variables (poses and landmarks) to the indices of factors that involve them
-    std::map<gtsam::Key, std::vector<size_t>> variableToFactorIndices_;
-
-    // Collects indices of factors to remove
-    std::vector<size_t> factorsToRemove;
-
-    // Collects keys of variables to remove
-    std::set<gtsam::Key> variablesToRemove;
-
     // Symbol of the pose that currently has a prior
-    gtsam::Symbol priorPoseSymbol;
     gtsam::FastMap<gtsam::Symbol, bool> priorAddedToPose;
 
-    // Flag to ensure SAMOptimise is called only once
+    // Flag to ensure SAMOptimise is called at the end 
     bool mCam_data_received_, rCam_data_received_, lCam_data_received_;
     bool optimizationExecuted_;
     double accumulated_time_;  // Accumulated time since last valid data
