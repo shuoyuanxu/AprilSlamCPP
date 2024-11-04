@@ -10,7 +10,7 @@ Calibration is performed using SAM (Smoothing and Mapping), where all poses, lan
 
 ### Localization
 
-Localization utilizes prior knowledge of relatively accurate landmark positions. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
+Localization utilizes prior knowledge of relatively accurate landmark positions. It is worth noting that the localization algorithm, **if disabled 'using prior landmarks'**, is capable of performing **real time SLAM**. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
 
 ## Table of Contents
 
@@ -166,7 +166,7 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 
     double theta = lastPoseSE2.theta();
     double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
-    return gtsam::Pose2(dx_body, 0, dtheta);
+    return gtsam::Pose2(dx_body, dy_body, dtheta);
 }
 ```
 
@@ -348,6 +348,14 @@ usekeyframe: true
 Some preliminary result: 
 ![image](https://github.com/user-attachments/assets/f80f839f-2006-434a-98a0-f52385e00243)
 
+**Real time localization testing:**
+
+https://github.com/user-attachments/assets/75063024-7650-4e20-ae3e-a789640560e6
+
+**Real time SLAM**
+
+[Screencast from 31-10-24 20:07:57.webm](https://github.com/user-attachments/assets/35de5278-d3cb-4e0d-b2d2-0d8881075a22)
+
 ### **7. Keyframe**
 
 This function `shouldAddKeyframe` determines whether a new keyframe should be added based on:
@@ -387,17 +395,27 @@ bool aprilslamcpp::shouldAddKeyframe(
 This section of code determines not to build a graph when robot is stationay to save computational cost:
 
 ```cpp
-// Calculate the distance and rotation change from the last pose
-double position_change = std::hypot(poseSE2.x() - lastPoseSE2_.x(), poseSE2.y() - lastPoseSE2_.y());
-double rotation_change = std::abs(wrapToPi(poseSE2.theta() - lastPoseSE2_.theta()));
-
-// Check if the movement exceeds the thresholds
-if (position_change < stationary_position_threshold && rotation_change < stationary_rotation_threshold) {
-    // Robot is stationary; skip factor graph update
-    return;
+// Check if movement exceeds the stationary thresholds
+bool aprilslam::aprilslamcpp::movementExceedsThreshold(const gtsam::Pose2& poseSE2) {
+    double position_change = std::hypot(poseSE2.x() - lastPoseSE2_.x(), poseSE2.y() - lastPoseSE2_.y());
+    double rotation_change = std::abs(wrapToPi(poseSE2.theta() - lastPoseSE2_.theta()));
+    return position_change >= stationary_position_threshold || rotation_change >= stationary_rotation_threshold;
 }
 ```
 
+### **9. Update with odometry only**
+
+This function is for handling non-keyframes. To save computational cost, a non-key pose is update with only the odometry.
+
+```cpp
+// Update odometry without adding a keyframe
+void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
+    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
+    // gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
+    gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(odometry);
+    Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), newPose);
+    lastPoseSE2_vis = poseSE2;
+}
 ---
 
 ## **5. How to Run**
