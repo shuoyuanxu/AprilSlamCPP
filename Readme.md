@@ -463,7 +463,7 @@ View the output in RViz.
 
 ![LC_result](https://github.com/user-attachments/assets/cde22ab3-ba0d-4a79-8ee0-9077fb1eb258)
 
-- **Vehicle Dynamic**: Adapting the controller input to accomendate vehicle backward motion.
+
 
 
 
