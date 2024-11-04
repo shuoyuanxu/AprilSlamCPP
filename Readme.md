@@ -100,7 +100,11 @@ The system uses AprilTags for robust feature detection. Three camera topics (`mC
 
 The system utilizes odometry data from various sensors, including wheel encoders, IMU, GPS, or LiDAR, to compute relative poses for constructing the factor graph. For optimal results, we recommend using accurate odometry sources, such as LiDAR, during the calibration phase. As for localization, other odometry sources can be effectively, as long as the sensor provides reasonably reliable and consistent data. This flexibility allows the system to accommodate different sensor configurations, making it adaptable to various environments and use cases.
 
-### **3. GTSAM Optimization**
+### **3. Graph Building**
+
+Formulate a factor graph with robot poses, landmarks, priors and observations.
+
+### **4. GTSAM Optimization**
 
 GTSAM performs factor graph-based optimization using:
 
