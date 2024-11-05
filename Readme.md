@@ -375,8 +375,11 @@ Some preliminary result:
 
 https://github.com/user-attachments/assets/75063024-7650-4e20-ae3e-a789640560e6
 
-**Real time SLAM**
+**Reduced tag density**
+[Screencast from 05-11-24 10:20:36.webm](https://github.com/user-attachments/assets/4b76c97e-623f-4718-8c1e-357900edc693)
 
+
+**Real time SLAM**
 [Screencast from 31-10-24 20:07:57.webm](https://github.com/user-attachments/assets/35de5278-d3cb-4e0d-b2d2-0d8881075a22)
 
 ### **7. Keyframe**
