@@ -2,7 +2,7 @@ odom_topic: "robot/dlo/odom_node/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
 cmd_topic: "/antobot_robot/cmd_vel"
-frame_id: "map"
+map_frame_id: "map"
 pathtosavelandmarkcsv: "config/landmark.csv"
 pathtoloadlandmarkcsv: "config/landmark.csv"
 ud_frame: "robot/base_link"
@@ -14,7 +14,7 @@ total_tags: 1000
 add2graph_threshold: 0.2
 maxfactors: 400 # maximum number of poses in the factor graph
 useprunebysize: true # no point of using it with ISAM2
-useisam2: false # true for ISAM2, false for SAM
+useisam2: true # true for ISAM2, false for SAM
 
 # Loop closure, dont apply LC when pruning is enabled
 useloopclosure: false

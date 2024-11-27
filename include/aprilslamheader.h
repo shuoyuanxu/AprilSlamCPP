@@ -100,8 +100,9 @@ private:
     gtsam::noiseModel::Diagonal::shared_ptr pointNoise;
     gtsam::noiseModel::Diagonal::shared_ptr loopClosureNoise;
     double add2graph_threshold;
-    std::string frame_id;
-    std::string ud_frame;
+    std::string map_frame_id;
+    gtsam::Pose2 initial_pose;
+    // std::string ud_frame;
     std::string odom_trajectory_frame;
     std::string robot_frame;
     std::string pathtosavelandmarkcsv;
