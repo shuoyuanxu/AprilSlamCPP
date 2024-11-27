@@ -550,8 +550,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     // Publish tf
     aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame);
 
-    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);
-
     // Check if the movement exceeds the thresholds
     if (!movementExceedsThreshold(poseSE2)) return;
 
@@ -618,7 +616,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
     // Publish path, landmarks, and tf for visulisation
-    aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
+    aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, map_frame_id);
 }
 }
 
