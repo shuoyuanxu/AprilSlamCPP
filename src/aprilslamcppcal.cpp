@@ -36,7 +36,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     std::string odom_topic, trajectory_topic;
     nh_.getParam("odom_topic", odom_topic);
     nh_.getParam("trajectory_topic", trajectory_topic);
-    nh_.getParam("frame_id", frame_id);
+    nh_.getParam("map_frame_id", map_frame_id);
     nh_.getParam("robot_frame", robot_frame);
 
     // Read batch optimization flag
@@ -108,7 +108,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     index_of_pose = 1;
     // Initialize the factor graphs
     keyframeGraph_ = gtsam::NonlinearFactorGraph();
-    
+
     // Initialize camera subscribers
     mCam_subscriber = nh_.subscribe(mCam_topic, 1000, &aprilslamcpp::mCamCallback, this);
     rCam_subscriber = nh_.subscribe(rCam_topic, 1000, &aprilslamcpp::rCamCallback, this);
@@ -118,7 +118,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
-    path.header.frame_id = frame_id; 
+    path.header.frame_id = map_frame_id; 
 
     // Timer to periodically check if valid data has been received by any camera
     check_data_timer_ = nh_.createTimer(ros::Duration(2.0), [this, inactivity_threshold](const ros::TimerEvent&) {
@@ -155,8 +155,8 @@ aprilslamcpp::~aprilslamcpp() {
     }
 
     // Publish the pose and landmarks
-    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
+    aprilslam::publishLandmarks(landmark_pub_, landmarks, map_frame_id);
+    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, map_frame_id);
 
     // Save the landmarks into a CSV file if required
     if (savetaglocation) {
@@ -398,8 +398,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         }
     }
     // Publish the pose and landmarks
-    aprilslam::publishLandmarks(landmark_pub_, landmarks, frame_id);
-    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, frame_id);
+    aprilslam::publishLandmarks(landmark_pub_, landmarks, map_frame_id);
+    aprilslam::publishPath(path_pub_, keyframeEstimates_, index_of_pose, map_frame_id);
 
     // Save the landmarks into a CSV file if required
     if (savetaglocation) {

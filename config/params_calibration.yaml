@@ -1,7 +1,7 @@
 odom_topic: "robot/dlo/odom_node/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
-frame_id: "map"
+map_frame_id: "map"
 pathtosavelandmarkcsv: "config/landmark.csv"
 pathtoloadlandmarkcsv: "config/landmark.csv"
 savetaglocation: true
