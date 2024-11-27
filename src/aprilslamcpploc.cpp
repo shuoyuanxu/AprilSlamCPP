@@ -547,6 +547,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
 
+    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);
+
     // Check if the movement exceeds the thresholds
     if (!movementExceedsThreshold(poseSE2)) return;
 
@@ -614,7 +616,6 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     }
     // Publish path, landmarks, and tf for visulisation
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
-    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);
 }
 }
 
