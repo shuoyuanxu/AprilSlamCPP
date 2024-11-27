@@ -10,7 +10,7 @@ Calibration is performed using SAM (Smoothing and Mapping), where all poses, lan
 
 ### Localization
 
-Localization utilizes prior knowledge of relatively accurate landmark positions. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
+Localization utilizes prior knowledge of relatively accurate landmark positions. It is worth noting that the localization algorithm, **if disabled 'using prior landmarks'**, is capable of performing **real time SLAM**. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
 
 ## Table of Contents
 
@@ -100,7 +100,11 @@ The system uses AprilTags for robust feature detection. Three camera topics (`mC
 
 The system utilizes odometry data from various sensors, including wheel encoders, IMU, GPS, or LiDAR, to compute relative poses for constructing the factor graph. For optimal results, we recommend using accurate odometry sources, such as LiDAR, during the calibration phase. As for localization, other odometry sources can be effectively, as long as the sensor provides reasonably reliable and consistent data. This flexibility allows the system to accommodate different sensor configurations, making it adaptable to various environments and use cases.
 
-### **3. GTSAM Optimization**
+### **3. Graph Building**
+
+Formulate a factor graph with robot poses, landmarks, priors and observations.
+
+### **4. GTSAM Optimization**
 
 GTSAM performs factor graph-based optimization using:
 
@@ -166,7 +170,7 @@ gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& Pose
 
     double theta = lastPoseSE2.theta();
     double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
-    return gtsam::Pose2(dx_body, 0, dtheta);
+    return gtsam::Pose2(dx_body, dy_body, dtheta);
 }
 ```
 
@@ -243,62 +247,81 @@ Once the odom are received, the soonest tag detections will be used to formulate
 
 ```cpp
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
-	// Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
-	gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
-	...
-	keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
-	...
-	if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
-        auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
-		// Access the elements of the std::pair
-		...
-        if (!Id.empty()) {
-            for (size_t n = 0; n < Id.size(); ++n) {
-                int tag_number = Id[n];        
-                ...
-                gtsam::Point2 priorLand(rotatedPosition.x() + lastPose_.x(), rotatedPosition.y() + lastPose_.y());
-				...
-                // Construct the landmark key
-                gtsam::Symbol landmarkKey('L', tag_number);  
-				...
-                // Check if the landmark has been observed before
-                if (detectedLandmarksHistoric.find(landmarkKey) != detectedLandmarksHistoric.end()) {
-                    // Existing landmark
-                    gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-                        gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-                    );
-                    gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
+    double current_time = ros::Time::now().toSec();
+    ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times
+    double elapsed;
 
-                    // Threshold for ||projection - measurement||
-                    if (fabs(error[0]) < add2graph_threshold) keyframeGraph_.add(factor);
-                } 
-                else {
-                    // If the current landmark was not detected in the calibration run 
-                    // Or it's on calibration mode
-                    if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
-                    // New landmark detected
-                    detectedLandmarksHistoric.insert(landmarkKey);
-                    // Check if the key already exists in keyframeEstimates_ before inserting
-                    if (keyframeEstimates_.exists(landmarkKey)) {
-                    } else {
-                        keyframeEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
-                    }
-					...
-                    // Add a prior for the landmark position to help with initial estimation.
-                    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
-                        landmarkKey, priorLand, pointNoise)
-                    );
-                    }
-                    // Add a bearing-range observation for this landmark to the graph
-                    gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
-                        gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
-                    );
-                    keyframeGraph_.add(factor);
-                }
-				...
-			}
+    // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
+    gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
+
+    // Check if the movement exceeds the thresholds
+    if (!movementExceedsThreshold(poseSE2)) return;
+
+    index_of_pose += 1; // Increment the pose index for each new odometry message
+
+    // Store the initial pose for relative calculations
+    if (index_of_pose == 2) initializeFirstPose(poseSE2);
+
+    // Predict the next pose based on odometry and add it as an initial estimate
+    gtsam::Pose2 predictedPose = predictNextPose(poseSE2);
+
+    // Determine if this pose should be a keyframe
+    gtsam::Symbol currentKeyframeSymbol('X', index_of_pose);
+
+    // Loop closure detection setup
+    std::set<gtsam::Symbol> detectedLandmarksCurrentPos;
+    std::set<gtsam::Symbol> oldlandmarks;
+    oldlandmarks = detectedLandmarksHistoric; 
+
+    // Add odometry factor if keyframe
+    if (shouldAddKeyframe(Key_previous_pos, predictedPose, oldlandmarks, detectedLandmarksCurrentPos) || !usekeyframe) {
+        keyframeEstimates_.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
+        if (previousKeyframeSymbol) {
+            gtsam::Pose2 relativePose = Key_previous_pos.between(predictedPose);
+            keyframeGraph_.add(gtsam::BetweenFactor<gtsam::Pose2>(previousKeyframeSymbol, currentKeyframeSymbol, relativePose, odometryNoise));
         }
-    }      
+         
+        // Update the last pose and initial estimates for the next iteration
+        lastPose_ = predictedPose;
+        landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
+
+        // Iterate through all landmark detected IDs
+        start_loop = ros::WallTime::now();
+        if (mCam_msg && rCam_msg && lCam_msg) {  // Ensure the messages have been received
+            auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg, mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
+            detectedLandmarksCurrentPos = updateGraphWithLandmarks(detectedLandmarksCurrentPos, detections);
+        }
+
+        // Update the pose to landmarks mapping (for LC conditions)
+        poseToLandmarks[gtsam::Symbol('X', index_of_pose)] = detectedLandmarksCurrentPos;
+
+        // Loging for optimisation time
+        end_loop = ros::WallTime::now();
+        elapsed = (end_loop - start_loop).toSec();
+        // ROS_INFO("transform total: %f seconds", elapsed);
+        lastPoseSE2_ = poseSE2;
+        start_loop = ros::WallTime::now();
+        ROS_INFO("number of timesteps: %d", index_of_pose);
+        if (index_of_pose % 1 == 0) {
+            if (useisam2) {ISAM2Optimise();}
+            else {SAMOptimise();}
+            end_loop = ros::WallTime::now();
+            elapsed = (end_loop - start_loop).toSec();
+            ROS_INFO("optimisation: %f seconds", elapsed);
+        }
+    
+    Key_previous_pos = predictedPose;
+    previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);  
+    checkLoopClosure(detectedLandmarksCurrentPos);
+    generate2bePublished();
+    }
+    // Use Odometry for pose estimation when not a keyframe, landmarks not updated
+    else{
+        updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
+    }
+    // Publish path, landmarks, and tf for visulisation
+    aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, frame_id);
+    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, frame_id, ud_frame);
 }
 ```
 It is worth noting that `gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);` this line is used for identifying whjether a landmark is too much of an outliner to be added to the factor graph.
@@ -348,6 +371,17 @@ usekeyframe: true
 Some preliminary result: 
 ![image](https://github.com/user-attachments/assets/f80f839f-2006-434a-98a0-f52385e00243)
 
+**Real time localization testing:**
+
+https://github.com/user-attachments/assets/75063024-7650-4e20-ae3e-a789640560e6
+
+**Reduced tag density**
+[Screencast from 05-11-24 10:20:36.webm](https://github.com/user-attachments/assets/4b76c97e-623f-4718-8c1e-357900edc693)
+
+
+**Real time SLAM**
+[Screencast from 31-10-24 20:07:57.webm](https://github.com/user-attachments/assets/35de5278-d3cb-4e0d-b2d2-0d8881075a22)
+
 ### **7. Keyframe**
 
 This function `shouldAddKeyframe` determines whether a new keyframe should be added based on:
@@ -387,17 +421,27 @@ bool aprilslamcpp::shouldAddKeyframe(
 This section of code determines not to build a graph when robot is stationay to save computational cost:
 
 ```cpp
-// Calculate the distance and rotation change from the last pose
-double position_change = std::hypot(poseSE2.x() - lastPoseSE2_.x(), poseSE2.y() - lastPoseSE2_.y());
-double rotation_change = std::abs(wrapToPi(poseSE2.theta() - lastPoseSE2_.theta()));
-
-// Check if the movement exceeds the thresholds
-if (position_change < stationary_position_threshold && rotation_change < stationary_rotation_threshold) {
-    // Robot is stationary; skip factor graph update
-    return;
+// Check if movement exceeds the stationary thresholds
+bool aprilslam::aprilslamcpp::movementExceedsThreshold(const gtsam::Pose2& poseSE2) {
+    double position_change = std::hypot(poseSE2.x() - lastPoseSE2_.x(), poseSE2.y() - lastPoseSE2_.y());
+    double rotation_change = std::abs(wrapToPi(poseSE2.theta() - lastPoseSE2_.theta()));
+    return position_change >= stationary_position_threshold || rotation_change >= stationary_rotation_threshold;
 }
 ```
 
+### **9. Update with odometry only**
+
+This function is for handling non-keyframes. To save computational cost, a non-key pose is update with only the odometry.
+
+```cpp
+// Update odometry without adding a keyframe
+void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
+    gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_vis, poseSE2);
+    // gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
+    gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(odometry);
+    Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), newPose);
+    lastPoseSE2_vis = poseSE2;
+}
 ---
 
 ## **5. How to Run**
@@ -422,7 +466,7 @@ View the output in RViz.
 
 ![LC_result](https://github.com/user-attachments/assets/cde22ab3-ba0d-4a79-8ee0-9077fb1eb258)
 
-- **Vehicle Dynamic**: Adapting the controller input to accomendate vehicle backward motion.
+
 
 
 
