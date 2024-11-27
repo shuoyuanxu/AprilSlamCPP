@@ -7,8 +7,14 @@ Panels:
         - /Global Options1
         - /Status1
         - /Path1
+        - /Marker1
+        - /Odometry1
+        - /TF1
+        - /TF1/Frames1
+        - /PointCloud21
+        - /PointCloud21/Status1
       Splitter Ratio: 0.5
-    Tree Height: 814
+    Tree Height: 719
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -26,7 +32,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -55,7 +61,7 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 25; 255; 0
+      Color: 233; 185; 110
       Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
@@ -85,11 +91,291 @@ Visualization Manager:
         landmarks: true
       Queue Size: 100
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /loop_closure_markers
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: false
+      Keep: 100
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 10
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Axes
+      Topic: /odom_traj_robot
+      Unreliable: false
+      Value: false
+    - Class: rviz/TF
+      Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        base_link:
+          Value: false
+        cam_mount:
+          Value: false
+        front_laser_frame:
+          Value: false
+        gps:
+          Value: false
+        gps_frame:
+          Value: false
+        gyro_link:
+          Value: false
+        imu:
+          Value: false
+        imu_frame:
+          Value: false
+        laser:
+          Value: false
+        laser_link:
+          Value: false
+        map:
+          Value: true
+        odom:
+          Value: false
+        robot_base_link:
+          Value: false
+        tag_1:
+          Value: true
+        tag_21:
+          Value: true
+        tag_4:
+          Value: true
+        ultrasonic1_link:
+          Value: false
+        ultrasonic2_link:
+          Value: false
+        ultrasonic3_link:
+          Value: false
+        ultrasonic4_link:
+          Value: false
+        ultrasonic5_link:
+          Value: false
+        ultrasonic6_link:
+          Value: false
+        ultrasonic7_link:
+          Value: false
+        ultrasonic8_link:
+          Value: false
+        usb_cam_l:
+          Value: false
+        usb_cam_m:
+          Value: false
+        usb_cam_r:
+          Value: false
+        velodyne:
+          Value: true
+        wheel_left_front_link:
+          Value: false
+        wheel_left_rear_link:
+          Value: false
+        wheel_right_front_link:
+          Value: false
+        wheel_right_rear_link:
+          Value: false
+        zed2_back_baro_link:
+          Value: false
+        zed2_back_camera_center:
+          Value: false
+        zed2_back_left_camera_frame:
+          Value: false
+        zed2_back_left_camera_optical_frame:
+          Value: false
+        zed2_back_mag_link:
+          Value: false
+        zed2_back_right_camera_frame:
+          Value: false
+        zed2_back_right_camera_optical_frame:
+          Value: false
+        zed2_back_temp_left_link:
+          Value: false
+        zed2_back_temp_right_link:
+          Value: false
+        zed2_front_baro_link:
+          Value: false
+        zed2_front_camera_center:
+          Value: false
+        zed2_front_left_camera_frame:
+          Value: false
+        zed2_front_left_camera_optical_frame:
+          Value: false
+        zed2_front_mag_link:
+          Value: false
+        zed2_front_right_camera_frame:
+          Value: false
+        zed2_front_right_camera_optical_frame:
+          Value: false
+        zed2_front_temp_left_link:
+          Value: false
+        zed2_front_temp_right_link:
+          Value: false
+        zed_back_frame:
+          Value: false
+        zed_front_frame:
+          Value: false
+      Marker Alpha: 1
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: false
+      Show Axes: true
+      Show Names: false
+      Tree:
+        front_laser_frame:
+          laser:
+            {}
+        map:
+          {}
+        odom:
+          base_link:
+            cam_mount:
+              {}
+            imu_frame:
+              gyro_link:
+                {}
+              imu:
+                {}
+            robot_base_link:
+              gps_frame:
+                gps:
+                  {}
+              laser_link:
+                {}
+              ultrasonic1_link:
+                {}
+              ultrasonic2_link:
+                {}
+              ultrasonic3_link:
+                {}
+              ultrasonic4_link:
+                {}
+              ultrasonic5_link:
+                {}
+              ultrasonic6_link:
+                {}
+              ultrasonic7_link:
+                {}
+              ultrasonic8_link:
+                {}
+              wheel_left_front_link:
+                {}
+              wheel_left_rear_link:
+                {}
+              wheel_right_front_link:
+                {}
+              wheel_right_rear_link:
+                {}
+              zed2_back_camera_center:
+                zed2_back_baro_link:
+                  {}
+                zed2_back_left_camera_frame:
+                  zed2_back_left_camera_optical_frame:
+                    {}
+                  zed2_back_temp_left_link:
+                    {}
+                  zed_back_frame:
+                    {}
+                zed2_back_mag_link:
+                  {}
+                zed2_back_right_camera_frame:
+                  zed2_back_right_camera_optical_frame:
+                    {}
+                  zed2_back_temp_right_link:
+                    {}
+              zed2_front_camera_center:
+                zed2_front_baro_link:
+                  {}
+                zed2_front_left_camera_frame:
+                  zed2_front_left_camera_optical_frame:
+                    {}
+                  zed2_front_temp_left_link:
+                    {}
+                  zed_front_frame:
+                    {}
+                zed2_front_mag_link:
+                  {}
+                zed2_front_right_camera_frame:
+                  zed2_front_right_camera_optical_frame:
+                    {}
+                  zed2_front_temp_right_link:
+                    {}
+            velodyne:
+              usb_cam_l:
+                {}
+              usb_cam_m:
+                tag_1:
+                  {}
+              usb_cam_r:
+                tag_21:
+                  {}
+                tag_4:
+                  {}
+      Update Interval: 0
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic: /velodyne_points
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: velodyne
     Frame Rate: 30
   Name: root
   Tools:
@@ -113,7 +399,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 38.7570915222168
+      Distance: 3.287778377532959
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -121,25 +407,25 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.5785808563232422
-        Y: -12.43727970123291
-        Z: -2.1470870971679688
+        X: 0.05037157982587814
+        Y: -0.34398528933525085
+        Z: -0.09975941479206085
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.399796485900879
+      Pitch: 0.5897984504699707
       Target Frame: <Fixed Frame>
-      Yaw: 4.71858024597168
+      Yaw: 1.918574333190918
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1111
+  Height: 1016
   Hide Left Dock: false
-  Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd000000040000000000000156000003b9fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000003b9000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000003b9fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003d000003b9000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005bf0000003efc0100000002fb0000000800540069006d00650100000000000005bf000003bc00fffffffb0000000800540069006d006501000000000000045000000000000000000000034e000003b900000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Hide Right Dock: true
+  QMainWindow State: 000000ff00000000fd0000000400000000000001560000035afc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000035a000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000003b9fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000003b9000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003efc0100000002fb0000000800540069006d0065010000000000000780000003bc00fffffffb0000000800540069006d00650100000000000004500000000000000000000006240000035a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -147,7 +433,7 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: false
-  Width: 1471
-  X: 72
+    collapsed: true
+  Width: 1920
+  X: 0
   Y: 27
