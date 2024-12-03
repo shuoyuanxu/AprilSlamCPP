@@ -267,9 +267,204 @@ void particleFilterInitialization(
     double brngVar,
     Eigen::MatrixXd& x_P_out,
     Eigen::VectorXd& x_est){
-
-
 }
+
+// Combined Particle Filter Function
+void particleFilterInitialization(
+    const std::vector<int>& Id,             // Observed landmark IDs
+    const Eigen::MatrixXd& tagPos,          // Relative positions to landmarks
+    const Eigen::MatrixXd& landmarks,       // Global positions of all landmarks
+    Eigen::MatrixXd& x_P,                   // Particles (state estimates)
+    int N,                                  // Number of particles
+    double rngVar,                          // Range measurement variance
+    double brngVar,                         // Bearing measurement variance
+    Eigen::VectorXd& x_est                  // Estimated state output
+    ){
+    int numLandmarks = Id.size();
+    Eigen::MatrixXd z(2, numLandmarks); // Measurement matrix
+
+    // Random number generators
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> normal_dist(0.0, 1.0);
+    std::uniform_real_distribution<> uniform_dist(0.0, 1.0);
+
+    // -----------------------------
+    // Preprocessing Measurements
+    // -----------------------------
+    for (int n = 0; n < numLandmarks; ++n)
+    {
+        // Relative position to landmark n
+        Eigen::Vector2d landSE2 = tagPos.row(n).transpose();
+
+        // Compute range and bearing measurements
+        double range = landSE2.norm();
+        double brng = std::atan2(landSE2(1), landSE2(0));
+
+        // Store measurements
+        z(0, n) = range;
+        z(1, n) = brng;
+    }
+
+    // -----------------------------
+    // Extracting Landmark Positions
+    // -----------------------------
+    Eigen::MatrixXd egoPos(2, numLandmarks);
+    for (int n = 0; n < numLandmarks; ++n)
+    {
+        // Adjust for zero-based indexing if necessary
+        egoPos.col(n) = landmarks.col(Id[n]);
+    }
+
+    // -----------------------------
+    // Initialize Variables
+    // -----------------------------
+    Eigen::MatrixXd x_P_update(x_P.rows(), N); // Updated particles
+    Eigen::VectorXd P_w(N);                    // Particle weights
+
+    // -----------------------------
+    // Particle Filter Update
+    // -----------------------------
+    for (int i = 0; i < N; ++i)
+    {
+        // -----------------------------
+        // State Prediction (targetModel)
+        // -----------------------------
+        // State Transition Matrix A
+        Eigen::Matrix3d A = Eigen::Matrix3d::Identity();
+
+        // Process Noise Covariance Matrix Q
+        Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
+        Q(0, 0) = std::pow(1.0, 2);
+        Q(1, 1) = std::pow(1.0, 2);
+        Q(2, 2) = std::pow(0.4, 2);
+
+        // Generate process noise
+        Eigen::Vector3d noise;
+        for (int j = 0; j < 3; ++j)
+        {
+            noise(j) = normal_dist(gen);
+        }
+
+        // Predict next state
+        Eigen::VectorXd xplus = A * x_P.col(i) + Q * noise;
+        x_P_update.col(i) = xplus;
+
+        // -----------------------------
+        // Measurement Update
+        // -----------------------------
+        double P_w_i = 0.0; // Particle weight
+
+        for (int l = 0; l < numLandmarks; ++l)
+        {
+            // -----------------------------
+            // Observation Model (obvModel_rngbrng)
+            // -----------------------------
+            // Target position from state vector
+            Eigen::Vector2d targetPos = xplus.head(2);
+
+            // Error vector between landmark and target position
+            Eigen::Vector2d error = egoPos.col(l) - targetPos;
+
+            // Predicted range and bearing
+            double range_pred = error.norm();
+            double bearing_pred = std::atan2(error(1), error(0)) - xplus(2);
+
+            // Wrap bearing to [-pi, pi]
+            bearing_pred = std::atan2(std::sin(bearing_pred), std::cos(bearing_pred));
+
+            // -----------------------------
+            // Compute Measurement Error (errWrap)
+            // -----------------------------
+            double bearingError = z(1, l) - bearing_pred;
+            if (bearingError < -M_PI)
+            {
+                bearingError += 2 * M_PI;
+            }
+            else if (bearingError > M_PI)
+            {
+                bearingError -= 2 * M_PI;
+            }
+
+            double rangeError = range_pred - z(0, l);
+
+            // -----------------------------
+            // Compute Weight
+            // -----------------------------
+            // Measurement noise standard deviations
+            double sigma_range = std::sqrt(rngVar);
+            double sigma_bearing = std::sqrt(brngVar);
+
+            // Compute likelihoods using normal distribution PDF
+            double rangeLikelihood = (1.0 / (sigma_range * std::sqrt(2 * M_PI))) *
+                                     std::exp(-0.5 * std::pow(rangeError / sigma_range, 2));
+
+            double bearingLikelihood = (1.0 / (sigma_bearing * std::sqrt(2 * M_PI))) *
+                                       std::exp(-0.5 * std::pow(bearingError / sigma_bearing, 2));
+
+            // Total likelihood for this landmark
+            double P_wall = rangeLikelihood * bearingLikelihood;
+
+            // Accumulate weight
+            P_w_i += P_wall;
+        }
+
+        // Store particle weight
+        P_w(i) = P_w_i;
+    }
+
+    // -----------------------------
+    // Normalize Weights
+    // -----------------------------
+    double sumWeights = P_w.sum();
+    if (sumWeights == 0)
+    {
+        // Avoid division by zero
+        P_w = Eigen::VectorXd::Ones(N) / N;
+    }
+    else
+    {
+        P_w = P_w / sumWeights;
+    }
+
+    // -----------------------------
+    // Resampling Particles
+    // -----------------------------
+    // Compute cumulative sum of weights
+    std::vector<double> cumsum_P_w(N);
+    cumsum_P_w[0] = P_w(0);
+    for (int i = 1; i < N; ++i)
+    {
+        cumsum_P_w[i] = cumsum_P_w[i - 1] + P_w(i);
+    }
+
+    // Resample particles based on weights
+    Eigen::MatrixXd x_P_new(x_P.rows(), N);
+    for (int i = 0; i < N; ++i)
+    {
+        double randNum = uniform_dist(gen);
+        auto it = std::lower_bound(cumsum_P_w.begin(), cumsum_P_w.end(), randNum);
+        int idx = std::distance(cumsum_P_w.begin(), it);
+
+        // Ensure index is within bounds
+        if (idx >= N)
+        {
+            idx = N - 1;
+        }
+
+        // Select particle
+        x_P_new.col(i) = x_P_update.col(idx);
+    }
+
+    // Update particles
+    x_P = x_P_new;
+
+    // -----------------------------
+    // Estimate State
+    // -----------------------------
+    x_est = x_P.rowwise().mean();
+}
+
 } // namespace aprilslamcpp
 
 
