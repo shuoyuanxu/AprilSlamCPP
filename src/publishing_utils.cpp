@@ -257,6 +257,19 @@ void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPos
     // Publish the line marker
     lc_pub.publish(line_marker);
 }
+
+void particleFilterInitialization(
+    std::pair<std::vector<int>, std::vector<Eigen::Vector2d>> IdsTagposs,
+    const Eigen::MatrixXd& landmarks,
+    Eigen::MatrixXd& x_P,
+    int N,
+    double rngVar,
+    double brngVar,
+    Eigen::MatrixXd& x_P_out,
+    Eigen::VectorXd& x_est){
+
+
+}
 } // namespace aprilslamcpp
 
 

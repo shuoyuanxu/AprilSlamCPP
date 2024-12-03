@@ -479,12 +479,6 @@ std::set<gtsam::Symbol> aprilslam::aprilslamcpp::updateGraphWithLandmarks(
             int tag_number = Id[n];        
             Eigen::Vector2d landSE2 = tagPos[n];
 
-            // Compute prior location of the landmark using the current robot pose
-            double theta = lastPose_.theta();
-            Eigen::Rotation2Dd rotation(theta);  // Create a 2D rotation matrix
-            Eigen::Vector2d rotatedPosition = rotation * landSE2;  // Rotate the position into the robot's frame
-            gtsam::Point2 priorLand(rotatedPosition.x() + lastPose_.x(), rotatedPosition.y() + lastPose_.y());
-
             // Compute bearing and range
             double bearing = std::atan2(landSE2(1), landSE2(0));
             double range = std::sqrt(landSE2(0) * landSE2(0) + landSE2(1) * landSE2(1));
@@ -505,6 +499,12 @@ std::set<gtsam::Symbol> aprilslam::aprilslamcpp::updateGraphWithLandmarks(
                 detectedLandmarksCurrentPos.insert(landmarkKey);
             } 
             else {
+                // Compute prior location of the landmark using the current robot pose
+                double theta = lastPose_.theta();
+                Eigen::Rotation2Dd rotation(theta);  // Create a 2D rotation matrix
+                Eigen::Vector2d rotatedPosition = rotation * landSE2;  // Rotate the position into the robot's frame
+                gtsam::Point2 priorLand(rotatedPosition.x() + lastPose_.x(), rotatedPosition.y() + lastPose_.y());
+
                 // If the current landmark was not detected in the calibration run 
                 // Or it's on calibration mode
                 if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
