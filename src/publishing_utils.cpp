@@ -295,10 +295,10 @@ void particleFilterInitialization(
     for (int n = 0; n < numLandmarks; ++n)
     {
         // Relative position to landmark n
-        Eigen::Vector2d landSE2 = tagPos.row(n).transpose();
+        Eigen::Vector2d landSE2 = tagPos[n];
 
         // Compute range and bearing measurements
-        double range = landSE2.norm();
+        double range = std::sqrt(landSE2(0) * landSE2(0) + landSE2(1) * landSE2(1));
         double brng = std::atan2(landSE2(1), landSE2(0));
 
         // Store measurements
