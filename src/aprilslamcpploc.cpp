@@ -2,32 +2,6 @@
 #include "publishing_utils.h"
 
 namespace aprilslam {
-// Utility function to normalize an angle to the range [-pi, pi]
-double wrapToPi(double angle) {
-    angle = fmod(angle + M_PI, 2 * M_PI);
-    return angle - M_PI;
-}   
-
-// Computes the relative pose between two Pose2 objects
-gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& PoseSE2) {
-    double dx = PoseSE2.x() - lastPoseSE2.x();
-    double dy = PoseSE2.y() - lastPoseSE2.y();
-    double dtheta = wrapToPi(PoseSE2.theta() - lastPoseSE2.theta());
-
-    // Compute the distance moved along the robot's forward direction
-    double distance = std::sqrt(dx * dx + dy * dy);
-    double direction = std::atan2(dy, dx);
-    // return gtsam::Pose2(distance, 0, dtheta);
-
-    // Adjust the distance based on the robot's heading to account for backward movement
-    double theta = lastPoseSE2.theta();
-    double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
-    double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
-
-    // Return the relative pose assuming robot cant move sideways: dy = 0
-    return gtsam::Pose2(dx_body, dy_body, dtheta);
-    // return gtsam::Pose2(distance, 0, dtheta);
-}
 
 gtsam::Pose2 odometryDirection(const gtsam::Pose2& odometry, double cmd_vel_linear_x){
     if (cmd_vel_linear_x == 0.0) {
