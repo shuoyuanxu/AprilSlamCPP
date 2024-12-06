@@ -4,6 +4,32 @@
 
 namespace aprilslam {
 
+// Utility function to normalize an angle to the range [-pi, pi]
+double wrapToPi(double angle) {
+    angle = fmod(angle + M_PI, 2 * M_PI);
+    return angle - M_PI;
+}   
+
+// Computes the relative pose between two Pose2 objects
+gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& PoseSE2) {
+    double dx = PoseSE2.x() - lastPoseSE2.x();
+    double dy = PoseSE2.y() - lastPoseSE2.y();
+    double dtheta = wrapToPi(PoseSE2.theta() - lastPoseSE2.theta());
+
+    // Compute the distance moved along the robot's forward direction
+    double distance = std::sqrt(dx * dx + dy * dy);
+    double direction = std::atan2(dy, dx);
+    // return gtsam::Pose2(distance, 0, dtheta);
+
+    // Adjust the distance based on the robot's heading to account for backward movement
+    double theta = lastPoseSE2.theta();
+    double dx_body = std::cos(theta) * dx + std::sin(theta) * dy;
+    double dy_body = -std::sin(theta) * dx + std::cos(theta) * dy;
+
+    // Return the relative pose assuming robot cant move sideways: dy = 0
+    return gtsam::Pose2(dx_body, dy_body, dtheta);
+} 
+
 void publishLandmarks(ros::Publisher& landmark_pub, const std::map<int, gtsam::Point2>& landmarks, const std::string& frame_id) {
     visualization_msgs::MarkerArray markers;
     int id = 0;
@@ -258,211 +284,136 @@ void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPos
     lc_pub.publish(line_marker);
 }
 
-void particleFilterInitialization(
-    std::pair<std::vector<int>, std::vector<Eigen::Vector2d>> IdsTagposs,
-    const Eigen::MatrixXd& landmarks,
-    Eigen::MatrixXd& x_P,
-    int N,
-    double rngVar,
-    double brngVar,
-    Eigen::MatrixXd& x_P_out,
-    Eigen::VectorXd& x_est){
-}
-
-// Combined Particle Filter Function
-void particleFilterInitialization(
-    const std::vector<int>& Id,             // Observed landmark IDs
-    const Eigen::MatrixXd& tagPos,          // Relative positions to landmarks
-    const Eigen::MatrixXd& landmarks,       // Global positions of all landmarks
-    Eigen::MatrixXd& x_P,                   // Particles (state estimates)
-    int N,                                  // Number of particles
-    double rngVar,                          // Range measurement variance
-    double brngVar,                         // Bearing measurement variance
-    Eigen::VectorXd& x_est                  // Estimated state output
-    ){
-    int numLandmarks = Id.size();
-    Eigen::MatrixXd z(2, numLandmarks); // Measurement matrix
-
-    // Random number generators
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::normal_distribution<double> normal_dist(0.0, 1.0);
-    std::uniform_real_distribution<> uniform_dist(0.0, 1.0);
-
-    // -----------------------------
-    // Preprocessing Measurements
-    // -----------------------------
-    for (int n = 0; n < numLandmarks; ++n)
-    {
-        // Relative position to landmark n
-        Eigen::Vector2d landSE2 = tagPos[n];
-
-        // Compute range and bearing measurements
-        double range = std::sqrt(landSE2(0) * landSE2(0) + landSE2(1) * landSE2(1));
-        double brng = std::atan2(landSE2(1), landSE2(0));
-
-        // Store measurements
+void particleFilter(const std::vector<int>& Id,
+                    const Eigen::MatrixXd& tagPos,
+                    const Eigen::MatrixXd& landmarks,
+                    Eigen::MatrixXd& x_P,
+                    int N,
+                    double rngVar,
+                    double brngVar,
+                    Eigen::VectorXd& x_est){
+    int numLandmarks = (int)Id.size();
+    Eigen::MatrixXd z(2, numLandmarks);
+    for (int n = 0; n < numLandmarks; ++n) {
+        Eigen::Vector2d lp = tagPos.row(n).transpose();
+        double range = lp.norm();
+        double brng = std::atan2(lp(1), lp(0));
         z(0, n) = range;
         z(1, n) = brng;
     }
 
-    // -----------------------------
-    // Extracting Landmark Positions
-    // -----------------------------
     Eigen::MatrixXd egoPos(2, numLandmarks);
-    for (int n = 0; n < numLandmarks; ++n)
-    {
-        // Adjust for zero-based indexing if necessary
+    for (int n = 0; n < numLandmarks; ++n) {
         egoPos.col(n) = landmarks.col(Id[n]);
     }
 
-    // -----------------------------
-    // Initialize Variables
-    // -----------------------------
-    Eigen::MatrixXd x_P_update(x_P.rows(), N); // Updated particles
-    Eigen::VectorXd P_w(N);                    // Particle weights
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> nd(0.0, 1.0);
+    std::uniform_real_distribution<double> ud(0.0, 1.0);
 
-    // -----------------------------
-    // Particle Filter Update
-    // -----------------------------
-    for (int i = 0; i < N; ++i)
-    {
-        // -----------------------------
-        // State Prediction (targetModel)
-        // -----------------------------
-        // State Transition Matrix A
+    Eigen::MatrixXd x_P_update(3, N);
+    Eigen::VectorXd P_w(N);
+
+    for (int i = 0; i < N; ++i) {
         Eigen::Matrix3d A = Eigen::Matrix3d::Identity();
-
-        // Process Noise Covariance Matrix Q
         Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
-        Q(0, 0) = std::pow(1.0, 2);
-        Q(1, 1) = std::pow(1.0, 2);
-        Q(2, 2) = std::pow(0.4, 2);
+        Q(0,0) = 1.0; Q(1,1) = 1.0; Q(2,2) = 0.4;
+        Eigen::Vector3d noise(nd(gen), nd(gen), nd(gen));
 
-        // Generate process noise
-        Eigen::Vector3d noise;
-        for (int j = 0; j < 3; ++j)
-        {
-            noise(j) = normal_dist(gen);
-        }
-
-        // Predict next state
-        Eigen::VectorXd xplus = A * x_P.col(i) + Q * noise;
+        Eigen::Vector3d xplus = A * x_P.col(i) + Q * noise;
+        xplus(2) = wrapToPi(xplus(2));
         x_P_update.col(i) = xplus;
 
-        // -----------------------------
-        // Measurement Update
-        // -----------------------------
-        double P_w_i = 0.0; // Particle weight
-
-        for (int l = 0; l < numLandmarks; ++l)
-        {
-            // -----------------------------
-            // Observation Model (obvModel_rngbrng)
-            // -----------------------------
-            // Target position from state vector
+        double weight = 0.0;
+        for (int l = 0; l < numLandmarks; ++l) {
             Eigen::Vector2d targetPos = xplus.head(2);
-
-            // Error vector between landmark and target position
             Eigen::Vector2d error = egoPos.col(l) - targetPos;
-
-            // Predicted range and bearing
             double range_pred = error.norm();
             double bearing_pred = std::atan2(error(1), error(0)) - xplus(2);
-
-            // Wrap bearing to [-pi, pi]
             bearing_pred = std::atan2(std::sin(bearing_pred), std::cos(bearing_pred));
 
-            // -----------------------------
-            // Compute Measurement Error (errWrap)
-            // -----------------------------
-            double bearingError = z(1, l) - bearing_pred;
-            if (bearingError < -M_PI)
-            {
-                bearingError += 2 * M_PI;
-            }
-            else if (bearingError > M_PI)
-            {
-                bearingError -= 2 * M_PI;
-            }
+            double bearingError = z(1,l) - bearing_pred;
+            if (bearingError < -M_PI) bearingError += 2*M_PI;
+            else if (bearingError > M_PI) bearingError -= 2*M_PI;
 
-            double rangeError = range_pred - z(0, l);
+            double rangeError = range_pred - z(0,l);
 
-            // -----------------------------
-            // Compute Weight
-            // -----------------------------
-            // Measurement noise standard deviations
-            double sigma_range = std::sqrt(rngVar);
-            double sigma_bearing = std::sqrt(brngVar);
+            double sr = std::sqrt(rngVar);
+            double sb = std::sqrt(brngVar);
 
-            // Compute likelihoods using normal distribution PDF
-            double rangeLikelihood = (1.0 / (sigma_range * std::sqrt(2 * M_PI))) *
-                                     std::exp(-0.5 * std::pow(rangeError / sigma_range, 2));
+            double rl = std::exp(-0.5 * std::pow(rangeError/sr,2)) / (sr * std::sqrt(2*M_PI));
+            double bl = std::exp(-0.5 * std::pow(bearingError/sb,2)) / (sb * std::sqrt(2*M_PI));
 
-            double bearingLikelihood = (1.0 / (sigma_bearing * std::sqrt(2 * M_PI))) *
-                                       std::exp(-0.5 * std::pow(bearingError / sigma_bearing, 2));
-
-            // Total likelihood for this landmark
-            double P_wall = rangeLikelihood * bearingLikelihood;
-
-            // Accumulate weight
-            P_w_i += P_wall;
+            weight += rl * bl;
         }
-
-        // Store particle weight
-        P_w(i) = P_w_i;
+        P_w(i) = weight;
     }
 
-    // -----------------------------
-    // Normalize Weights
-    // -----------------------------
-    double sumWeights = P_w.sum();
-    if (sumWeights == 0)
-    {
-        // Avoid division by zero
+    double sumW = P_w.sum();
+    if (sumW == 0) {
         P_w = Eigen::VectorXd::Ones(N) / N;
-    }
-    else
-    {
-        P_w = P_w / sumWeights;
+    } else {
+        P_w /= sumW;
     }
 
-    // -----------------------------
-    // Resampling Particles
-    // -----------------------------
-    // Compute cumulative sum of weights
-    std::vector<double> cumsum_P_w(N);
-    cumsum_P_w[0] = P_w(0);
-    for (int i = 1; i < N; ++i)
-    {
-        cumsum_P_w[i] = cumsum_P_w[i - 1] + P_w(i);
-    }
+    std::vector<double> cumsum(N);
+    cumsum[0] = P_w(0);
+    for (int i = 1; i < N; ++i) cumsum[i] = cumsum[i-1] + P_w(i);
 
-    // Resample particles based on weights
-    Eigen::MatrixXd x_P_new(x_P.rows(), N);
-    for (int i = 0; i < N; ++i)
-    {
-        double randNum = uniform_dist(gen);
-        auto it = std::lower_bound(cumsum_P_w.begin(), cumsum_P_w.end(), randNum);
-        int idx = std::distance(cumsum_P_w.begin(), it);
-
-        // Ensure index is within bounds
-        if (idx >= N)
-        {
-            idx = N - 1;
-        }
-
-        // Select particle
+    Eigen::MatrixXd x_P_new(3, N);
+    for (int i = 0; i < N; ++i) {
+        double r = ud(gen);
+        auto it = std::lower_bound(cumsum.begin(), cumsum.end(), r);
+        int idx = (int)std::distance(cumsum.begin(), it);
+        if (idx >= N) idx = N-1;
         x_P_new.col(i) = x_P_update.col(idx);
     }
 
-    // Update particles
     x_P = x_P_new;
-
-    // -----------------------------
-    // Estimate State
-    // -----------------------------
     x_est = x_P.rowwise().mean();
+}
+
+std::map<double, Eigen::Vector3d> initParticles(int Ninit) {
+    // Initial position thru a detection
+
+    // Define grid boundaries
+    double xmin = -3.0, xmax = 6.0;
+    double ymin = -25.0, ymax = 145.0;
+
+    // Compute grid dimensions
+    double ratio = (xmax - xmin) / (ymax - ymin);
+    int Nx = static_cast<int>(std::round(ratio * std::sqrt(Ninit)));
+    int Ny = static_cast<int>(std::round(double(Ninit) / Nx));
+    int N = Nx * Ny;
+
+    // Generate linear spacing
+    Eigen::VectorXd X_lin = Eigen::VectorXd::LinSpaced(Nx, xmin, xmax);
+    Eigen::VectorXd Y_lin = Eigen::VectorXd::LinSpaced(Ny, ymin, ymax);
+
+    // Random orientation generator
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> d_theta(0.0, M_PI);
+
+    std::map<double, Eigen::Vector3d> x_P;
+
+    int count = 0;
+    for (int i = 0; i < Ny; ++i) {
+        for (int j = 0; j < Nx; ++j) {
+            Eigen::Vector3d particle;
+            particle(0) = X_lin(j);
+            particle(1) = Y_lin(i);
+            double new_theta = d_theta(gen);
+            particle(2) = wrapToPi(new_theta);
+
+            // Assign a unique weight (simple increasing sequence)
+            double w = double(count + 1) / double(N);
+            x_P.emplace(w, particle);
+            count++;
+        }
+    }
+    return x_P;
 }
 
 } // namespace aprilslamcpp
