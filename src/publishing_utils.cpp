@@ -284,86 +284,92 @@ void visualizeLoopClosure(ros::Publisher& lc_pub, const gtsam::Pose2& currentPos
     lc_pub.publish(line_marker);
 }
 
-void particleFilter(
-    const std::vector<int>& Id,
-    const Eigen::MatrixXd& tagPos,
-    const std::map<int, gtsam::Point2>& savedLandmarks,
-    Eigen::MatrixXd& x_P,
-    int N,
-    double rngVar,
-    double brngVar,
-    Eigen::VectorXd& x_est
-) {
-    int numLandmarks = (int)Id.size();
-    Eigen::MatrixXd z(2, numLandmarks);
+// Particle filter as position initialisation function
+std::vector<Eigen::Vector3d>& particleFilter(const std::vector<int>& Id,
+                    const std::vector<Eigen::Vector2d>& tagPos,
+                    const std::map<int, gtsam::Point2>& savedLandmarks,
+                    std::vector<Eigen::Vector3d>& x_P,
+                    int N,
+                    double rngVar,
+                    double brngVar,
+                    Eigen::Vector3d& x_est) {
+                        
+    int numLandmarks_detected = (int)Id.size();
+
+    // z: each landmark measurement as [range, bearing]
+    std::vector<Eigen::Vector2d> z(numLandmarks_detected);
 
     // Preprocess measurements
-    for (int n = 0; n < numLandmarks; ++n) {
-        Eigen::Vector2d lp = tagPos.row(n).transpose();
-        double range = lp.norm();
-        double brng = std::atan2(lp(1), lp(0));
-        z(0, n) = range;
-        z(1, n) = brng;
+    // Original code interpreted first as range = atan2(...) and bearing = sqrt(...)
+    // Keep the same logic
+    for (int n = 0; n < numLandmarks_detected; ++n) {
+        Eigen::Vector2d landSE2 = tagPos[n];
+        double range = std::atan2(landSE2(1), landSE2(0));
+        double brng = std::sqrt(landSE2(0)*landSE2(0) + landSE2(1)*landSE2(1));
+        z[n](0) = range;
+        z[n](1) = brng;
     }
 
-    // Extracting landmark positions from savedLandmarks map
-    Eigen::MatrixXd egoPos(2, numLandmarks);
-    for (int n = 0; n < numLandmarks; ++n) {
-        int landmarkID = Id[n];
-        auto it = savedLandmarks.find(landmarkID);
+    // Extracting landmark positions
+    std::vector<Eigen::Vector2d> egoPos(numLandmarks_detected);
+    for (int n = 0; n < numLandmarks_detected; ++n) {
+        int tag_number_detected = Id[n];
+        auto it = savedLandmarks.find(tag_number_detected);
         if (it != savedLandmarks.end()) {
             const gtsam::Point2& Lpos = it->second;
-            egoPos(0, n) = Lpos.x();
-            egoPos(1, n) = Lpos.y();
+            egoPos[n](0) = Lpos.x();
+            egoPos[n](1) = Lpos.y();
         } else {
-            // If the landmark is not found, set to NaN or handle as needed
-            egoPos(0, n) = std::numeric_limits<double>::quiet_NaN();
-            egoPos(1, n) = std::numeric_limits<double>::quiet_NaN();
+            egoPos[n](0) = std::numeric_limits<double>::quiet_NaN();
+            egoPos[n](1) = std::numeric_limits<double>::quiet_NaN();
         }
     }
 
+    // Randomizer
     std::random_device rd;
     std::mt19937 gen(rd());
     std::normal_distribution<double> nd(0.0, 1.0);
     std::uniform_real_distribution<double> ud(0.0, 1.0);
 
-    Eigen::MatrixXd x_P_update(3, N);
-    Eigen::VectorXd P_w(N);
+    // Particles and their corresponding weights
+    std::vector<Eigen::Vector3d> x_P_update(N);
+    std::vector<double> P_w(N);
 
     // Particle Filter Update
     for (int i = 0; i < N; ++i) {
         // State prediction
+        // A is identity, Q is diag(1,1,0.4)
+        // State dimension = 3: [x, y, theta]
         Eigen::Matrix3d A = Eigen::Matrix3d::Identity();
         Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
-        Q(0,0) = 1.0; 
-        Q(1,1) = 1.0; 
-        Q(2,2) = 0.4; // std dev for theta
+        Q(0,0) = 1.0;
+        Q(1,1) = 1.0;
+        Q(2,2) = 0.4; 
 
         Eigen::Vector3d noise(nd(gen), nd(gen), nd(gen));
-        Eigen::Vector3d xplus = A * x_P.col(i) + Q * noise;
+        Eigen::Vector3d xplus = A * x_P[i] + Q * noise;
         xplus(2) = wrapToPi(xplus(2));
-        x_P_update.col(i) = xplus;
+        x_P_update[i] = xplus;
 
         // Measurement update
         double weight = 0.0;
-        for (int l = 0; l < numLandmarks; ++l) {
-            // Handle invalid landmarks (e.g., NaN)
-            if (std::isnan(egoPos(0,l)) || std::isnan(egoPos(1,l))) {
-                // If landmark position unknown, skip or handle differently
+        for (int l = 0; l < numLandmarks_detected; ++l) {
+            if (std::isnan(egoPos[l](0)) || std::isnan(egoPos[l](1))) {
+                // Landmark unknown, skip
                 continue;
             }
 
-            Eigen::Vector2d targetPos = xplus.head(2);
-            Eigen::Vector2d error = egoPos.col(l) - targetPos;
+            Eigen::Vector2d targetPos = xplus.head<2>();
+            Eigen::Vector2d error = egoPos[l] - targetPos;
             double range_pred = error.norm();
             double bearing_pred = std::atan2(error(1), error(0)) - xplus(2);
             bearing_pred = std::atan2(std::sin(bearing_pred), std::cos(bearing_pred));
 
-            double bearingError = z(1,l) - bearing_pred;
+            double bearingError = z[l](1) - bearing_pred;
             if (bearingError < -M_PI) bearingError += 2*M_PI;
             else if (bearingError > M_PI) bearingError -= 2*M_PI;
 
-            double rangeError = range_pred - z(0,l);
+            double rangeError = range_pred - z[l](0);
 
             double sr = std::sqrt(rngVar);
             double sb = std::sqrt(brngVar);
@@ -373,34 +379,46 @@ void particleFilter(
 
             weight += (rl * bl);
         }
-        P_w(i) = weight;
+        P_w[i] = weight;
     }
 
     // Normalize weights
-    double sumW = P_w.sum();
+    double sumW = 0.0;
+    for (double w : P_w) sumW += w;
+
     if (sumW == 0) {
-        P_w = Eigen::VectorXd::Ones(N) / N;
+        for (int i = 0; i < N; ++i)
+            P_w[i] = 1.0 / N;
     } else {
-        P_w /= sumW;
+        for (int i = 0; i < N; ++i)
+            P_w[i] /= sumW;
     }
 
     // Resampling
     std::vector<double> cumsum(N);
-    cumsum[0] = P_w(0);
-    for (int i = 1; i < N; ++i) 
-        cumsum[i] = cumsum[i-1] + P_w(i);
+    cumsum[0] = P_w[0];
+    for (int i = 1; i < N; ++i)
+        cumsum[i] = cumsum[i-1] + P_w[i];
 
-    Eigen::MatrixXd x_P_new(3, N);
+    std::vector<Eigen::Vector3d> x_P_new(N);
     for (int i = 0; i < N; ++i) {
         double r = ud(gen);
         auto it = std::lower_bound(cumsum.begin(), cumsum.end(), r);
         int idx = (int)std::distance(cumsum.begin(), it);
         if (idx >= N) idx = N-1;
-        x_P_new.col(i) = x_P_update.col(idx);
+        x_P_new[i] = x_P_update[idx];
     }
 
     x_P = x_P_new;
-    x_est = x_P.rowwise().mean();
+
+    // Compute x_est as mean of particles
+    Eigen::Vector3d sum_states(0,0,0);
+    for (const auto& particle : x_P) {
+        sum_states += particle;
+    }
+    x_est = sum_states / (double)N;
+
+    return x_P;
 }
 
 std::map<double, Eigen::Vector3d> initParticles(int Ninit) {
