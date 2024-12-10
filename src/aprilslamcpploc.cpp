@@ -126,10 +126,10 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     mCam_subscriber = nh_.subscribe(mCam_topic, 1000, &aprilslamcpp::mCamCallback, this);
     rCam_subscriber = nh_.subscribe(rCam_topic, 1000, &aprilslamcpp::rCamCallback, this);
     lCam_subscriber = nh_.subscribe(lCam_topic, 1000, &aprilslamcpp::lCamCallback, this);
-
-    // Initialize controller input subscribers
-    cmd_vel_sub_ = nh_.subscribe(cmd_topic, 10, &aprilslamcpp::cmdVelCallback, this);
     
+    // Initialise pose0 using particle filter, set a timer to ensure the initilisation is done properly
+    pf_init_timer_ = nh_.createTimer(ros::Duration(0.5), &aprilslamcpp::pfInitCallback, this); 
+
     // Subscriptions and Publications
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
@@ -306,8 +306,6 @@ void aprilslamcpp::SAMOptimise() {
     // Prune the graph based on the number of poses
     if (useprunebysize) {
     pruneGraphByPoseCount(maxfactors);
-    }
-}
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
     if (useloopclosure) {
