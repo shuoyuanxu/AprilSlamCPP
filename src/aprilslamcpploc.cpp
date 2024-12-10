@@ -50,6 +50,11 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Read Prune conditions
     nh_.getParam("maxfactors", maxfactors);
     nh_.getParam("useprunebysize", useprunebysize);
+
+    // Read initilisation conditions
+    nh_.getParam("N_particles", N_particles);
+    nh_.getParam("usePFinitialise", usePFinitialise);
+    nh_.getParam("PFWaitTime", PFWaitTime);
     
     // Read loop closure parameters
     nh_.getParam("useloopclosure", useloopclosure);
@@ -92,8 +97,8 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("camera_subscribers/rCam_subscriber/topic", rCam_topic);
     nh_.getParam("camera_subscribers/mCam_subscriber/topic", mCam_topic);
 
-    // Load command velocity command
-    nh_.getParam("cmd_topic", cmd_topic);
+    // Load saveLandmarks
+    savedLandmarks = loadLandmarksFromCSV(pathtoloadlandmarkcsv);
 
     // Initialize noise models
     odometryNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(3) << odometry_noise[0], odometry_noise[1], odometry_noise[2]).finished());
@@ -128,8 +133,12 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     lCam_subscriber = nh_.subscribe(lCam_topic, 1000, &aprilslamcpp::lCamCallback, this);
     
     // Initialise pose0 using particle filter, set a timer to ensure the initilisation is done properly
-    pf_init_timer_ = nh_.createTimer(ros::Duration(0.5), &aprilslamcpp::pfInitCallback, this); 
-
+    if (usePFinitialise) {
+        pf_init_timer_ = nh_.createTimer(ros::Duration(0.5), &aprilslamcpp::pfInitCallback, this);
+    } else {
+         pose0 = gtsam::Pose2(0.0, 0.0, 0.0);
+    }
+    
     // Subscriptions and Publications
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
@@ -137,6 +146,70 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     lc_pub_ = nh_.advertise<visualization_msgs::Marker>("loop_closure_markers", 1);
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
     path.header.frame_id = map_frame_id; 
+}
+
+void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
+    // If PF initialization already completed, stop the timer and return.
+    if (pfInitialized_) {
+        pf_init_timer_.stop();
+        return;
+    }
+
+    // Attempt to get camera detections
+    auto detections = getCamDetections(mCam_msg, rCam_msg, lCam_msg,
+                                       mcam_baselink_transform, rcam_baselink_transform, lcam_baselink_transform);
+    const std::vector<int>& Id = detections.first;
+    const std::vector<Eigen::Vector2d>& tagPos = detections.second;
+
+    // If no tags detected, we cannot start or continue PF initialization
+    if (Id.empty()) {
+        return;
+    }
+
+    double currentTime = ros::Time::now().toSec();
+
+    // Start PF initialization if not started yet
+    if (!pfInitInProgress_) {
+        pfInitInProgress_ = true;
+        pfInitStartTime_ = currentTime;
+        // x_P_pf_ = initParticles(Ninit_); // Initialize particles from a uniform grid
+
+        x_P_pf_ = initParticlesFromFirstTag(Id, tagPos, savedLandmarks, Ninit_);
+        
+        ROS_INFO("Starting PF initialization with a uniform grid of particles...");
+    }
+
+    double elapsed = currentTime - pfInitStartTime_;
+
+    Eigen::Vector3d x_est_pf;
+    if (elapsed < pfInitDuration_) {
+        // Within the PF init duration, run PF update
+        x_P_pf_ = particleFilter(Id, tagPos, savedLandmarks, x_P_pf_, Ninit_, rngVar_, brngVar_);
+    } else {
+        // PF initialization time is up. Run PF one last time to get final estimate
+        x_P_pf_ = particleFilter(Id, tagPos, savedLandmarks, x_P_pf_, Ninit_, rngVar_, brngVar_);
+
+        // Compute x_est as mean of particles
+        Eigen::Vector3d sum_states(0,0,0);
+        for (const auto& particle : x_P_pf_) {
+            sum_states += particle;
+        }
+        x_est_pf = sum_states / (double)Ninit_;
+
+        // Finalize PF initialization using the PF-derived initial pose
+        pose0 = gtsam::Pose2(x_est_pf(0), x_est_pf(1), x_est_pf(2));
+        pfInitialized_ = true;
+        pfInitInProgress_ = false;
+        ROS_INFO("PF initialization complete. Initial pose set from PF.");
+
+        // After initialization, subscribe to odom and continue normal SLAM
+        std::string odom_topic;
+        nh_.getParam("odom_topic", odom_topic);
+        odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
+
+        // Stop the timer now that initialization is complete
+        pf_init_timer_.stop();
+    }
 }
 
 // Camera callback functions
@@ -306,6 +379,8 @@ void aprilslamcpp::SAMOptimise() {
     // Prune the graph based on the number of poses
     if (useprunebysize) {
     pruneGraphByPoseCount(maxfactors);
+    }
+}
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
     if (useloopclosure) {
@@ -359,8 +434,7 @@ bool aprilslam::aprilslamcpp::movementExceedsThreshold(const gtsam::Pose2& poseS
 }
 
 // Handle initialization of the first pose
-void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2) {
-    gtsam::Pose2 pose0(0.0, 0.0, 0.0); // Prior at origin
+void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2, gtsam::Pose2& pose0) {
     lastPoseSE2_ = poseSE2;
     lastPoseSE2_vis = poseSE2;
     keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('X', 1), pose0, priorNoise));
@@ -369,7 +443,6 @@ void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2) {
     lastPose_ = pose0; // Keep track of the last pose for odolandmarkKeymetry calculation
     // Load calibrated landmarks as priors if available
     if (usepriortagtable) {
-    std::map<int, gtsam::Point2> savedLandmarks = loadLandmarksFromCSV(pathtoloadlandmarkcsv);
         for (const auto& landmark : savedLandmarks) {
             gtsam::Symbol landmarkKey('L', landmark.first);
             keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(landmarkKey, landmark.second, pointNoise));
@@ -451,6 +524,12 @@ std::set<gtsam::Symbol> aprilslam::aprilslamcpp::updateGraphWithLandmarks(
             int tag_number = Id[n];        
             Eigen::Vector2d landSE2 = tagPos[n];
 
+            // If using prior table and the current tag_number is not found in savedLandmarks, skip it.
+            if (usepriortagtable && savedLandmarks.find(tag_number) == savedLandmarks.end()) {
+                // This tag is not in the prior table, do not add it to the graph
+                continue;
+            }
+
             // Compute bearing and range
             double bearing = std::atan2(landSE2(1), landSE2(0));
             double range = std::sqrt(landSE2(0) * landSE2(0) + landSE2(1) * landSE2(1));
@@ -467,10 +546,11 @@ std::set<gtsam::Symbol> aprilslam::aprilslamcpp::updateGraphWithLandmarks(
                 gtsam::Vector error = factor.unwhitenedError(landmarkEstimates);
 
                 // Threshold for ||projection - measurement||
-                if (fabs(error[0]) < add2graph_threshold) keyframeGraph_.add(factor);
+                if (fabs(error[0]) < add2graph_threshold) 
+                    keyframeGraph_.add(factor);
+
                 detectedLandmarksCurrentPos.insert(landmarkKey);
-            } 
-            else {
+            } else {
                 // Compute prior location of the landmark using the current robot pose
                 double theta = lastPose_.theta();
                 Eigen::Rotation2Dd rotation(theta);  // Create a 2D rotation matrix
@@ -480,25 +560,24 @@ std::set<gtsam::Symbol> aprilslam::aprilslamcpp::updateGraphWithLandmarks(
                 // If the current landmark was not detected in the calibration run 
                 // Or it's on calibration mode
                 if (!landmarkEstimates.exists(landmarkKey) || !usepriortagtable) {
-                // New landmark detected
-                detectedLandmarksHistoric.insert(landmarkKey);
-                // Check if the key already exists in keyframeEstimates_ before inserting
-                if (keyframeEstimates_.exists(landmarkKey)) {
-                } else {
-                    keyframeEstimates_.insert(landmarkKey, priorLand); // Simple initial estimate
+                    // New landmark detected
+                    detectedLandmarksHistoric.insert(landmarkKey);
+
+                    // Insert initial estimate if not already present
+                    if (!keyframeEstimates_.exists(landmarkKey)) {
+                        keyframeEstimates_.insert(landmarkKey, priorLand);
+                    }
+
+                    if (!landmarkEstimates.exists(landmarkKey)) {
+                        landmarkEstimates.insert(landmarkKey, priorLand);
+                    }
+
+                    // Add a prior for the landmark position to help with initial estimation.
+                    keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
+                        landmarkKey, priorLand, pointNoise)
+                    );
                 }
 
-                // Check if the key already exists in landmarkEstimates before inserting
-                if (landmarkEstimates.exists(landmarkKey)) {
-                } else {
-                    landmarkEstimates.insert(landmarkKey, priorLand);
-                }
-
-                // Add a prior for the landmark position to help with initial estimation.
-                keyframeGraph_.add(gtsam::PriorFactor<gtsam::Point2>(
-                    landmarkKey, priorLand, pointNoise)
-                );
-                }
                 // Add a bearing-range observation for this landmark to the graph
                 gtsam::BearingRangeFactor<gtsam::Pose2, gtsam::Point2, gtsam::Rot2, double> factor(
                     gtsam::Symbol('X', index_of_pose), landmarkKey, gtsam::Rot2::fromAngle(bearing), range, brNoise
@@ -526,9 +605,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     if (!movementExceedsThreshold(poseSE2)) return;
 
     index_of_pose += 1; // Increment the pose index for each new odometry message
-
-    // Store the initial pose for relative calculations
-    if (index_of_pose == 2) initializeFirstPose(poseSE2);
+    // Initrialisation of the factor node and variable node
+    if (index_of_pose == 2) initializeFirstPose(poseSE2, pose0);
 
     // Predict the next pose based on odometry and add it as an initial estimate
     gtsam::Pose2 predictedPose = predictNextPose(poseSE2);
