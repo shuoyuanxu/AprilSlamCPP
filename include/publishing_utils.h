@@ -45,14 +45,19 @@ namespace aprilslam {
         const Eigen::Vector3d& xyTrans_lcam_baselink,
         const Eigen::Vector3d& xyTrans_rcam_baselink,
         const Eigen::Vector3d& xyTrans_mcam_baselink);
-    std::map<double, Eigen::Vector3d> initParticles(int Ninit);
-    std::vector<Eigen::Vector3d>& particleFilter(const std::vector<int>& Id,
-                        const std::vector<Eigen::Vector2d>& tagPos,
-                        const std::map<int, gtsam::Point2>& savedLandmarks,
-                        std::vector<Eigen::Vector3d>& x_P,
-                        double rngVar,
-                        double brngVar,
-                        Eigen::Vector3d& x_est);
+    std::vector<Eigen::Vector3d> initParticles(int Ninit);
+    std::vector<Eigen::Vector3d> particleFilter(const std::vector<int>& Id,
+        const std::vector<Eigen::Vector2d>& tagPos,
+        const std::map<int, gtsam::Point2>& savedLandmarks,
+        std::vector<Eigen::Vector3d>& x_P,
+        int N,
+        double rngVar,
+        double brngVar);
+    std::vector<Eigen::Vector3d> initParticlesFromFirstTag(
+        const std::vector<int>& Id,
+        const std::vector<Eigen::Vector2d>& tagPos,
+        const std::map<int, gtsam::Point2>& savedLandmarks,
+        int Ninit);
     double wrapToPi(double angle);
     gtsam::Pose2 relPoseFG(const gtsam::Pose2& lastPoseSE2, const gtsam::Pose2& PoseSE2);
     // Assuming detection messages include id and pose information

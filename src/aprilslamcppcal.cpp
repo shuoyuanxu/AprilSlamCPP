@@ -218,8 +218,7 @@ bool aprilslam::aprilslamcpp::movementExceedsThreshold(const gtsam::Pose2& poseS
 }
 
 // Handle initialization of the first pose
-void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2) {
-    gtsam::Pose2 pose0(0.0, 0.0, 0.0); // Prior at origin
+void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2, gtsam::Pose2& pose0) {
     lastPoseSE2_ = poseSE2;
     lastPoseSE2_vis = poseSE2;
     keyframeGraph_.add(gtsam::PriorFactor<gtsam::Pose2>(gtsam::Symbol('X', 1), pose0, priorNoise));
@@ -325,13 +324,14 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
 
+    // Store the initial pose for relative calculations
+    pose0 = gtsam::Pose2(0.0, 0.0, 0.0); // Prior at origin
+
     // Check if the movement exceeds the thresholds
     if (!movementExceedsThreshold(poseSE2)) return;
 
     index_of_pose += 1; // Increment the pose index for each new odometry message
-
-    // Store the initial pose for relative calculations
-    if (index_of_pose == 2) initializeFirstPose(poseSE2);
+    if (index_of_pose == 2) initializeFirstPose(poseSE2, pose0);
 
     // Predict the next pose based on odometry and add it as an initial estimate
     gtsam::Pose2 predictedPose = predictNextPose(poseSE2);

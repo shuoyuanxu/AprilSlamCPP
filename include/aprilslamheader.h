@@ -44,7 +44,7 @@ public:
     void ISAM2Optimise(); //ISAM optimiser
     void SAMOptimise(); //SAM optimiser
     bool movementExceedsThreshold(const gtsam::Pose2& poseSE2);
-    void initializeFirstPose(const gtsam::Pose2& poseSE2);
+    void initializeFirstPose(const gtsam::Pose2& poseSE2, gtsam::Pose2& pose0);
     gtsam::Pose2 predictNextPose(const gtsam::Pose2& poseSE2);
     void updateOdometryPose(const gtsam::Pose2& poseSE2);
     void generate2bePublished();
@@ -56,6 +56,7 @@ public:
     void rCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void lCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg);
     void cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg);
+    void pfInitCallback(const ros::TimerEvent& event);
     void pruneGraphByPoseCount(int maxPoses);
 private:
     ros::Timer check_data_timer_;  // Declare the timer here
@@ -89,6 +90,23 @@ private:
     gtsam::Pose2 lastPoseSE2_;
     gtsam::Pose2 lastPoseSE2_vis;
     gtsam::Pose2 lastPose_;
+    
+    // initialisation variable
+    gtsam::Pose2 pose0;
+    int N_particles;
+    bool usePFinitialise;
+    double PFWaitTime;
+    ros::Timer pf_init_timer_; // timer
+    bool pfInitialized_ = false;
+    bool pfInitInProgress_ = false;
+    double pfInitStartTime_ = 0.0;
+    double pfInitDuration_ = 20.0;
+    int Ninit_ = 5000;   // or whatever you set it to
+    double rngVar_ = 0.2; // example values
+    double brngVar_ = 0.1; // example values
+    std::vector<Eigen::Vector3d> x_P_pf_;
+    std::map<int, gtsam::Point2> savedLandmarks;
+
     std::vector<std::string> possibleIds_; // Predefined tags in the environment
     std::map<int, gtsam::Symbol> tagToNodeIDMap_; // Map from tag IDs to node IDs
     int index_of_pose;
@@ -119,7 +137,6 @@ private:
     double stationary_rotation_threshold;
     bool savetaglocation;
     bool usepriortagtable;
-    std::map<int, gtsam::Point2> savedLandmarks;
     std::map<gtsam::Symbol, std::set<gtsam::Symbol>> poseToLandmarks; // Maps pose index to a set of detected landmark IDs, e.g. X1: L1,L2,L3.
     // For keyframe
     double distanceThreshold;
