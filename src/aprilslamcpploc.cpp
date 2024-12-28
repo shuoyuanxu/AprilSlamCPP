@@ -209,6 +209,8 @@ void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
 
         // Stop the timer now that initialization is complete
         pf_init_timer_.stop();
+        // Free up memory
+        // x_P_pf_.clear();
     }
 }
 

@@ -8,7 +8,7 @@ pathtoloadlandmarkcsv: "config/landmark.csv"
 ud_frame: "robot/base_link"
 odometry_trajectory: "odom_traj_robot"
 savetaglocation: false
-usepriortagtable: false
+usepriortagtable: true
 batch_optimisation: true
 total_tags: 1000
 add2graph_threshold: 0.2
