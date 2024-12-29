@@ -133,12 +133,14 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     lCam_subscriber = nh_.subscribe(lCam_topic, 1000, &aprilslamcpp::lCamCallback, this);
     
     // Initialise pose0 using particle filter, set a timer to ensure the initilisation is done properly
-    if (usePFinitialise) {
-        pf_init_timer_ = nh_.createTimer(ros::Duration(0.5), &aprilslamcpp::pfInitCallback, this);
-    } else {
-         pose0 = gtsam::Pose2(0.0, 0.0, 0.0);
-    }
+    // if (usePFinitialise) {
+    //     pf_init_timer_ = nh_.createTimer(ros::Duration(0.5), &aprilslamcpp::pfInitCallback, this);
+    // } else {
+    //     pose0 = gtsam::Pose2(0.0, 0.0, 0.0);
+    // }
     
+    pf_init_timer_ = nh_.createTimer(ros::Duration(0.5), &aprilslamcpp::pfInitCallback, this);
+
     // Subscriptions and Publications
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
@@ -152,6 +154,7 @@ void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
     // If PF initialization already completed, stop the timer and return.
     if (pfInitialized_) {
         pf_init_timer_.stop();
+        ROS_INFO("PF initialised");
         return;
     }
 
@@ -163,6 +166,7 @@ void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
 
     // If no tags detected, we cannot start or continue PF initialization
     if (Id.empty()) {
+        ROS_INFO("No Camera Detections");
         return;
     }
 
@@ -202,15 +206,10 @@ void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
         pfInitInProgress_ = false;
         ROS_INFO("PF initialization complete. Initial pose set from PF.");
 
-        // After initialization, subscribe to odom and continue normal SLAM
-        std::string odom_topic;
-        nh_.getParam("odom_topic", odom_topic);
-        odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
-
         // Stop the timer now that initialization is complete
         pf_init_timer_.stop();
         // Free up memory
-        // x_P_pf_.clear();
+        x_P_pf_.clear();
     }
 }
 
@@ -601,7 +600,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
     
     // Publish tf
-    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame);
+    // aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame);
 
     // Check if the movement exceeds the thresholds
     if (!movementExceedsThreshold(poseSE2)) return;
