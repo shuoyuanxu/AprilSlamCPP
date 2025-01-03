@@ -136,7 +136,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     if (usePFinitialise) {
         pf_init_timer_ = nh_.createTimer(ros::Duration(0.5), &aprilslamcpp::pfInitCallback, this);
     } else {
-        pose0 = gtsam::Pose2(1.0, 1.0, 0.0);
+        pose0 = gtsam::Pose2(0.0, 0.0, 0.0);
     }
     
     // Subscriptions and Publications
@@ -197,7 +197,7 @@ void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
         Eigen::Vector3d x_est_pf = sum_states / static_cast<double>(Ninit_);
 
         // Finalize PF initialization using the PF-derived initial pose
-        pose0 = gtsam::Pose2(x_est_pf(0), x_est_pf(1), x_est_pf(2));
+        pose0 = gtsam::Pose2(x_est_pf(0), x_est_pf(1), 0);
         pfInitialized_ = true;
         pfInitInProgress_ = false;
 
@@ -366,81 +366,18 @@ void aprilslamcpp::ISAM2Optimise() {
     keyframeGraph_.resize(0);
 }
 
-void aprilslamcpp::SAMOptimise() 
-{    
-    // ---------------------------------------------------
-    // 1) Print factor breakdown
-    // ---------------------------------------------------
-    size_t totalFactors = keyframeGraph_.size();
-    ROS_INFO_STREAM("[SAM DEBUG] keyframeGraph_ has " 
-                    << totalFactors 
-                    << " factors before batch optimization.");
-
-    int xFactorCount = 0;
-    int lFactorCount = 0;
-
-    for (size_t i = 0; i < keyframeGraph_.size(); i++) {
-        auto factor = keyframeGraph_[i];
-        bool hasX = false;
-        bool hasL = false;
-
-        // Each factor can reference multiple keys
-        for (auto key : factor->keys()) {
-            char c = gtsam::Symbol(key).chr();
-            if (c == 'X') hasX = true;
-            if (c == 'L') hasL = true;
-        }
-
-        if (hasX) xFactorCount++;
-        if (hasL) lFactorCount++;
-    }
-
-    ROS_INFO_STREAM("[SAM DEBUG] # factors w/ X: " << xFactorCount
-                    << " | # factors w/ L: " << lFactorCount);
-
-    // ---------------------------------------------------
-    // 2) Print variable node breakdown
-    // ---------------------------------------------------
-    // We'll count how many X (poses) vs. L (landmarks) are in keyframeEstimates_
-    size_t xVarCount = 0;
-    size_t lVarCount = 0;
-    for (const auto& key_value : keyframeEstimates_) {
-        char c = gtsam::Symbol(key_value.key).chr();
-        if (c == 'X') xVarCount++;
-        else if (c == 'L') lVarCount++;
-    }
-    ROS_INFO_STREAM("[SAM DEBUG] # variable nodes in keyframeEstimates_: "
-                    << (xVarCount + lVarCount) 
-                    << " (X: " << xVarCount << ", L: " << lVarCount << ")");
-
-    // ---------------------------------------------------
-    // 3) Time the batch optimization
-    // ---------------------------------------------------
-    ros::WallTime start_optim = ros::WallTime::now();
-
+void aprilslamcpp::SAMOptimise() {    
+    // Perform batch optimization using Levenberg-Marquardt optimizer
     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     gtsam::Values result = batchOptimizer.optimize();
 
-    ros::WallTime end_optim = ros::WallTime::now();
-    double time_optim = (end_optim - start_optim).toSec();
-    ROS_INFO_STREAM("[SAM DEBUG] Batch optimization took " 
-                    << time_optim << " seconds.");
-
-    // ---------------------------------------------------
-    // 4) Update estimates
-    // ---------------------------------------------------
+    // Update keyframeEstimates_ with the optimized values for the next iteration
     keyframeEstimates_ = result;
 
-    // ---------------------------------------------------
-    // 5) Prune graph if enabled
-    // ---------------------------------------------------
+    // Prune the graph based on the number of poses
     if (useprunebysize) {
-        ROS_INFO_STREAM("[SAM DEBUG] Graph pruning by pose count (maxfactors=" 
-                        << maxfactors << ").");
-        pruneGraphByPoseCount(maxfactors);
+    pruneGraphByPoseCount(maxfactors);
     }
-
-    ROS_INFO("[SAM DEBUG] SAMOptimise() completed.\n");
 }
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
@@ -652,12 +589,14 @@ std::set<gtsam::Symbol> aprilslam::aprilslamcpp::updateGraphWithLandmarks(
 }
 
 void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& msg) {
+    
+    // Ignoring odometry because PF is not done yet
     if (usePFinitialise) {
         if (!pfInitialized_) {
-            ROS_WARN("Ignoring odometry because PF is not done yet.");
             return;
         }
     }    
+
     double current_time = ros::Time::now().toSec();
     ros::WallTime start_loop, end_loop; // Declare variables to hold start and end times
     double elapsed;
