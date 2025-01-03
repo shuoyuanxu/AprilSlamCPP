@@ -151,10 +151,13 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 }
 
 void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
+    // Initial debug message for function entry
+    ROS_INFO("[PF DEBUG] pfInitCallback triggered.");
+
     // If PF initialization already completed, stop the timer and return.
     if (pfInitialized_) {
+        ROS_INFO("[PF DEBUG] pfInitialized_ is true. Stopping timer and returning.");
         pf_init_timer_.stop();
-        ROS_INFO("PF initialised");
         return;
     }
 
@@ -164,54 +167,69 @@ void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
     const std::vector<int>& Id = detections.first;
     const std::vector<Eigen::Vector2d>& tagPos = detections.second;
 
+    ROS_INFO_STREAM("[PF DEBUG] Number of detected tags: " << Id.size());
     // If no tags detected, we cannot start or continue PF initialization
     if (Id.empty()) {
-        ROS_INFO("No Camera Detections");
+        ROS_INFO("[PF DEBUG] Id is empty -> No Camera Detections. Returning.");
         return;
     }
 
     double currentTime = ros::Time::now().toSec();
+    ROS_INFO_STREAM("[PF DEBUG] Current time: " << currentTime << "  pfInitStartTime_: " << pfInitStartTime_);
 
     // Start PF initialization if not started yet
     if (!pfInitInProgress_) {
         pfInitInProgress_ = true;
         pfInitStartTime_ = currentTime;
-        // x_P_pf_ = initParticles(Ninit_); // Initialize particles from a uniform grid
+        ROS_INFO("[PF DEBUG] pfInitInProgress_ was false. Now set to true.");
 
+        // Initialize particles from the first detected tag
         x_P_pf_ = initParticlesFromFirstTag(Id, tagPos, savedLandmarks, Ninit_);
-        
-        ROS_INFO("Starting PF initialization with a uniform grid of particles...");
+
+        ROS_INFO("[PF DEBUG] Starting PF initialization with particles from the first detected tag.");
+    } else {
+        ROS_INFO("[PF DEBUG] pfInitInProgress_ is already true. Continuing PF updates.");
     }
 
     double elapsed = currentTime - pfInitStartTime_;
+    ROS_INFO_STREAM("[PF DEBUG] Elapsed time: " << elapsed 
+                    << " / pfInitDuration_: " << pfInitDuration_);
 
-    Eigen::Vector3d x_est_pf;
     if (elapsed < pfInitDuration_) {
         // Within the PF init duration, run PF update
+        ROS_INFO("[PF DEBUG] PF init duration not reached. Running particleFilter update...");
         x_P_pf_ = particleFilter(Id, tagPos, savedLandmarks, x_P_pf_, Ninit_, rngVar_, brngVar_);
+        ROS_INFO("[PF DEBUG] Particle filter update complete. Particle set size: %zu", x_P_pf_.size());
     } else {
         // PF initialization time is up. Run PF one last time to get final estimate
+        ROS_INFO("[PF DEBUG] PF init duration reached or exceeded. Final PF update...");
         x_P_pf_ = particleFilter(Id, tagPos, savedLandmarks, x_P_pf_, Ninit_, rngVar_, brngVar_);
 
         // Compute x_est as mean of particles
+        ROS_INFO("[PF DEBUG] Computing final PF estimate (mean of particles).");
         Eigen::Vector3d sum_states(0,0,0);
         for (const auto& particle : x_P_pf_) {
             sum_states += particle;
         }
-        x_est_pf = sum_states / (double)Ninit_;
+        Eigen::Vector3d x_est_pf = sum_states / static_cast<double>(Ninit_);
 
         // Finalize PF initialization using the PF-derived initial pose
         pose0 = gtsam::Pose2(x_est_pf(0), x_est_pf(1), x_est_pf(2));
         pfInitialized_ = true;
         pfInitInProgress_ = false;
-        ROS_INFO("PF initialization complete. Initial pose set from PF.");
+        ROS_INFO_STREAM("[PF DEBUG] PF initialization complete. Final Pose: ("
+                        << x_est_pf(0) << ", " << x_est_pf(1) << ", " << x_est_pf(2) << ")");
 
         // Stop the timer now that initialization is complete
+        ROS_INFO("[PF DEBUG] Stopping pf_init_timer_.");
         pf_init_timer_.stop();
+
         // Free up memory
         x_P_pf_.clear();
+        ROS_INFO("[PF DEBUG] Particle set cleared.");
     }
 }
+
 
 // Camera callback functions
 void aprilslamcpp::mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
@@ -370,6 +388,11 @@ void aprilslamcpp::ISAM2Optimise() {
 }
 
 void aprilslamcpp::SAMOptimise() {    
+    // Print the current graph size
+    ROS_INFO_STREAM("[SAM DEBUG] keyframeGraph_ has " 
+                    << keyframeGraph_.size() 
+                    << " factors before batch optimization.");
+
     // Perform batch optimization using Levenberg-Marquardt optimizer
     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     gtsam::Values result = batchOptimizer.optimize();
@@ -377,11 +400,12 @@ void aprilslamcpp::SAMOptimise() {
     // Update keyframeEstimates_ with the optimized values for the next iteration
     keyframeEstimates_ = result;
 
-    // Prune the graph based on the number of poses
+    // Prune the graph based on the number of poses if enabled
     if (useprunebysize) {
-    pruneGraphByPoseCount(maxfactors);
+        pruneGraphByPoseCount(maxfactors);
     }
 }
+
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
     if (useloopclosure) {
