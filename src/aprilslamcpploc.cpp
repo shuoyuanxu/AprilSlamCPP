@@ -366,13 +366,16 @@ void aprilslamcpp::ISAM2Optimise() {
     keyframeGraph_.resize(0);
 }
 
-void aprilslamcpp::SAMOptimise() {
-    // 1) Print total graph size
+void aprilslamcpp::SAMOptimise() 
+{    
+    // ---------------------------------------------------
+    // 1) Print factor breakdown
+    // ---------------------------------------------------
+    size_t totalFactors = keyframeGraph_.size();
     ROS_INFO_STREAM("[SAM DEBUG] keyframeGraph_ has " 
-                    << keyframeGraph_.size() 
+                    << totalFactors 
                     << " factors before batch optimization.");
 
-    // 2) Count how many factors contain X vs. how many contain L
     int xFactorCount = 0;
     int lFactorCount = 0;
 
@@ -388,28 +391,56 @@ void aprilslamcpp::SAMOptimise() {
             if (c == 'L') hasL = true;
         }
 
-        // If a factor touches at least one pose key, increment xFactorCount
         if (hasX) xFactorCount++;
-        // If a factor touches at least one landmark key, increment lFactorCount
         if (hasL) lFactorCount++;
     }
 
-    ROS_INFO_STREAM("[SAM DEBUG] # of factors that contain X: " 
-                    << xFactorCount 
-                    << " | # of factors that contain L: " 
-                    << lFactorCount);
+    ROS_INFO_STREAM("[SAM DEBUG] # factors w/ X: " << xFactorCount
+                    << " | # factors w/ L: " << lFactorCount);
 
-    // 3) Perform batch optimization using Levenberg-Marquardt
+    // ---------------------------------------------------
+    // 2) Print variable node breakdown
+    // ---------------------------------------------------
+    // We'll count how many X (poses) vs. L (landmarks) are in keyframeEstimates_
+    size_t xVarCount = 0;
+    size_t lVarCount = 0;
+    for (const auto& key_value : keyframeEstimates_) {
+        char c = gtsam::Symbol(key_value.key).chr();
+        if (c == 'X') xVarCount++;
+        else if (c == 'L') lVarCount++;
+    }
+    ROS_INFO_STREAM("[SAM DEBUG] # variable nodes in keyframeEstimates_: "
+                    << (xVarCount + lVarCount) 
+                    << " (X: " << xVarCount << ", L: " << lVarCount << ")");
+
+    // ---------------------------------------------------
+    // 3) Time the batch optimization
+    // ---------------------------------------------------
+    ros::WallTime start_optim = ros::WallTime::now();
+
     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     gtsam::Values result = batchOptimizer.optimize();
 
-    // 4) Update keyframeEstimates_ with the optimized values for the next iteration
+    ros::WallTime end_optim = ros::WallTime::now();
+    double time_optim = (end_optim - start_optim).toSec();
+    ROS_INFO_STREAM("[SAM DEBUG] Batch optimization took " 
+                    << time_optim << " seconds.");
+
+    // ---------------------------------------------------
+    // 4) Update estimates
+    // ---------------------------------------------------
     keyframeEstimates_ = result;
 
-    // 5) Prune the graph based on the number of poses (if enabled)
+    // ---------------------------------------------------
+    // 5) Prune graph if enabled
+    // ---------------------------------------------------
     if (useprunebysize) {
+        ROS_INFO_STREAM("[SAM DEBUG] Graph pruning by pose count (maxfactors=" 
+                        << maxfactors << ").");
         pruneGraphByPoseCount(maxfactors);
     }
+
+    ROS_INFO("[SAM DEBUG] SAMOptimise() completed.\n");
 }
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
