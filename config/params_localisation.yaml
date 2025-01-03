@@ -12,13 +12,13 @@ usepriortagtable: true
 batch_optimisation: true
 total_tags: 1000
 add2graph_threshold: 0.2
-maxfactors: 400 # maximum number of poses in the factor graph
+maxfactors: 100 # maximum number of poses in the factor graph
 useprunebysize: true # no point of using it with ISAM2
 useisam2: false # true for ISAM2, false for SAM
 
 # Particle initilisation condition 
-N_particles: 1000
-usePFinitialise: true
+N_particles: 500
+usePFinitialise: false
 PFWaitTime: 20
 
 # Loop closure, dont apply LC when pruning is enabled
