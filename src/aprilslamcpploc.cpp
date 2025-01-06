@@ -455,7 +455,6 @@ void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2, g
 // Predict the next pose based on odometry
 gtsam::Pose2 aprilslam::aprilslamcpp::predictNextPose(const gtsam::Pose2& poseSE2) {
     gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
-    // gtsam::Pose2 adjustedOdometry = odometryDirection(odometry, linear_x_velocity_);
     return lastPose_.compose(odometry);
 }
 
