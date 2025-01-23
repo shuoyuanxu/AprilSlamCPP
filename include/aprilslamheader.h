@@ -99,11 +99,9 @@ private:
     ros::Timer pf_init_timer_; // timer
     bool pfInitialized_ = false;
     bool pfInitInProgress_ = false;
-    double pfInitStartTime_ = 0.0;
-    double pfInitDuration_ = 20.0;
-    int Ninit_ = 5000;   // or whatever you set it to
-    double rngVar_ = 0.2; // example values
-    double brngVar_ = 0.1; // example values
+    double rngVar_;
+    double brngVar_;
+    double pfInitStartTime_;
     std::vector<Eigen::Vector3d> x_P_pf_;
     std::map<int, gtsam::Point2> savedLandmarks;
 

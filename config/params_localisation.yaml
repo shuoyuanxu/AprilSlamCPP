@@ -19,7 +19,9 @@ useisam2: false # true for ISAM2, false for SAM
 # Particle initilisation condition 
 N_particles: 1000
 usePFinitialise: true
-PFWaitTime: 20
+PFWaitTime: 5
+rngVar: 0.2
+brngVar: 0.1
 
 # Loop closure, dont apply LC when pruning is enabled
 useloopclosure: false

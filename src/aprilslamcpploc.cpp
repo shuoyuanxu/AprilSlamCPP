@@ -55,7 +55,10 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("N_particles", N_particles);
     nh_.getParam("usePFinitialise", usePFinitialise);
     nh_.getParam("PFWaitTime", PFWaitTime);
-    
+    nh_.getParam("rngVar", rngVar_);
+    nh_.getParam("brngVar", brngVar_);
+    pfInitStartTime_ = 0.0;
+
     // Read loop closure parameters
     nh_.getParam("useloopclosure", useloopclosure);
     nh_.getParam("historyKeyframeSearchRadius", historyKeyframeSearchRadius);
@@ -150,7 +153,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 
 void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
     // Initial debug message for function entry
-    ROS_INFO("PF in");
+    ROS_INFO("PF Running");
     // If PF initialization already completed, stop the timer and return.
     if (pfInitialized_) {
         pf_init_timer_.stop();
@@ -165,8 +168,11 @@ void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
 
     // If no tags detected, cannot start or continue PF initialization
     if (Id.empty()) {
+        ROS_INFO("No tags detected, waiting for detections...");
         return;
     }
+
+    ROS_INFO("Number of tags observed: %zu", Id.size());
 
     double currentTime = ros::Time::now().toSec();
 
@@ -176,39 +182,57 @@ void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
         pfInitStartTime_ = currentTime;
 
         // Initialize particles from the first detected tag
-        x_P_pf_ = initParticlesFromFirstTag(Id, tagPos, savedLandmarks, Ninit_);
+        x_P_pf_ = initParticlesFromFirstTag(Id, tagPos, savedLandmarks, PFWaitTime);
 
+        ROS_INFO("PF initialization started.");
     }
 
     double elapsed = currentTime - pfInitStartTime_;
 
-    if (elapsed < pfInitDuration_) {
+    if (elapsed < PFWaitTime) {
         // Within the PF init duration, run PF update
-        x_P_pf_ = particleFilter(Id, tagPos, savedLandmarks, x_P_pf_, Ninit_, rngVar_, brngVar_);
+        x_P_pf_ = particleFilter(Id, tagPos, savedLandmarks, x_P_pf_, PFWaitTime, rngVar_, brngVar_);
     } else {
         // PF initialization time is up. Run PF one last time to get final estimate
-        x_P_pf_ = particleFilter(Id, tagPos, savedLandmarks, x_P_pf_, Ninit_, rngVar_, brngVar_);
+        x_P_pf_ = particleFilter(Id, tagPos, savedLandmarks, x_P_pf_, PFWaitTime, rngVar_, brngVar_);
 
         // Compute x_est as mean of particles
         Eigen::Vector3d sum_states(0,0,0);
         for (const auto& particle : x_P_pf_) {
             sum_states += particle;
         }
-        Eigen::Vector3d x_est_pf = sum_states / static_cast<double>(Ninit_);
+        Eigen::Vector3d x_est_pf = sum_states / static_cast<double>(PFWaitTime);
 
-        // Finalize PF initialization using the PF-derived initial pose
-        pose0 = gtsam::Pose2(x_est_pf(0), x_est_pf(1), 0);
-        pfInitialized_ = true;
-        pfInitInProgress_ = false;
+        // Report the initialization result
+        ROS_INFO("PF initialization result: x = %f, y = %f, theta = %f", x_est_pf(0), x_est_pf(1), 0.0);
+        ROS_INFO("PLEASE DONT MOVE THE ROBOT!!!");
 
-        // Stop the timer now that initialization is complete
-        pf_init_timer_.stop();
+        // Ask user for confirmation
+        std::string userInput;
+        ROS_INFO("Are you satisfied with the PF initialization result? (yes/no): ");
+        std::cin >> userInput;
 
-        // Free up memory
-        x_P_pf_.clear();
+        if (userInput == "yes") {
+            // Finalize PF initialization using the PF-derived initial pose
+            pose0 = gtsam::Pose2(x_est_pf(0), x_est_pf(1), 0);
+            pfInitialized_ = true;
+            pfInitInProgress_ = false;
+
+            // Stop the timer now that initialization is complete
+            pf_init_timer_.stop();
+
+            // Free up memory
+            x_P_pf_.clear();
+
+            ROS_INFO("PF initialization finalized successfully.");
+        } else {
+            // Restart initialization process
+            pfInitInProgress_ = false;
+            ROS_WARN("PF initialization rejected. Restarting initialization process.");
+            x_P_pf_.clear();
+        }
     }
 }
-
 
 // Camera callback functions
 void aprilslamcpp::mCamCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr& msg) {
