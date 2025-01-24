@@ -30,7 +30,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -139,126 +139,336 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        Tagodom:
+          Value: true
         base_link:
           Value: true
-        cam_mount:
-          Value: false
         front_laser_frame:
-          Value: false
+          Value: true
         gps:
-          Value: false
+          Value: true
         gps_frame:
-          Value: false
+          Value: true
         gyro_link:
-          Value: false
+          Value: true
         imu:
-          Value: false
+          Value: true
         imu_frame:
-          Value: false
-        imu_link:
-          Value: false
+          Value: true
         laser:
-          Value: false
+          Value: true
         laser_link:
-          Value: false
-        map:
           Value: true
         odom:
-          Value: false
-        os_imu:
-          Value: false
-        os_lidar:
-          Value: false
-        os_sensor:
-          Value: false
+          Value: true
+        robot/base_link:
+          Value: true
+        robot/odom:
+          Value: true
         robot_base_link:
-          Value: false
-        tag_44:
-          Value: false
-        tag_52:
-          Value: false
-        tag_57:
-          Value: false
-        tag_74:
-          Value: false
-        tag_78:
-          Value: false
-        theta_cam:
-          Value: false
-        tower_plate:
-          Value: false
+          Value: true
+        tag_106:
+          Value: true
+        tag_108:
+          Value: true
+        tag_109:
+          Value: true
+        tag_112:
+          Value: true
+        tag_113:
+          Value: true
+        tag_116:
+          Value: true
+        tag_117:
+          Value: true
+        tag_12:
+          Value: true
+        tag_120:
+          Value: true
+        tag_121:
+          Value: true
+        tag_122:
+          Value: true
+        tag_124:
+          Value: true
+        tag_125:
+          Value: true
+        tag_128:
+          Value: true
+        tag_129:
+          Value: true
+        tag_13:
+          Value: true
+        tag_132:
+          Value: true
+        tag_133:
+          Value: true
+        tag_135:
+          Value: true
+        tag_136:
+          Value: true
+        tag_137:
+          Value: true
+        tag_139:
+          Value: true
+        tag_140:
+          Value: true
+        tag_141:
+          Value: true
+        tag_16:
+          Value: true
+        tag_17:
+          Value: true
+        tag_20:
+          Value: true
+        tag_208:
+          Value: true
+        tag_21:
+          Value: true
+        tag_210:
+          Value: true
+        tag_212:
+          Value: true
+        tag_213:
+          Value: true
+        tag_214:
+          Value: true
+        tag_216:
+          Value: true
+        tag_218:
+          Value: true
+        tag_220:
+          Value: true
+        tag_222:
+          Value: true
+        tag_224:
+          Value: true
+        tag_226:
+          Value: true
+        tag_228:
+          Value: true
+        tag_230:
+          Value: true
+        tag_232:
+          Value: true
+        tag_234:
+          Value: true
+        tag_236:
+          Value: true
+        tag_237:
+          Value: true
+        tag_238:
+          Value: true
+        tag_239:
+          Value: true
+        tag_24:
+          Value: true
+        tag_240:
+          Value: true
+        tag_241:
+          Value: true
+        tag_242:
+          Value: true
+        tag_243:
+          Value: true
+        tag_244:
+          Value: true
+        tag_245:
+          Value: true
+        tag_25:
+          Value: true
+        tag_27:
+          Value: true
+        tag_28:
+          Value: true
+        tag_29:
+          Value: true
+        tag_31:
+          Value: true
+        tag_314:
+          Value: true
+        tag_316:
+          Value: true
+        tag_318:
+          Value: true
+        tag_32:
+          Value: true
+        tag_320:
+          Value: true
+        tag_322:
+          Value: true
+        tag_324:
+          Value: true
+        tag_326:
+          Value: true
+        tag_328:
+          Value: true
+        tag_33:
+          Value: true
+        tag_330:
+          Value: true
+        tag_332:
+          Value: true
+        tag_334:
+          Value: true
+        tag_336:
+          Value: true
+        tag_338:
+          Value: true
+        tag_340:
+          Value: true
+        tag_342:
+          Value: true
+        tag_343:
+          Value: true
+        tag_344:
+          Value: true
+        tag_345:
+          Value: true
+        tag_346:
+          Value: true
+        tag_347:
+          Value: true
+        tag_348:
+          Value: true
+        tag_349:
+          Value: true
+        tag_37:
+          Value: true
+        tag_4:
+          Value: true
+        tag_421:
+          Value: true
+        tag_423:
+          Value: true
+        tag_425:
+          Value: true
+        tag_427:
+          Value: true
+        tag_429:
+          Value: true
+        tag_431:
+          Value: true
+        tag_433:
+          Value: true
+        tag_435:
+          Value: true
+        tag_439:
+          Value: true
+        tag_441:
+          Value: true
+        tag_443:
+          Value: true
+        tag_444:
+          Value: true
+        tag_446:
+          Value: true
+        tag_447:
+          Value: true
+        tag_448:
+          Value: true
+        tag_449:
+          Value: true
+        tag_450:
+          Value: true
+        tag_451:
+          Value: true
+        tag_452:
+          Value: true
+        tag_453:
+          Value: true
+        tag_454:
+          Value: true
+        tag_455:
+          Value: true
+        tag_5:
+          Value: true
+        tag_551:
+          Value: true
+        tag_552:
+          Value: true
+        tag_553:
+          Value: true
+        tag_555:
+          Value: true
+        tag_557:
+          Value: true
+        tag_559:
+          Value: true
+        tag_8:
+          Value: true
+        tag_9:
+          Value: true
         ultrasonic1_link:
-          Value: false
+          Value: true
         ultrasonic2_link:
-          Value: false
+          Value: true
         ultrasonic3_link:
-          Value: false
+          Value: true
         ultrasonic4_link:
-          Value: false
+          Value: true
         ultrasonic5_link:
-          Value: false
+          Value: true
         ultrasonic6_link:
-          Value: false
+          Value: true
         ultrasonic7_link:
-          Value: false
+          Value: true
         ultrasonic8_link:
-          Value: false
+          Value: true
         usb_cam_l:
-          Value: false
+          Value: true
         usb_cam_m:
-          Value: false
+          Value: true
         usb_cam_r:
-          Value: false
-        velodyne:
-          Value: false
+          Value: true
         wheel_left_front_link:
-          Value: false
+          Value: true
         wheel_left_rear_link:
-          Value: false
+          Value: true
         wheel_right_front_link:
-          Value: false
+          Value: true
         wheel_right_rear_link:
-          Value: false
+          Value: true
         zed2_back_baro_link:
-          Value: false
+          Value: true
         zed2_back_camera_center:
-          Value: false
+          Value: true
         zed2_back_left_camera_frame:
-          Value: false
+          Value: true
         zed2_back_left_camera_optical_frame:
-          Value: false
+          Value: true
         zed2_back_mag_link:
-          Value: false
+          Value: true
         zed2_back_right_camera_frame:
-          Value: false
+          Value: true
         zed2_back_right_camera_optical_frame:
-          Value: false
+          Value: true
         zed2_back_temp_left_link:
-          Value: false
+          Value: true
         zed2_back_temp_right_link:
-          Value: false
+          Value: true
         zed2_front_baro_link:
-          Value: false
+          Value: true
         zed2_front_camera_center:
-          Value: false
+          Value: true
         zed2_front_left_camera_frame:
-          Value: false
+          Value: true
         zed2_front_left_camera_optical_frame:
-          Value: false
+          Value: true
         zed2_front_mag_link:
-          Value: false
+          Value: true
         zed2_front_right_camera_frame:
-          Value: false
+          Value: true
         zed2_front_right_camera_optical_frame:
-          Value: false
+          Value: true
         zed2_front_temp_left_link:
-          Value: false
+          Value: true
         zed2_front_temp_right_link:
-          Value: false
+          Value: true
         zed_back_frame:
-          Value: false
+          Value: true
         zed_front_frame:
-          Value: false
+          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -266,20 +476,13 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        front_laser_frame:
-          laser:
-            {}
-        map:
+        Tagodom:
           base_link:
-            cam_mount:
-              {}
             imu_frame:
               gyro_link:
                 {}
               imu:
                 {}
-            imu_link:
-              {}
             robot_base_link:
               gps_frame:
                 gps:
@@ -344,32 +547,249 @@ Visualization Manager:
                     {}
                   zed2_front_temp_right_link:
                     {}
-            tower_plate:
-              os_sensor:
-                os_imu:
-                  {}
-                os_lidar:
-                  {}
-              theta_cam:
-                {}
-            velodyne:
-              usb_cam_l:
-                {}
-              usb_cam_m:
-                tag_44:
-                  {}
-                tag_52:
-                  {}
-                tag_57:
-                  {}
-                tag_74:
-                  {}
-                tag_78:
-                  {}
-              usb_cam_r:
-                {}
+        front_laser_frame:
+          laser:
+            {}
         odom:
           {}
+        robot/odom:
+          robot/base_link:
+            {}
+        usb_cam_l:
+          tag_13:
+            {}
+          tag_141:
+            {}
+          tag_21:
+            {}
+          tag_244:
+            {}
+          tag_245:
+            {}
+          tag_25:
+            {}
+          tag_27:
+            {}
+          tag_31:
+            {}
+          tag_33:
+            {}
+          tag_348:
+            {}
+          tag_349:
+            {}
+          tag_37:
+            {}
+          tag_453:
+            {}
+          tag_454:
+            {}
+          tag_5:
+            {}
+          tag_553:
+            {}
+          tag_555:
+            {}
+          tag_557:
+            {}
+        usb_cam_m:
+          tag_108:
+            {}
+          tag_109:
+            {}
+          tag_112:
+            {}
+          tag_113:
+            {}
+          tag_116:
+            {}
+          tag_117:
+            {}
+          tag_12:
+            {}
+          tag_120:
+            {}
+          tag_121:
+            {}
+          tag_125:
+            {}
+          tag_128:
+            {}
+          tag_129:
+            {}
+          tag_132:
+            {}
+          tag_133:
+            {}
+          tag_136:
+            {}
+          tag_140:
+            {}
+          tag_16:
+            {}
+          tag_17:
+            {}
+          tag_20:
+            {}
+          tag_213:
+            {}
+          tag_24:
+            {}
+          tag_28:
+            {}
+          tag_29:
+            {}
+          tag_32:
+            {}
+          tag_343:
+            {}
+          tag_4:
+            {}
+          tag_441:
+            {}
+          tag_443:
+            {}
+          tag_444:
+            {}
+          tag_447:
+            {}
+          tag_448:
+            {}
+          tag_455:
+            {}
+          tag_551:
+            {}
+          tag_552:
+            {}
+          tag_559:
+            {}
+          tag_8:
+            {}
+          tag_9:
+            {}
+        usb_cam_r:
+          tag_106:
+            {}
+          tag_122:
+            {}
+          tag_124:
+            {}
+          tag_135:
+            {}
+          tag_137:
+            {}
+          tag_139:
+            {}
+          tag_208:
+            {}
+          tag_210:
+            {}
+          tag_212:
+            {}
+          tag_214:
+            {}
+          tag_216:
+            {}
+          tag_218:
+            {}
+          tag_220:
+            {}
+          tag_222:
+            {}
+          tag_224:
+            {}
+          tag_226:
+            {}
+          tag_228:
+            {}
+          tag_230:
+            {}
+          tag_232:
+            {}
+          tag_234:
+            {}
+          tag_236:
+            {}
+          tag_237:
+            {}
+          tag_238:
+            {}
+          tag_239:
+            {}
+          tag_240:
+            {}
+          tag_241:
+            {}
+          tag_242:
+            {}
+          tag_243:
+            {}
+          tag_314:
+            {}
+          tag_316:
+            {}
+          tag_318:
+            {}
+          tag_320:
+            {}
+          tag_322:
+            {}
+          tag_324:
+            {}
+          tag_326:
+            {}
+          tag_328:
+            {}
+          tag_330:
+            {}
+          tag_332:
+            {}
+          tag_334:
+            {}
+          tag_336:
+            {}
+          tag_338:
+            {}
+          tag_340:
+            {}
+          tag_342:
+            {}
+          tag_344:
+            {}
+          tag_345:
+            {}
+          tag_346:
+            {}
+          tag_347:
+            {}
+          tag_421:
+            {}
+          tag_423:
+            {}
+          tag_425:
+            {}
+          tag_427:
+            {}
+          tag_429:
+            {}
+          tag_431:
+            {}
+          tag_433:
+            {}
+          tag_435:
+            {}
+          tag_439:
+            {}
+          tag_446:
+            {}
+          tag_449:
+            {}
+          tag_450:
+            {}
+          tag_451:
+            {}
+          tag_452:
+            {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -424,7 +844,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: Tagodom
     Frame Rate: 30
   Name: root
   Tools:
@@ -448,7 +868,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 14.282899856567383
+      Distance: 127.72396087646484
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -456,17 +876,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 2.7406504154205322
-        Y: -1.383554220199585
-        Z: -0.1514822095632553
+        X: 47.81342697143555
+        Y: -5.804633140563965
+        Z: 0.9051274657249451
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5597966909408569
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 4.578580856323242
+      Yaw: 4.718576908111572
     Saved: ~
 Window Geometry:
   Camera:
@@ -486,5 +906,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 72
-  Y: 27
+  X: 1343
+  Y: 270
