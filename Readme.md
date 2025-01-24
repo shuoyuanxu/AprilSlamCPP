@@ -10,7 +10,8 @@ Calibration is performed using SAM (Smoothing and Mapping), where all poses, lan
 
 ### Localization
 
-Localization utilizes prior knowledge of relatively accurate landmark positions. It is worth noting that the localization algorithm, **if disabled 'using prior landmarks'**, is capable of performing **real time SLAM**. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections.
+Localization utilizes prior knowledge of relatively accurate landmark positions. It is worth noting that the localization algorithm, **if disabled 'using prior landmarks'**, is capable of performing **real time SLAM**. Various optimization techniques and strategies can be employed to balance accuracy and efficiency, which will be discussed in detail in the following sections. 
+Run it with this when dealing with recorded bag(roslaunch aprilslamcpp run_localisation.launch 2> >(grep -v TF_REPEATED_DATA buffer_core))
 
 ## Table of Contents
 
