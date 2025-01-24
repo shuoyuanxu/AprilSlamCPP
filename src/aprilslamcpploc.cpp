@@ -628,7 +628,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
     
     // Publish tf
-    // aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame);
+    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame);
 
     // Check if the movement exceeds the thresholds
     if (!movementExceedsThreshold(poseSE2)) return;
@@ -676,7 +676,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         // ROS_INFO("transform total: %f seconds", elapsed);
         lastPoseSE2_ = poseSE2;
         start_loop = ros::WallTime::now();
-        ROS_INFO("number of timesteps: %d", index_of_pose);
+        // ROS_INFO("number of timesteps: %d", index_of_pose);
         if (index_of_pose % 1 == 0) {
             if (useisam2) {ISAM2Optimise();}
             else {SAMOptimise();}

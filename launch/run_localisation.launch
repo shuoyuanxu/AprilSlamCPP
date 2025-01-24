@@ -4,6 +4,11 @@
 
   <!-- TagSLAM Node -->
   <node name="aprilslamcpp" pkg="aprilslamcpp" type="aprilslamcpp_loc" output="screen">
+
+  <!-- Hide TF_OLD_DATA Warning -->
+  <param name="tf_old_data_warn_threshold" type="double" value="1000.0" />
+  <param name="allow_old_data" value="true" />
+  
   </node>
 
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find aprilslamcpp)/launch/Visulisation.rviz">
