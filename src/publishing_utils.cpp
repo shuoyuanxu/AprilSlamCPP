@@ -108,48 +108,48 @@ void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_
     path_pub.publish(path);
 }
 
-void publishOdometryTrajectory(ros::Publisher& odom_pub, tf2_ros::TransformBroadcaster& tf_broadcaster, 
-                                        const gtsam::Values& result, int latest_index, 
-                                        const std::string& frame_id, const std::string& child_frame_id) {
+void publishMapToOdomTF(tf2_ros::TransformBroadcaster& tf_broadcaster, 
+                        const gtsam::Values& result, int latest_index, 
+                        const gtsam::Pose2& poseSE2, 
+                        const std::string& map_frame, const std::string& odom_frame, const std::string& base_link_frame) {
     // Define the symbol for the latest pose
     gtsam::Symbol sym('X', latest_index);
 
     // Check if the latest pose exists in the result
     if (result.exists(sym)) {
-        gtsam::Pose2 pose = result.at<gtsam::Pose2>(sym);
+        // Extract the pose from the SLAM result (map -> base_link)
+        gtsam::Pose2 slamPose = result.at<gtsam::Pose2>(sym);
 
-        // 1. Publish the Odometry message
-        nav_msgs::Odometry odom_msg;
-        odom_msg.header.frame_id = frame_id;
-        odom_msg.header.stamp = ros::Time::now();
-        odom_msg.child_frame_id = child_frame_id;
+        // Create the transform for map -> base_link
+        tf2::Transform map_to_base_link;
+        tf2::Quaternion slam_quat;
+        slam_quat.setRPY(0, 0, slamPose.theta());  // Rotation around Z-axis
+        map_to_base_link.setOrigin(tf2::Vector3(slamPose.x(), slamPose.y(), 0)); // Translation
+        map_to_base_link.setRotation(slam_quat);
 
-        // Set position
-        odom_msg.pose.pose.position.x = pose.x();
-        odom_msg.pose.pose.position.y = pose.y();
-        odom_msg.pose.pose.position.z = 0;  // Assuming 2D
+        // Convert odometry pose (odom -> base_link) into a transform
+        tf2::Transform odom_to_base_link;
+        tf2::Quaternion odom_quat;
+        odom_quat.setRPY(0, 0, poseSE2.theta());  // Rotation around Z-axis
+        odom_to_base_link.setOrigin(tf2::Vector3(poseSE2.x(), poseSE2.y(), 0)); // Translation
+        odom_to_base_link.setRotation(odom_quat);
 
-        // Set orientation
-        tf2::Quaternion quat;
-        quat.setRPY(0, 0, pose.theta());
-        odom_msg.pose.pose.orientation = tf2::toMsg(quat);
+        // Compute the map -> odom transform
+        tf2::Transform map_to_odom = map_to_base_link * odom_to_base_link.inverse();
 
-        // Publish the odometry message
-        odom_pub.publish(odom_msg);
-
-        // 2. Broadcast the transform
+        // Publish the map -> odom transform
         geometry_msgs::TransformStamped transform_stamped;
         transform_stamped.header.stamp = ros::Time::now();
-        transform_stamped.header.frame_id = frame_id;      // Typically "map"
-        transform_stamped.child_frame_id = child_frame_id; // Typically "base_link"
+        transform_stamped.header.frame_id = map_frame;  // map
+        transform_stamped.child_frame_id = odom_frame; // odom
 
         // Set translation
-        transform_stamped.transform.translation.x = pose.x();
-        transform_stamped.transform.translation.y = pose.y();
-        transform_stamped.transform.translation.z = 0;
+        transform_stamped.transform.translation.x = map_to_odom.getOrigin().x();
+        transform_stamped.transform.translation.y = map_to_odom.getOrigin().y();
+        transform_stamped.transform.translation.z = map_to_odom.getOrigin().z();
 
         // Set rotation
-        transform_stamped.transform.rotation = tf2::toMsg(quat);
+        transform_stamped.transform.rotation = tf2::toMsg(map_to_odom.getRotation());
 
         // Broadcast the transform
         tf_broadcaster.sendTransform(transform_stamped);

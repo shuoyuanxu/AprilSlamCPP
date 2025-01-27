@@ -26,6 +26,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Read topics and corresponding frame
     std::string odom_topic, trajectory_topic, odometry_trajectory;
     nh_.getParam("odom_topic", odom_topic);
+    nh_.getParam("odom_frame", odom_frame);
     nh_.getParam("trajectory_topic", trajectory_topic);
     nh_.getParam("map_frame_id", map_frame_id);
     nh_.getParam("robot_frame", robot_frame);
@@ -145,7 +146,6 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Subscriptions and Publications
     odom_sub_ = nh_.subscribe(odom_topic, 10, &aprilslamcpp::addOdomFactor, this);
     path_pub_ = nh_.advertise<nav_msgs::Path>(trajectory_topic, 1, true);
-    odom_traj_pub_ = nh_.advertise<nav_msgs::Odometry>(odometry_trajectory, 1, true);
     lc_pub_ = nh_.advertise<visualization_msgs::Marker>("loop_closure_markers", 1);
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
     path.header.frame_id = map_frame_id; 
@@ -628,8 +628,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
     
     // Publish tf
-    aprilslam::publishOdometryTrajectory(odom_traj_pub_, tf_broadcaster, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame);
-
+    aprilslam::publishMapToOdomTF(tf_broadcaster, Estimates_visulisation, index_of_pose, poseSE2, map_frame_id, odom_frame, robot_frame); 
     // Check if the movement exceeds the thresholds
     if (!movementExceedsThreshold(poseSE2)) return;
 
