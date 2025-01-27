@@ -121,6 +121,7 @@ private:
     // std::string ud_frame;
     std::string odom_trajectory_frame;
     std::string robot_frame;
+    std::string odom_frame;
     std::string pathtosavelandmarkcsv;
     std::string pathtoloadlandmarkcsv;
     double maxfactors; // Allowed total number of factors in the graph before pruning
