@@ -24,12 +24,12 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     : nh_(node_handle), tf_listener_(tf_buffer_){ 
     
     // Read topics and corresponding frame
-    std::string odom_topic, odometry_trajectory;
+    std::string odom_topic, trajectory_topic;
     nh_.getParam("odom_topic", odom_topic);
     nh_.getParam("odom_frame", odom_frame);
+    nh_.getParam("trajectory_topic", trajectory_topic);
     nh_.getParam("map_frame_id", map_frame_id);
     nh_.getParam("robot_frame", robot_frame);
-    nh_.getParam("odometry_trajectory", odometry_trajectory);
     // nh_.getParam("ud_frame", ud_frame);
 
 
