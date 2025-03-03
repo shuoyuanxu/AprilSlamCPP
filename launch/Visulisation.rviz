@@ -11,7 +11,7 @@ Panels:
         - /Odometry1
         - /TF1
         - /TF1/Frames1
-      Splitter Ratio: 0.5
+      Splitter Ratio: 0.5058823823928833
     Tree Height: 514
   - Class: rviz/Selection
     Name: Selection
@@ -114,11 +114,11 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: false
-      Keep: 100
+      Enabled: true
+      Keep: 1000000
       Name: Odometry
       Position Tolerance: 0.10000000149011612
-      Queue Size: 10
+      Queue Size: 1000001
       Shape:
         Alpha: 1
         Axes Length: 1
@@ -129,9 +129,9 @@ Visualization Manager:
         Shaft Length: 1
         Shaft Radius: 0.05000000074505806
         Value: Axes
-      Topic: /odom_traj_robot
+      Topic: /dlo/odom_node/odom
       Unreliable: false
-      Value: false
+      Value: true
     - Class: rviz/TF
       Enabled: true
       Filter (blacklist): ""
@@ -141,71 +141,51 @@ Visualization Manager:
         All Enabled: false
         TagMap:
           Value: true
-        cam_mount:
+        base_link:
+          Value: true
+        front_laser_frame:
+          Value: true
+        gps:
+          Value: true
+        gps_frame:
+          Value: true
+        gyro_link:
+          Value: true
+        imu:
+          Value: true
+        imu_frame:
+          Value: true
+        laser:
+          Value: true
+        odom:
           Value: true
         robot/base_link:
           Value: true
         robot/odom:
           Value: true
-        tag_105:
+        robot_base_link:
           Value: true
-        tag_107:
+        tag_106:
+          Value: true
+        tag_108:
           Value: true
         tag_109:
-          Value: true
-        tag_11:
-          Value: true
-        tag_111:
           Value: true
         tag_112:
           Value: true
         tag_113:
           Value: true
-        tag_115:
+        tag_208:
           Value: true
-        tag_117:
-          Value: true
-        tag_119:
-          Value: true
-        tag_121:
-          Value: true
-        tag_123:
-          Value: true
-        tag_13:
-          Value: true
-        tag_15:
-          Value: true
-        tag_17:
-          Value: true
-        tag_209:
-          Value: true
-        tag_211:
+        tag_210:
           Value: true
         tag_212:
           Value: true
         tag_213:
           Value: true
-        tag_215:
+        tag_214:
           Value: true
         tag_216:
-          Value: true
-        tag_217:
-          Value: true
-        tag_219:
-          Value: true
-        tag_220:
-          Value: true
-        tag_221:
-          Value: true
-        tag_223:
-          Value: true
-        tag_224:
-          Value: true
-        tag_225:
-          Value: true
-        tag_3:
-          Value: true
-        tag_312:
           Value: true
         tag_314:
           Value: true
@@ -215,61 +195,11 @@ Visualization Manager:
           Value: true
         tag_320:
           Value: true
-        tag_321:
-          Value: true
-        tag_322:
-          Value: true
-        tag_324:
-          Value: true
-        tag_326:
-          Value: true
-        tag_328:
-          Value: true
-        tag_329:
-          Value: true
-        tag_330:
-          Value: true
-        tag_332:
-          Value: true
-        tag_416:
-          Value: true
-        tag_418:
-          Value: true
-        tag_421:
-          Value: true
-        tag_423:
+        tag_4:
           Value: true
         tag_425:
           Value: true
-        tag_427:
-          Value: true
-        tag_429:
-          Value: true
-        tag_431:
-          Value: true
-        tag_433:
-          Value: true
         tag_5:
-          Value: true
-        tag_523:
-          Value: true
-        tag_525:
-          Value: true
-        tag_527:
-          Value: true
-        tag_529:
-          Value: true
-        tag_531:
-          Value: true
-        tag_533:
-          Value: true
-        tag_535:
-          Value: true
-        tag_537:
-          Value: true
-        tag_539:
-          Value: true
-        tag_541:
           Value: true
         tag_7:
           Value: true
@@ -283,6 +213,14 @@ Visualization Manager:
           Value: true
         velodyne:
           Value: true
+        wheel_left_front_link:
+          Value: true
+        wheel_left_rear_link:
+          Value: true
+        wheel_right_front_link:
+          Value: true
+        wheel_right_rear_link:
+          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -291,143 +229,76 @@ Visualization Manager:
       Show Names: true
       Tree:
         TagMap:
-          robot/base_link:
-            cam_mount:
-              usb_cam_l:
-                tag_105:
-                  {}
-                tag_107:
-                  {}
-                tag_109:
-                  {}
-                tag_11:
-                  {}
-                tag_111:
-                  {}
-                tag_113:
-                  {}
-                tag_115:
-                  {}
-                tag_117:
-                  {}
-                tag_119:
-                  {}
-                tag_121:
-                  {}
-                tag_123:
-                  {}
-                tag_13:
-                  {}
-                tag_15:
-                  {}
-                tag_209:
-                  {}
-                tag_211:
-                  {}
-                tag_213:
-                  {}
-                tag_215:
-                  {}
-                tag_217:
-                  {}
-                tag_219:
-                  {}
-                tag_221:
-                  {}
-                tag_223:
-                  {}
-                tag_3:
-                  {}
-                tag_5:
-                  {}
-                tag_7:
-                  {}
-                tag_9:
-                  {}
-              usb_cam_m:
-                tag_112:
-                  {}
-                tag_17:
-                  {}
-                tag_212:
-                  {}
-                tag_216:
-                  {}
-                tag_220:
-                  {}
-                tag_224:
-                  {}
-                tag_225:
-                  {}
-                tag_321:
-                  {}
-                tag_329:
-                  {}
-                tag_332:
-                  {}
-                tag_433:
-                  {}
-                tag_541:
-                  {}
-              usb_cam_r:
-                tag_312:
-                  {}
-                tag_314:
-                  {}
-                tag_316:
-                  {}
-                tag_318:
-                  {}
-                tag_320:
-                  {}
-                tag_322:
-                  {}
-                tag_324:
-                  {}
-                tag_326:
-                  {}
-                tag_328:
-                  {}
-                tag_330:
-                  {}
-                tag_416:
-                  {}
-                tag_418:
-                  {}
-                tag_421:
-                  {}
-                tag_423:
-                  {}
-                tag_425:
-                  {}
-                tag_427:
-                  {}
-                tag_429:
-                  {}
-                tag_431:
-                  {}
-                tag_523:
-                  {}
-                tag_525:
-                  {}
-                tag_527:
-                  {}
-                tag_529:
-                  {}
-                tag_531:
-                  {}
-                tag_533:
-                  {}
-                tag_535:
-                  {}
-                tag_537:
-                  {}
-                tag_539:
-                  {}
-            velodyne:
+          odom:
+            base_link:
               {}
+        front_laser_frame:
+          laser:
+            {}
+        gps_frame:
+          gps:
+            {}
+        imu_frame:
+          gyro_link:
+            {}
+          imu:
+            {}
         robot/odom:
-          {}
+          robot/base_link:
+            {}
+        robot_base_link:
+          wheel_left_front_link:
+            {}
+          wheel_left_rear_link:
+            {}
+          wheel_right_front_link:
+            {}
+          wheel_right_rear_link:
+            {}
+        usb_cam_m:
+          tag_108:
+            {}
+          tag_109:
+            {}
+          tag_112:
+            {}
+          tag_113:
+            {}
+          tag_213:
+            {}
+          tag_216:
+            {}
+          tag_4:
+            {}
+          tag_425:
+            {}
+          tag_9:
+            {}
+        usb_cam_r:
+          tag_106:
+            {}
+          tag_208:
+            {}
+          tag_210:
+            {}
+          tag_212:
+            {}
+          tag_214:
+            {}
+          tag_314:
+            {}
+          tag_316:
+            {}
+          tag_318:
+            {}
+          tag_320:
+            {}
+        velodyne:
+          usb_cam_l:
+            tag_5:
+              {}
+            tag_7:
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -506,7 +377,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 127.72396087646484
+      Distance: 28.187942504882812
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -514,9 +385,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 47.81342697143555
-        Y: -5.804633140563965
-        Z: 0.9051274657249451
+        X: 13.40251350402832
+        Y: 0.6479641795158386
+        Z: 0.9114135503768921
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -524,7 +395,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 4.718576908111572
+      Yaw: 4.713576793670654
     Saved: ~
 Window Geometry:
   Camera:
@@ -544,5 +415,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 1386
-  Y: 311
+  X: 1382
+  Y: 200

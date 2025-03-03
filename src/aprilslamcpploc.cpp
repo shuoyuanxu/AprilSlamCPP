@@ -246,6 +246,46 @@ void aprilslamcpp::lCamCallback(const apriltag_ros::AprilTagDetectionArray::Cons
     lCam_msg = msg;
 }
 
+// Applies a moving average filter to smooth the trajectory
+void aprilslamcpp::smoothTrajectory(int window_size) {
+    if (Estimates_visulisation.size() < window_size) {
+        return; // Not enough data to smooth
+    }
+
+    std::vector<Eigen::Vector3d> smoothedPoses;
+    std::vector<gtsam::Symbol> keys;
+
+    // Iterate over stored keyframes instead of assuming X(id) exists
+    for (const auto& key_value : Estimates_visulisation) {
+        gtsam::Symbol key(key_value.key);
+        if (key.chr() == 'X') {
+            gtsam::Pose2 pose = key_value.value.cast<gtsam::Pose2>();
+            smoothedPoses.push_back(Eigen::Vector3d(pose.x(), pose.y(), pose.theta()));
+            keys.push_back(key);
+        }
+    }
+
+    // If fewer than required, skip smoothing
+    if (smoothedPoses.size() < window_size) {
+        return;
+    }
+
+    // Compute moving average using last `window_size` poses
+    Eigen::Vector3d sum(0, 0, 0);
+    for (size_t i = smoothedPoses.size() - window_size; i < smoothedPoses.size(); ++i) {
+        sum += smoothedPoses[i];
+    }
+
+    Eigen::Vector3d avg = sum / window_size;
+    gtsam::Pose2 smoothedPose(avg.x(), avg.y(), wrapToPi(avg.z()));
+
+    // Update last pose with smoothed pose
+    gtsam::Symbol lastKey = keys.back();
+    if (Estimates_visulisation.exists(lastKey)) {
+        Estimates_visulisation.update(lastKey, smoothedPose);
+    }
+}
+
 void aprilslamcpp::cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg) {
     linear_x_velocity_ = msg->linear.x;
 }
@@ -693,6 +733,9 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
     // Publish path, landmarks, and tf for visulisation
+    if (index_of_pose >= 20) {
+        smoothTrajectory(3);
+    }
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, map_frame_id);
 }
 }
