@@ -58,6 +58,7 @@ public:
     void cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg);
     void pfInitCallback(const ros::TimerEvent& event);
     void pruneGraphByPoseCount(int maxPoses);
+    void smoothTrajectory(int window_size); 
 private:
     ros::Timer check_data_timer_;  // Declare the timer here
     ros::Publisher path_pub_;

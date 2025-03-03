@@ -1,11 +1,11 @@
-odom_topic: "robot/dlo/odom_node/odom"
+odom_topic: "/odometry/filtered"
 odom_frame: "robot/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
 map_frame_id: "TagMap"
 pathtosavelandmarkcsv: "config/landmark.csv"
 pathtoloadlandmarkcsv: "config/landmark.csv"
-ud_frame: "robot/base_link"
+ud_frame: "base_link"
 savetaglocation: false
 usepriortagtable: true
 batch_optimisation: true
@@ -39,9 +39,9 @@ rotationThreshold: 5
   
 noise_models:
   odometry:
-    - 0.3
     - 3
-    - 0.3
+    - 30
+    - 3
   prior:
     - 0.1
     - 0.3
