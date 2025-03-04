@@ -1,4 +1,4 @@
-odom_topic: "/odometry/filtered"
+odom_topic: "/antobot_robot/odom"
 odom_frame: "robot/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
@@ -17,7 +17,7 @@ useisam2: false # true for ISAM2, false for SAM
 
 # Particle initilisation condition 
 N_particles: 1000
-usePFinitialise: true
+usePFinitialise: false
 PFWaitTime: 5
 rngVar: 0.2
 brngVar: 0.1

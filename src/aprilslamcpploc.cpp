@@ -733,9 +733,9 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
     // Publish path, landmarks, and tf for visulisation
-    if (index_of_pose >= 20) {
-        smoothTrajectory(3);
-    }
+    // if (index_of_pose >= 20) {
+    //     smoothTrajectory(3);
+    // }
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, map_frame_id);
 }
 }
