@@ -1,11 +1,12 @@
-odom_topic: "/antobot_robot/odom"
-odom_frame: "robot/odom"
-robot_frame: "robot/base_link"
+odom_topic: "/dlo/odom_node/odom"
+odom_frame: "odom"
+robot_frame: "base_link"
 trajectory_topic: "trajectory"
 map_frame_id: "TagMap"
 pathtosavelandmarkcsv: "config/landmark.csv"
 pathtoloadlandmarkcsv: "config/landmark.csv"
 ud_frame: "base_link"
+odometry_trajectory: "odom_tag"
 savetaglocation: false
 usepriortagtable: true
 batch_optimisation: true
@@ -17,7 +18,7 @@ useisam2: false # true for ISAM2, false for SAM
 
 # Particle initilisation condition 
 N_particles: 1000
-usePFinitialise: false
+usePFinitialise: true
 PFWaitTime: 5
 rngVar: 0.2
 brngVar: 0.1
