@@ -156,6 +156,50 @@ void publishMapToOdomTF(tf2_ros::TransformBroadcaster& tf_broadcaster,
     }
 }
 
+void publishRefinedOdom(ros::Publisher& odom_pub,
+                        const gtsam::Values& Estimates_visulisation,
+                        int index_of_pose,
+                        const std::string& odom_frame,
+                        const std::string& base_link_frame)
+{
+    gtsam::Symbol sym('X', index_of_pose);
+
+    // Make sure the pose exists
+    if (!Estimates_visulisation.exists(sym)) {
+        ROS_WARN("publishRefinedOdom: Pose not found in Estimates_visulisation for X%d", index_of_pose);
+        return;
+    }
+
+    // 1) Retrieve the GTSAM pose (assuming it's odom->base_link)
+    gtsam::Pose2 refinedPose = Estimates_visulisation.at<gtsam::Pose2>(sym);
+
+    // 2) Convert to quaternion
+    tf2::Quaternion quat;
+    quat.setRPY(0.0, 0.0, refinedPose.theta());
+
+    // 3) Fill nav_msgs::Odometry
+    nav_msgs::Odometry odom_msg;
+    odom_msg.header.stamp = ros::Time::now();
+    odom_msg.header.frame_id = odom_frame;       // e.g. "odom"
+    odom_msg.child_frame_id  = base_link_frame;  // e.g. "base_link"
+
+    // Position
+    odom_msg.pose.pose.position.x = refinedPose.x();
+    odom_msg.pose.pose.position.y = refinedPose.y();
+    odom_msg.pose.pose.position.z = 0.0;
+
+    // Orientation
+    odom_msg.pose.pose.orientation = tf2::toMsg(quat);
+
+    // If you have velocity or covariance, fill that in here:
+    // odom_msg.twist.twist.linear.x = ...
+    // odom_msg.pose.covariance[...] = ...
+    // etc.
+
+    // 4) Publish
+    odom_pub.publish(odom_msg);
+}
+
 void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename) {
     std::ofstream file;
     file.open(filename, std::ios::out); // Open file in write mode
