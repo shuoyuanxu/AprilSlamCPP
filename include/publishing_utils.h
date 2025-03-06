@@ -31,6 +31,11 @@ namespace aprilslam {
                             const gtsam::Values& result, int latest_index, 
                             const gtsam::Pose2& poseSE2, 
                             const std::string& map_frame, const std::string& odom_frame, const std::string& base_link_frame);
+    void publishRefinedOdom(ros::Publisher& odom_pub,
+                        const gtsam::Values& Estimates_visulisation,
+                        int index_of_pose,
+                        const std::string& odom_frame,      
+                        const std::string& base_link_frame);
     void publishLandmarks(ros::Publisher& landmark_pub, const std::map<int, gtsam::Point2>& landmarks, const std::string& frame_id);
     void publishPath(ros::Publisher& path_pub, const gtsam::Values& result, int max_index, const std::string& frame_id);
     void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename);

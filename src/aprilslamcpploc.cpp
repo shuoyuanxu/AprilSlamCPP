@@ -148,6 +148,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     lc_pub_ = nh_.advertise<visualization_msgs::Marker>("loop_closure_markers", 1);
     landmark_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("landmarks", 1, true);
     path.header.frame_id = map_frame_id; 
+    odom_traj_pub_ = nh_.advertise<nav_msgs::Odometry>("/odom_tag", 1, true);
 }
 
 void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
@@ -732,10 +733,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     else{
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
-    // Publish path, landmarks, and tf for visulisation
-    // if (index_of_pose >= 20) {
-    //     smoothTrajectory(3);
-    // }
+    // Publish path, landmarks, and odometry for visulisation
+    publishRefinedOdom(odom_traj_pub_, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame);
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, map_frame_id);
 }
 }
