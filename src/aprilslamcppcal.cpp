@@ -117,9 +117,20 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
 // Destructor implementation
 aprilslamcpp::~aprilslamcpp() {
     ROS_INFO("Node is shutting down. Executing SAMOptimise().");
-    if (savetaglocation) {
-        saveLandmarksToCSV(landmarks, pathtoloadlandmarkcsv);
+
+    std::map<int, gtsam::Point2> landmarks_unoptimised;
+    for (const auto& key_value : keyframeEstimates_) {
+        gtsam::Key key = key_value.key;  // Get the key
+        if (gtsam::Symbol(key).chr() == 'L') {
+            gtsam::Point2 point = keyframeEstimates_.at<gtsam::Point2>(key);  // Access the Point2 value
+            landmarks_unoptimised[gtsam::Symbol(key).index()] = point;
+        }
     }
+
+    if (savetaglocation) {
+        saveLandmarksToCSV(landmarks_unoptimised, pathtoloadlandmarkcsv);
+    }
+    
     SAMOptimise();
         // Extract landmark estimates from the result
     std::map<int, gtsam::Point2> landmarks;
