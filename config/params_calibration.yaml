@@ -1,9 +1,9 @@
 odom_topic: "robot/dlo/odom_node/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
-map_frame_id: "map"
-pathtosavelandmarkcsv: "config/landmark.csv"
-pathtoloadlandmarkcsv: "config/landmark.csv"
+map_frame_id: "TagMap"
+pathtosavelandmarkcsv: "config/beforeoptimisation.csv"
+pathtoloadlandmarkcsv: "config/afteroptimisation.csv"
 savetaglocation: true
 usepriortagtable: false
 batch_optimisation: true
