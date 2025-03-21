@@ -100,6 +100,12 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("camera_subscribers/rCam_subscriber/topic", rCam_topic);
     nh_.getParam("camera_subscribers/mCam_subscriber/topic", mCam_topic);
 
+    // save localisation result
+    refined_odom_csv.open("/home/shuoyuan/catkin_slam_ws/src/aprilslamcpp/refined_odometry.csv", std::ios::out);
+    raw_odom_csv.open("/home/shuoyuan/catkin_slam_ws/src/aprilslamcpp/raw_odometry.csv", std::ios::out);
+    refined_odom_csv << "time,x,y,theta\n";  // Write header
+    raw_odom_csv << "time,x,y,theta\n";  // Write header
+
     // Load saveLandmarks
     savedLandmarks = loadLandmarksFromCSV(pathtoloadlandmarkcsv);
 
@@ -667,6 +673,13 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     // Convert the incoming odometry message to a simpler (x, y, theta) format using a previously defined method
     gtsam::Pose2 poseSE2 = translateOdomMsg(msg);
     
+    double raw_time = msg->header.stamp.toSec();
+    raw_odom_csv << std::fixed << std::setprecision(6)
+                << raw_time << ","
+                << poseSE2.x() << ","
+                << poseSE2.y() << ","
+                << poseSE2.theta() << std::endl;
+                
     // Publish tf
     aprilslam::publishMapToOdomTF(tf_broadcaster, Estimates_visulisation, index_of_pose, poseSE2, map_frame_id, odom_frame, robot_frame); 
     // Check if the movement exceeds the thresholds
@@ -734,7 +747,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
     // Publish path, landmarks, and odometry for visulisation
-    publishRefinedOdom(odom_traj_pub_, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame);
+    publishRefinedOdom(odom_traj_pub_, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame, refined_odom_csv);
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, map_frame_id);
 }
 }

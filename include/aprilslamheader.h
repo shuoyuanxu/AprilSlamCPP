@@ -167,6 +167,8 @@ private:
     // Use keyframe or not
     bool usekeyframe;
 
+    std::ofstream refined_odom_csv;
+    std::ofstream raw_odom_csv;
     };
 } 
 

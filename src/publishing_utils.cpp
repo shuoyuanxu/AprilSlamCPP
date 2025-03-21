@@ -160,7 +160,8 @@ void publishRefinedOdom(ros::Publisher& odom_pub,
                         const gtsam::Values& Estimates_visulisation,
                         int index_of_pose,
                         const std::string& odom_frame,
-                        const std::string& base_link_frame)
+                        const std::string& base_link_frame,
+                        std::ofstream& refined_odom_csv)
 {
     gtsam::Symbol sym('X', index_of_pose);
 
@@ -191,13 +192,17 @@ void publishRefinedOdom(ros::Publisher& odom_pub,
     // Orientation
     odom_msg.pose.pose.orientation = tf2::toMsg(quat);
 
-    // If you have velocity or covariance, fill that in here:
-    // odom_msg.twist.twist.linear.x = ...
-    // odom_msg.pose.covariance[...] = ...
-    // etc.
-
     // 4) Publish
     odom_pub.publish(odom_msg);
+
+    // 5) Save to a csv
+    double time = ros::Time::now().toSec();
+    refined_odom_csv << std::fixed << std::setprecision(6)
+                    << time << ","
+                    << refinedPose.x() << ","
+                    << refinedPose.y() << ","
+                    << refinedPose.theta() << std::endl;
+
 }
 
 void saveLandmarksToCSV(const std::map<int, gtsam::Point2>& landmarks, const std::string& filename) {
