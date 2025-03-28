@@ -100,6 +100,11 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     nh_.getParam("camera_subscribers/rCam_subscriber/topic", rCam_topic);
     nh_.getParam("camera_subscribers/mCam_subscriber/topic", mCam_topic);
 
+    // Load outlier removal conditons
+    nh_.param("max_optimisation_translation", jumpTranslationThreshold, 1.5); // meters
+    nh_.param("max_optimisation_rotation", jumpRotationThreshold, 1.0); // radians
+    nh_.param("max_optimisation_jump", jumpCombinedThreshold, 20.0); 
+
     // save localisation result
     refined_odom_csv.open("/home/shuoyuan/catkin_slam_ws/src/aprilslamcpp/refined_odometry.csv", std::ios::out);
     raw_odom_csv.open("/home/shuoyuan/catkin_slam_ws/src/aprilslamcpp/raw_odometry.csv", std::ios::out);
@@ -157,6 +162,20 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     odom_traj_pub_ = nh_.advertise<nav_msgs::Odometry>("/odom_tag", 1, true);
 }
 
+double aprilslamcpp::computePoseDelta(const gtsam::Pose2& oldPose, const gtsam::Pose2& newPose) {
+    double dx = newPose.x() - oldPose.x();
+    double dy = newPose.y() - oldPose.y();
+    double dTrans = std::sqrt(dx * dx + dy * dy);
+
+    double dTheta = newPose.theta() - oldPose.theta();
+    // Normalise angle to [-pi, pi]
+    dTheta = wrapToPi(dTheta);
+    double dRot = std::fabs(dTheta);
+
+    // Return a combined metric or just the translation if that is your main concern.
+    // Here we combine them in a simple additive way. Adjust as needed for your use-case.
+    return dTrans + dRot; 
+}
 void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
     // Initial debug message for function entry
     ROS_INFO("PF Running");
@@ -436,17 +455,34 @@ void aprilslamcpp::ISAM2Optimise() {
     keyframeGraph_.resize(0);
 }
 
-void aprilslamcpp::SAMOptimise() {    
-    // Perform batch optimization using Levenberg-Marquardt optimizer
+void aprilslamcpp::SAMOptimise() {
+    // Perform optimization
     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     gtsam::Values result = batchOptimizer.optimize();
 
-    // Update keyframeEstimates_ with the optimized values for the next iteration
-    keyframeEstimates_ = result;
+    // Retrieve CURRENT pose
+    gtsam::Symbol currentPoseSymbol('X', index_of_pose);
 
-    // Prune the graph based on the number of poses
-    if (useprunebysize) {
-    pruneGraphByPoseCount(maxfactors);
+    // Retrieve estimate before and after optimisation
+    gtsam::Pose2 oldPose = keyframeEstimates_.at<gtsam::Pose2>(currentPoseSymbol);
+    gtsam::Pose2 newPose = result.at<gtsam::Pose2>(currentPoseSymbol);
+
+    // Compare them 
+    double poseJump = computePoseDelta(oldPose, newPose);
+
+    // Decide if jump is "too big"
+    if (poseJump > jumpCombinedThreshold) {
+        ROS_WARN("Large pose jump detected (%.3f). Reverting to odometry or previous estimate for this step!", poseJump);
+        result.update(currentPoseSymbol, oldPose);
+        ROS_WARN("Discarding the newly optimized solution and trusting the old estimate.");
+    } else {
+        keyframeEstimates_ = result;
+        
+        // Optionally prune the graph if using that logic
+        if (useprunebysize) {
+            pruneGraphByPoseCount(maxfactors);
+        }
+        ROS_INFO("Optimization accepted. Pose jump=%.3f is within threshold.", poseJump);
     }
 }
 

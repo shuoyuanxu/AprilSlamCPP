@@ -59,6 +59,7 @@ public:
     void pfInitCallback(const ros::TimerEvent& event);
     void pruneGraphByPoseCount(int maxPoses);
     void smoothTrajectory(int window_size); 
+    double computePoseDelta(const gtsam::Pose2& oldPose, const gtsam::Pose2& newPose);
 private:
     ros::Timer check_data_timer_;  // Declare the timer here
     ros::Publisher path_pub_;
@@ -169,6 +170,11 @@ private:
 
     std::ofstream refined_odom_csv;
     std::ofstream raw_odom_csv;
+
+    // Outlier removal
+    double jumpTranslationThreshold;
+    double jumpRotationThreshold;
+    double jumpCombinedThreshold;
     };
 } 
 
