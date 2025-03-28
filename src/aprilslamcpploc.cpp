@@ -462,9 +462,10 @@ void aprilslamcpp::SAMOptimise() {
 
     // Retrieve CURRENT pose
     gtsam::Symbol currentPoseSymbol('X', index_of_pose);
+    gtsam::Symbol previousPoseSymbol('X', index_of_pose-1);
 
     // Retrieve estimate before and after optimisation
-    gtsam::Pose2 oldPose = keyframeEstimates_.at<gtsam::Pose2>(currentPoseSymbol);
+    gtsam::Pose2 oldPose = keyframeEstimates_.at<gtsam::Pose2>(previousPoseSymbol);
     gtsam::Pose2 newPose = result.at<gtsam::Pose2>(currentPoseSymbol);
 
     // Compare them 
