@@ -171,10 +171,12 @@ private:
     std::ofstream refined_odom_csv;
     std::ofstream raw_odom_csv;
 
-    // Outlier removal
+    // Some Heuristic things
     double jumpTranslationThreshold;
     double jumpRotationThreshold;
     double jumpCombinedThreshold;
+    int outlierRemovalStartIndex_;
+    gtsam::Symbol previousframeSymbol;
     };
 } 
 

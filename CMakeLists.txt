@@ -4,6 +4,13 @@ project(aprilslamcpp)
 # Set GTSAM_DIR to the directory containing GTSAMConfig.cmake
 set(GTSAM_DIR "/home/shu/GTSAM/build")
 set(CMAKE_CXX_STANDARD 17)
+# set(CMAKE_BUILD_TYPE "Debug")
+
+# Enable compile optimizations
+# set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+
+# Enable debug flags (use if you want to debug in gdb)
+# set(CMAKE_CXX_FLAGS_DEBUG "-g3 -Wall -Wuninitialized -fno-omit-frame-pointer")
 
 find_package(catkin REQUIRED COMPONENTS
   nav_msgs
