@@ -1,4 +1,4 @@
-odom_topic: "/antobot_robot/odom"
+odom_topic: "robot/dlo/odom_node/odom"
 odom_frame: "robot/odom"
 robot_frame: "robot/base_link"
 trajectory_topic: "trajectory"
@@ -17,7 +17,7 @@ useisam2: false # true for ISAM2, false for SAM
 
 # Particle initilisation condition 
 N_particles: 1000
-usePFinitialise: false
+usePFinitialise: true
 PFWaitTime: 5
 rngVar: 0.2
 brngVar: 0.1
@@ -33,7 +33,7 @@ stationary_position_threshold: 0.05 # 5cm
 stationary_rotation_threshold: 0.1 # 0.1radius
 
 # Keyframe info, no need to use it if in isam2 mode
-usekeyframe: false
+usekeyframe: true
 distanceThreshold: 0.5
 rotationThreshold: 5
   

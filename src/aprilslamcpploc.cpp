@@ -103,8 +103,9 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Load outlier removal conditons
     nh_.param("max_optimisation_translation", jumpTranslationThreshold, 1.5); // meters
     nh_.param("max_optimisation_rotation", jumpRotationThreshold, 1.0); // radians
-    nh_.param("max_optimisation_jump", jumpCombinedThreshold, 20.0); 
-
+    nh_.param("max_optimisation_jump", jumpCombinedThreshold, 5.0); 
+    nh_.param("outlier_removal_start_index", outlierRemovalStartIndex_, 20); // e.g. 10 timesteps
+    
     // save localisation result
     refined_odom_csv.open("/home/shuoyuan/catkin_slam_ws/src/aprilslamcpp/refined_odometry.csv", std::ios::out);
     raw_odom_csv.open("/home/shuoyuan/catkin_slam_ws/src/aprilslamcpp/raw_odometry.csv", std::ios::out);
@@ -138,6 +139,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     initializeGTSAM();
     // Index to keep track of the sequential pose.
     index_of_pose = 1;
+    previousframeSymbol = index_of_pose;
     // Initialize the factor graphs
     keyframeGraph_ = gtsam::NonlinearFactorGraph();
 
@@ -176,6 +178,7 @@ double aprilslamcpp::computePoseDelta(const gtsam::Pose2& oldPose, const gtsam::
     // Here we combine them in a simple additive way. Adjust as needed for your use-case.
     return dTrans + dRot; 
 }
+
 void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
     // Initial debug message for function entry
     ROS_INFO("PF Running");
@@ -310,10 +313,6 @@ void aprilslamcpp::smoothTrajectory(int window_size) {
     if (Estimates_visulisation.exists(lastKey)) {
         Estimates_visulisation.update(lastKey, smoothedPose);
     }
-}
-
-void aprilslamcpp::cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg) {
-    linear_x_velocity_ = msg->linear.x;
 }
 
 // Initialization of GTSAM components
@@ -462,30 +461,48 @@ void aprilslamcpp::SAMOptimise() {
 
     // Retrieve CURRENT pose
     gtsam::Symbol currentPoseSymbol('X', index_of_pose);
-    gtsam::Symbol previousPoseSymbol('X', index_of_pose-1);
 
     // Retrieve estimate before and after optimisation
-    gtsam::Pose2 oldPose = keyframeEstimates_.at<gtsam::Pose2>(previousPoseSymbol);
+    gtsam::Pose2 oldPose = result.at<gtsam::Pose2>(previousKeyframeSymbol);
     gtsam::Pose2 newPose = result.at<gtsam::Pose2>(currentPoseSymbol);
 
     // Compare them 
     double poseJump = computePoseDelta(oldPose, newPose);
 
-    // Decide if jump is "too big"
-    if (poseJump > jumpCombinedThreshold) {
-        ROS_WARN("Large pose jump detected (%.3f). Reverting to odometry or previous estimate for this step!", poseJump);
-        result.update(currentPoseSymbol, oldPose);
-        ROS_WARN("Discarding the newly optimized solution and trusting the old estimate.");
-    } else {
+    if (index_of_pose < outlierRemovalStartIndex_) {
+        ROS_INFO("Skipping outlier removal check until we reach step %d.", outlierRemovalStartIndex_);
         keyframeEstimates_ = result;
-        
-        // Optionally prune the graph if using that logic
-        if (useprunebysize) {
-            pruneGraphByPoseCount(maxfactors);
+    } else {        
+        if (poseJump > jumpCombinedThreshold) {
+            ROS_WARN("Large pose jump detected (%.3f). Reverting to odometry or previous estimate for this step!", poseJump);
+            result = keyframeEstimates_;
+            ROS_WARN("Discarding the newly optimized solution and trusting the old estimate.");
+        } else {
+            keyframeEstimates_ = result;
+            
+            // Optionally prune the graph if using that logic
+            if (useprunebysize) {
+                pruneGraphByPoseCount(maxfactors);
+            }
+            ROS_INFO("Optimization accepted. Pose jump=%.3f is within threshold.", poseJump);
         }
-        ROS_INFO("Optimization accepted. Pose jump=%.3f is within threshold.", poseJump);
     }
+    previousframeSymbol = index_of_pose;
 }
+
+// void aprilslamcpp::SAMOptimise() {    
+//     // Perform batch optimization using Levenberg-Marquardt optimizer
+//     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
+//     gtsam::Values result = batchOptimizer.optimize();
+
+//     // Update keyframeEstimates_ with the optimized values for the next iteration
+//     keyframeEstimates_ = result;
+
+//     // Prune the graph based on the number of poses
+//     if (useprunebysize) {
+//     pruneGraphByPoseCount(maxfactors);
+//     }
+// }
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
     if (useloopclosure) {
@@ -746,7 +763,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         }
          
         // Update the last pose and initial estimates for the next iteration
-        lastPose_ = predictedPose;
+        // lastPose_ = predictedPose;
         landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
 
         // Iterate through all landmark detected IDs
@@ -773,7 +790,8 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
             elapsed = (end_loop - start_loop).toSec();
             ROS_INFO("optimisation: %f seconds", elapsed);
         }
-    
+        lastPose_ = keyframeEstimates_.at<gtsam::Pose2>(currentKeyframeSymbol);
+
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);  
     checkLoopClosure(detectedLandmarksCurrentPos);
@@ -783,6 +801,12 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
     else{
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
+    // Smooth the trajectory
+    // if (index_of_pose >= 20) {
+    //     smoothTrajectory(5);
+    // } else {
+    //     ROS_WARN("Skipping trajectory smoothing: only %d keyframes available.", index_of_pose);
+    // }
     // Publish path, landmarks, and odometry for visulisation
     publishRefinedOdom(odom_traj_pub_, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame, refined_odom_csv);
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, map_frame_id);
