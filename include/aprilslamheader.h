@@ -42,7 +42,7 @@ public:
     void initializeGTSAM(); // Method to initialize GTSAM components
     gtsam::Pose2 translateOdomMsg(const nav_msgs::Odometry::ConstPtr& msg); // Removed redundant class scope
     void ISAM2Optimise(); //ISAM optimiser
-    void SAMOptimise(); //SAM optimiser
+    gtsam::Values SAMOptimise(); //SAM optimiser
     bool movementExceedsThreshold(const gtsam::Pose2& poseSE2);
     void initializeFirstPose(const gtsam::Pose2& poseSE2, gtsam::Pose2& pose0);
     gtsam::Pose2 predictNextPose(const gtsam::Pose2& poseSE2);
@@ -177,6 +177,7 @@ private:
     double jumpCombinedThreshold;
     int outlierRemovalStartIndex_;
     gtsam::Symbol previousframeSymbol;
+    gtsam::Pose2 lastPose_for_jump;
     };
 } 
 

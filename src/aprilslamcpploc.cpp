@@ -103,7 +103,7 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     // Load outlier removal conditons
     nh_.param("max_optimisation_translation", jumpTranslationThreshold, 1.5); // meters
     nh_.param("max_optimisation_rotation", jumpRotationThreshold, 1.0); // radians
-    nh_.param("max_optimisation_jump", jumpCombinedThreshold, 5.0); 
+    nh_.param("max_optimisation_jump", jumpCombinedThreshold, 1.0); 
     nh_.param("outlier_removal_start_index", outlierRemovalStartIndex_, 20); // e.g. 10 timesteps
     
     // save localisation result
@@ -164,19 +164,19 @@ aprilslamcpp::aprilslamcpp(ros::NodeHandle node_handle)
     odom_traj_pub_ = nh_.advertise<nav_msgs::Odometry>("/odom_tag", 1, true);
 }
 
-double aprilslamcpp::computePoseDelta(const gtsam::Pose2& oldPose, const gtsam::Pose2& newPose) {
+double aprilslamcpp::computePoseDelta(const gtsam::Pose2& oldPose, const gtsam::Pose2& newPose){
     double dx = newPose.x() - oldPose.x();
     double dy = newPose.y() - oldPose.y();
-    double dTrans = std::sqrt(dx * dx + dy * dy);
 
-    double dTheta = newPose.theta() - oldPose.theta();
-    // Normalise angle to [-pi, pi]
-    dTheta = wrapToPi(dTheta);
-    double dRot = std::fabs(dTheta);
+    // Get the old heading
+    double oldTheta = oldPose.theta();
 
-    // Return a combined metric or just the translation if that is your main concern.
-    // Here we combine them in a simple additive way. Adjust as needed for your use-case.
-    return dTrans + dRot; 
+    // Project the (dx,dy) onto the axis perpendicular to oldTheta
+    // i.e. dot it with [ -sin(theta), cos(theta) ]
+    double lat = dx * (-std::sin(oldTheta)) + dy * std::cos(oldTheta);
+
+    // Return absolute value to get the magnitude of the lateral jump
+    return std::fabs(lat);
 }
 
 void aprilslamcpp::pfInitCallback(const ros::TimerEvent& event) {
@@ -277,39 +277,54 @@ void aprilslamcpp::lCamCallback(const apriltag_ros::AprilTagDetectionArray::Cons
 
 // Applies a moving average filter to smooth the trajectory
 void aprilslamcpp::smoothTrajectory(int window_size) {
-    if (Estimates_visulisation.size() < window_size) {
-        return; // Not enough data to smooth
-    }
-
-    std::vector<Eigen::Vector3d> smoothedPoses;
-    std::vector<gtsam::Symbol> keys;
-
-    // Iterate over stored keyframes instead of assuming X(id) exists
-    for (const auto& key_value : Estimates_visulisation) {
-        gtsam::Symbol key(key_value.key);
-        if (key.chr() == 'X') {
-            gtsam::Pose2 pose = key_value.value.cast<gtsam::Pose2>();
-            smoothedPoses.push_back(Eigen::Vector3d(pose.x(), pose.y(), pose.theta()));
-            keys.push_back(key);
-        }
-    }
-
-    // If fewer than required, skip smoothing
-    if (smoothedPoses.size() < window_size) {
+    // If empty, nothing to do
+    if (Estimates_visulisation.empty()) {
         return;
     }
 
-    // Compute moving average using last `window_size` poses
-    Eigen::Vector3d sum(0, 0, 0);
-    for (size_t i = smoothedPoses.size() - window_size; i < smoothedPoses.size(); ++i) {
-        sum += smoothedPoses[i];
+    // Collect all X(...) poses in a vector
+    std::vector<std::pair<gtsam::Symbol, gtsam::Pose2>> xPoses;
+    xPoses.reserve(Estimates_visulisation.size()); // minor optimization
+
+    for (const auto& key_value : Estimates_visulisation) {
+        gtsam::Symbol key(key_value.key);
+        if (key.chr() == 'X') {
+            // Convert the stored value to Pose2
+            gtsam::Pose2 pose = key_value.value.cast<gtsam::Pose2>();
+            xPoses.emplace_back(key, pose);
+        }
     }
 
-    Eigen::Vector3d avg = sum / window_size;
-    gtsam::Pose2 smoothedPose(avg.x(), avg.y(), wrapToPi(avg.z()));
+    // If fewer than window_size, skip smoothing
+    if (xPoses.size() < static_cast<size_t>(window_size)) {
+        return;
+    }
 
-    // Update last pose with smoothed pose
-    gtsam::Symbol lastKey = keys.back();
+    // Sort by Symbol index so we know which one is "last"
+    std::sort(xPoses.begin(), xPoses.end(),
+              [](const auto& a, const auto& b) {
+                  return a.first.index() < b.first.index();
+              });
+
+    // Sum up the y-coordinates from the last `window_size` poses
+    double sumY = 0.0;
+    for (size_t i = xPoses.size() - window_size; i < xPoses.size(); ++i) {
+        sumY += xPoses[i].second.y();
+    }
+
+    // Compute the average y
+    double avgY = sumY / window_size;
+
+    // Grab the final pose's x and theta exactly as-is
+    gtsam::Pose2 lastPose = xPoses.back().second;    // the last stored pose
+    double keepX = lastPose.x();                     // keep old x 
+    double keepTheta = lastPose.theta();             // no smoothing for orientation
+
+    // Construct a "smoothed" pose for the last key
+    gtsam::Pose2 smoothedPose(keepX, avgY, keepTheta);
+
+    // Overwrite the last pose in the values with our new partial-smooth version
+    gtsam::Symbol lastKey = xPoses.back().first;
     if (Estimates_visulisation.exists(lastKey)) {
         Estimates_visulisation.update(lastKey, smoothedPose);
     }
@@ -454,55 +469,12 @@ void aprilslamcpp::ISAM2Optimise() {
     keyframeGraph_.resize(0);
 }
 
-void aprilslamcpp::SAMOptimise() {
-    // Perform optimization
+gtsam::Values aprilslamcpp::SAMOptimise() {    
+    // Perform batch optimization using Levenberg-Marquardt optimizer
     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     gtsam::Values result = batchOptimizer.optimize();
-
-    // Retrieve CURRENT pose
-    gtsam::Symbol currentPoseSymbol('X', index_of_pose);
-
-    // Retrieve estimate before and after optimisation
-    gtsam::Pose2 oldPose = result.at<gtsam::Pose2>(previousKeyframeSymbol);
-    gtsam::Pose2 newPose = result.at<gtsam::Pose2>(currentPoseSymbol);
-
-    // Compare them 
-    double poseJump = computePoseDelta(oldPose, newPose);
-
-    if (index_of_pose < outlierRemovalStartIndex_) {
-        ROS_INFO("Skipping outlier removal check until we reach step %d.", outlierRemovalStartIndex_);
-        keyframeEstimates_ = result;
-    } else {        
-        if (poseJump > jumpCombinedThreshold) {
-            ROS_WARN("Large pose jump detected (%.3f). Reverting to odometry or previous estimate for this step!", poseJump);
-            result = keyframeEstimates_;
-            ROS_WARN("Discarding the newly optimized solution and trusting the old estimate.");
-        } else {
-            keyframeEstimates_ = result;
-            
-            // Optionally prune the graph if using that logic
-            if (useprunebysize) {
-                pruneGraphByPoseCount(maxfactors);
-            }
-            ROS_INFO("Optimization accepted. Pose jump=%.3f is within threshold.", poseJump);
-        }
-    }
-    previousframeSymbol = index_of_pose;
+    return result;
 }
-
-// void aprilslamcpp::SAMOptimise() {    
-//     // Perform batch optimization using Levenberg-Marquardt optimizer
-//     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
-//     gtsam::Values result = batchOptimizer.optimize();
-
-//     // Update keyframeEstimates_ with the optimized values for the next iteration
-//     keyframeEstimates_ = result;
-
-//     // Prune the graph based on the number of poses
-//     if (useprunebysize) {
-//     pruneGraphByPoseCount(maxfactors);
-//     }
-// }
 
 void aprilslamcpp::checkLoopClosure(const std::set<gtsam::Symbol>& detectedLandmarksCurrentPos) {
     if (useloopclosure) {
@@ -563,6 +535,7 @@ void aprilslam::aprilslamcpp::initializeFirstPose(const gtsam::Pose2& poseSE2, g
     keyframeEstimates_.insert(gtsam::Symbol('X', 1), pose0);
     Estimates_visulisation.insert(gtsam::Symbol('X', 1), pose0);
     lastPose_ = pose0; // Keep track of the last pose for odolandmarkKeymetry calculation
+    lastPose_for_jump = pose0; // For outlier removal
     // Load calibrated landmarks as priors if available
     if (usepriortagtable) {
         for (const auto& landmark : savedLandmarks) {
@@ -589,6 +562,9 @@ void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
     gtsam::Pose2 newPose = Estimates_visulisation.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose - 1)).compose(odometry);
     Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), newPose);
     lastPoseSE2_vis = poseSE2;
+    ROS_INFO_STREAM("key:,  X(" << index_of_pose << ") = [x=" 
+        << newPose.x() << ", y=" << newPose.y() 
+        << ", theta=" << newPose.theta() << "]");
 }
 
 void aprilslam::aprilslamcpp::generate2bePublished() {
@@ -763,7 +739,7 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         }
          
         // Update the last pose and initial estimates for the next iteration
-        // lastPose_ = predictedPose;
+        lastPose_ = predictedPose;
         landmarkEstimates.insert(gtsam::Symbol('X', index_of_pose), predictedPose);
 
         // Iterate through all landmark detected IDs
@@ -779,21 +755,62 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         // Loging for optimisation time
         end_loop = ros::WallTime::now();
         elapsed = (end_loop - start_loop).toSec();
-        // ROS_INFO("transform total: %f seconds", elapsed);
-        lastPoseSE2_ = poseSE2;
+
         start_loop = ros::WallTime::now();
         // ROS_INFO("number of timesteps: %d", index_of_pose);
         if (index_of_pose % 1 == 0) {
             if (useisam2) {ISAM2Optimise();}
-            else {SAMOptimise();}
+            else {gtsam::Values result = SAMOptimise();
+
+                // Retrieve CURRENT optimised pose
+                gtsam::Symbol currentPoseSymbol('X', index_of_pose);
+                gtsam::Pose2 newPose = result.at<gtsam::Pose2>(currentPoseSymbol);
+
+                // Retrieve estimate before current
+                gtsam::Pose2 oldPose = lastPose_for_jump;
+
+                // Compute jumps 
+                double poseJump = computePoseDelta(oldPose, newPose);
+
+                if (index_of_pose < outlierRemovalStartIndex_) {
+                    keyframeEstimates_ = result;
+                } else {        
+                    if (poseJump > jumpCombinedThreshold) {
+                    
+                        // 1. Print the existing pose before the update
+                        gtsam::Pose2 oldPose = keyframeEstimates_.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose));
+                    
+                        // 2. Compute the pose we want to revert to
+                        gtsam::Pose2 odometry = relPoseFG(lastPoseSE2_, poseSE2);
+                        gtsam::Pose2 newPose = lastPose_for_jump.compose(odometry);
+                    
+                        // 3. Update the keyframeEstimates_ with the new pose
+                        keyframeEstimates_.update(gtsam::Symbol('X', index_of_pose), newPose);
+                    
+                        // 4. Print the newly updated pose
+                        gtsam::Pose2 retrievedPose = keyframeEstimates_.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose));
+
+                    } else {
+                        keyframeEstimates_ = result;
+                        if (useprunebysize) {
+                            pruneGraphByPoseCount(maxfactors);
+                        }
+                    }
+                }  
+            }
             end_loop = ros::WallTime::now();
             elapsed = (end_loop - start_loop).toSec();
             ROS_INFO("optimisation: %f seconds", elapsed);
         }
-        lastPose_ = keyframeEstimates_.at<gtsam::Pose2>(currentKeyframeSymbol);
-
+        lastPose_for_jump = keyframeEstimates_.at<gtsam::Pose2>(currentKeyframeSymbol);
+        // ROS_INFO("transform total: %f seconds", elapsed);
+        lastPoseSE2_ = poseSE2;
+        
     Key_previous_pos = predictedPose;
     previousKeyframeSymbol = gtsam::Symbol('X', index_of_pose);  
+    ROS_INFO_STREAM("key:,  X(" << index_of_pose << ") = [x=" 
+        << lastPose_for_jump.x() << ", y=" << lastPose_for_jump.y() 
+        << ", theta=" << lastPose_for_jump.theta() << "]");
     checkLoopClosure(detectedLandmarksCurrentPos);
     generate2bePublished();
     }
@@ -802,11 +819,11 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
         updateOdometryPose(poseSE2);  // Update pose without adding a keyframe
     }
     // Smooth the trajectory
-    // if (index_of_pose >= 20) {
-    //     smoothTrajectory(5);
-    // } else {
-    //     ROS_WARN("Skipping trajectory smoothing: only %d keyframes available.", index_of_pose);
-    // }
+    if (index_of_pose >= 20) {
+        smoothTrajectory(5);
+    } else {
+        ROS_WARN("Skipping trajectory smoothing: only %d keyframes available.", index_of_pose);
+    }
     // Publish path, landmarks, and odometry for visulisation
     publishRefinedOdom(odom_traj_pub_, Estimates_visulisation, index_of_pose, map_frame_id, robot_frame, refined_odom_csv);
     aprilslam::publishPath(path_pub_, Estimates_visulisation, index_of_pose, map_frame_id);

@@ -131,8 +131,10 @@ aprilslamcpp::~aprilslamcpp() {
         saveLandmarksToCSV(landmarks_unoptimised, pathtoloadlandmarkcsv);
     }
     
-    SAMOptimise();
-        // Extract landmark estimates from the result
+    gtsam::Values result = SAMOptimise();
+    keyframeEstimates_ = result;
+    
+    // Extract landmark estimates from the result
     std::map<int, gtsam::Point2> landmarks;
     for (const auto& key_value : keyframeEstimates_) {
         gtsam::Key key = key_value.key;  // Get the key
@@ -215,13 +217,11 @@ gtsam::Pose2 aprilslamcpp::translateOdomMsg(const nav_msgs::Odometry::ConstPtr& 
     return gtsam::Pose2(x, y, yaw);
 }
 
-void aprilslamcpp::SAMOptimise() {    
+gtsam::Values aprilslamcpp::SAMOptimise() {    
     // Perform batch optimization using Levenberg-Marquardt optimizer
     gtsam::LevenbergMarquardtOptimizer batchOptimizer(keyframeGraph_, keyframeEstimates_);
     gtsam::Values result = batchOptimizer.optimize();
-
-    // Update keyframeEstimates_ with the optimized values for the next iteration
-    keyframeEstimates_ = result;
+    return result;
 }
 
 // Check if movement exceeds the stationary thresholds
