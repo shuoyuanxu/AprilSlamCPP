@@ -308,20 +308,22 @@ void aprilslamcpp::smoothTrajectory(int window_size) {
 
     // Sum up the y-coordinates from the last `window_size` poses
     double sumY = 0.0;
+    double sumX = 0.0;
     for (size_t i = xPoses.size() - window_size; i < xPoses.size(); ++i) {
         sumY += xPoses[i].second.y();
+        sumX += xPoses[i].second.x();
     }
 
     // Compute the average y
     double avgY = sumY / window_size;
+    double avgX = sumX / window_size;
 
     // Grab the final pose's x and theta exactly as-is
     gtsam::Pose2 lastPose = xPoses.back().second;    // the last stored pose
-    double keepX = lastPose.x();                     // keep old x 
     double keepTheta = lastPose.theta();             // no smoothing for orientation
 
     // Construct a "smoothed" pose for the last key
-    gtsam::Pose2 smoothedPose(keepX, avgY, keepTheta);
+    gtsam::Pose2 smoothedPose(avgX, avgY, keepTheta);
 
     // Overwrite the last pose in the values with our new partial-smooth version
     gtsam::Symbol lastKey = xPoses.back().first;
