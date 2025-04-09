@@ -778,7 +778,9 @@ void aprilslam::aprilslamcpp::addOdomFactor(const nav_msgs::Odometry::ConstPtr& 
                     keyframeEstimates_ = result;
                 } else {        
                     if (poseJump > jumpCombinedThreshold) {
-                    
+                        ROS_WARN("Large pose jump detected (%.3f). Reverting to odometry or previous estimate for this step!", poseJump);
+                        ROS_WARN("Discarding the newly optimized solution and trusting the old estimate.");
+   
                         // 1. Print the existing pose before the update
                         gtsam::Pose2 oldPose = keyframeEstimates_.at<gtsam::Pose2>(gtsam::Symbol('X', index_of_pose));
                     

@@ -175,9 +175,13 @@ private:
     double jumpTranslationThreshold;
     double jumpRotationThreshold;
     double jumpCombinedThreshold;
+    int smoothingStartIndex_;
+    int smoothingwindow;
     int outlierRemovalStartIndex_;
     gtsam::Symbol previousframeSymbol;
     gtsam::Pose2 lastPose_for_jump;
+    bool useoutlierremoval;
+    bool usetrajsmoothing;
     };
 } 
 
