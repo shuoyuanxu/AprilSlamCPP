@@ -11,7 +11,7 @@ usepriortagtable: true
 batch_optimisation: true
 total_tags: 1000
 add2graph_threshold: 0.2
-maxfactors: 200 # maximum number of poses in the factor graph
+maxfactors: 100 # maximum number of poses in the factor graph
 useprunebysize: true # no point of using it with ISAM2
 useisam2: false # true for ISAM2, false for SAM
 
@@ -36,7 +36,17 @@ stationary_rotation_threshold: 0.1 # 0.1radius
 usekeyframe: false
 distanceThreshold: 0.5
 rotationThreshold: 5
-  
+
+# Outlier removal, dont use it when odometry is really bad!!!!!!
+useoutlierremoval: true
+jumpCombinedThreshold: 5.0
+outlierRemovalStartIndex_: 20 
+
+# Trajectory smooth
+usetrajsmoothing: true
+smoothingStartIndex_: 20 
+smoothingwindow: 5
+
 noise_models:
   odometry:
     - 3
@@ -62,16 +72,6 @@ camera_parameters:
   xyTrans_lcam_baselink: [0, 0, 1.57079632679]  # pi/2 in radians
   xyTrans_mcam_baselink: [0, 0, 0]
   xyTrans_rcam_baselink: [0, 0, -1.57079632679]  # -pi/2 in radians
-
-# Outlier removal
-useoutlierremoval: true
-# jumpCombinedThreshold: 1.0
-outlierRemovalStartIndex_: 20 # give it 20s to initilise before outlier removal kicks in
-
-# Trajectory smooth
-usetrajsmoothing: true
-smoothingStartIndex_: 20 # give it 20s to initilise before smoother kicks in
-smoothingwindow: 5
 
 # Camera subscribers
 camera_subscribers:
