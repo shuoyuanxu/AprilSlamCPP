@@ -444,12 +444,12 @@ void aprilslam::aprilslamcpp::updateOdometryPose(const gtsam::Pose2& poseSE2) {
     Estimates_visulisation.insert(gtsam::Symbol('X', index_of_pose), newPose);
     lastPoseSE2_vis = poseSE2;
 }
----
+```
 
 ### **10. Update with odometry only**
 
 We added outlier removal and trajectory smoothing functionality to improve the localisation. Please dont use outlier removal when odometry is super unreliable (wheel), settings can be found in the params_localisation.yaml.
----
+
 
 ## **5. How to Run**
 
